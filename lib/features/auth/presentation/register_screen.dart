@@ -6,8 +6,8 @@ import 'package:travla_customer_app/core/auth/auth_controller.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/auth/data/registration_providers.dart';
 import 'package:travla_customer_app/features/auth/domain/registration.dart';
+import 'package:travla_customer_app/features/auth/presentation/auth_widgets.dart';
 import 'package:travla_customer_app/features/auth/presentation/recaptcha_challenge.dart';
-import 'package:travla_customer_app/shared/widgets/travla_logo.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({
@@ -31,13 +31,15 @@ class RegisterScreen extends ConsumerStatefulWidget {
 }
 
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
-  final _formKey = GlobalKey<FormState>();
+  final _identityKey = GlobalKey<FormState>();
+  final _securityKey = GlobalKey<FormState>();
   final _firstName = TextEditingController();
   final _lastName = TextEditingController();
   final _email = TextEditingController();
   final _phone = TextEditingController();
   final _password = TextEditingController();
   final _confirmation = TextEditingController();
+  int _step = 0;
   bool _obscurePassword = true;
   bool _obscureConfirmation = true;
   bool _submitting = false;
@@ -87,9 +89,30 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
   }
 
+  void _continueToSecurity() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    if (!(_identityKey.currentState?.validate() ?? false)) return;
+    setState(() {
+      _error = null;
+      _step = 1;
+    });
+  }
+
+  void _back() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    if (_step == 1) {
+      setState(() {
+        _error = null;
+        _step = 0;
+      });
+      return;
+    }
+    context.go('/login');
+  }
+
   Future<void> _submit(RegistrationConfig config) async {
     FocusManager.instance.primaryFocus?.unfocus();
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (!(_securityKey.currentState?.validate() ?? false)) return;
     setState(() {
       _submitting = true;
       _error = null;
@@ -108,6 +131,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           context: context,
           isScrollControlled: true,
           useSafeArea: true,
+          backgroundColor: AppColors.white,
+          showDragHandle: true,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
           builder: (_) => FractionallySizedBox(
             heightFactor: .72,
             child: RecaptchaChallenge(url: url),
@@ -131,9 +159,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           'invitation_signature': widget.signature,
         },
       };
-      if (captchaToken != null) {
-        payload['recaptcha_token'] = captchaToken;
-      }
+      if (captchaToken != null) payload['recaptcha_token'] = captchaToken;
+
       final result = await ref.read(authRepositoryProvider).register(payload);
       if (mounted) context.go('/verify-otp', extra: result);
     } on ApiFailure catch (failure) {
@@ -146,313 +173,565 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final config = ref.watch(registrationConfigProvider);
-    return Scaffold(
-      backgroundColor: AppColors.white,
-      appBar: AppBar(
-        backgroundColor: AppColors.white,
-        leading: IconButton(
-          onPressed: () => context.go('/login'),
-          icon: const Icon(Icons.arrow_back_rounded),
-        ),
-        title: const TravlaLogo(width: 116),
+    return config.when(
+      loading: () => const AuthPageScaffold(
+        title: 'Create your account',
+        subtitle: 'Checking registration availability securely.',
+        child: Center(child: CircularProgressIndicator()),
       ),
-      body: config.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, _) => _StateMessage(
+      error: (_, _) => AuthPageScaffold(
+        title: 'Unable to connect',
+        subtitle: 'Registration availability could not be checked.',
+        onBack: () => context.go('/login'),
+        child: _StateMessage(
           icon: Icons.cloud_off_rounded,
-          title: 'Unable to check registration',
           message: 'Check your connection, then try again.',
           actionLabel: 'Try again',
           onAction: () => ref.invalidate(registrationConfigProvider),
         ),
-        data: (value) {
-          if (!value.registrationsEnabled && !widget.hasInvitation) {
-            return _StateMessage(
+      ),
+      data: (value) {
+        if (!value.registrationsEnabled && !widget.hasInvitation) {
+          return AuthPageScaffold(
+            title: 'Registration opens soon',
+            subtitle:
+                'Travla is preparing for launch. Existing customers can still sign in.',
+            onBack: () => context.go('/login'),
+            child: _StateMessage(
               icon: Icons.lock_clock_rounded,
-              title: 'Registration is not open yet',
               message:
-                  'Travla is preparing for launch. Existing customers can continue to sign in.',
+                  'New public accounts are temporarily paused by the Travla administrator.',
               actionLabel: 'Go to sign in',
               onAction: () => context.go('/login'),
-            );
-          }
-          return _buildForm(value);
-        },
-      ),
+            ),
+          );
+        }
+        return _buildForm(value);
+      },
     );
   }
 
   Widget _buildForm(RegistrationConfig config) {
     if (_loadingInvitation) {
-      return const Center(child: CircularProgressIndicator());
+      return AuthPageScaffold(
+        title: 'Preparing your account',
+        subtitle: 'Bringing your ownership transfer details across securely.',
+        onBack: () => context.go('/login'),
+        child: const Center(child: CircularProgressIndicator()),
+      );
     }
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 18, 24, 36),
+
+    final title = widget.hasInvitation
+        ? 'Activate your account'
+        : _step == 0
+        ? 'Create your account'
+        : 'Secure your account';
+    final subtitle = widget.hasInvitation
+        ? 'Confirm your details, then create a password to receive your vehicle transfer.'
+        : _step == 0
+        ? 'Tell us who you are and how Travla can reach you.'
+        : 'Choose a strong password to protect your vehicle records.';
+
+    return AuthPageScaffold(
+      title: title,
+      subtitle: subtitle,
+      onBack: _back,
+      headerAccessory: _StepIndicator(step: _step + 1),
+      footer: AuthSwitch(
+        prompt: 'Already have an account?',
+        action: 'Sign in',
+        onPressed: () => context.go('/login'),
+      ),
+      child: AnimatedSize(
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (child, animation) {
+            final enteringFrom = _step == 0 ? -.05 : .05;
+            return FadeTransition(
+              opacity: animation,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: Offset(enteringFrom, 0),
+                  end: Offset.zero,
+                ).animate(animation),
+                child: child,
+              ),
+            );
+          },
+          child: _step == 0
+              ? _IdentityStep(
+                  key: const ValueKey('identity'),
+                  formKey: _identityKey,
+                  firstName: _firstName,
+                  lastName: _lastName,
+                  email: _email,
+                  phone: _phone,
+                  invitation: _invitation,
+                  error: _error,
+                  onContinue: _continueToSecurity,
+                )
+              : _SecurityStep(
+                  key: const ValueKey('security'),
+                  formKey: _securityKey,
+                  email: _email.text,
+                  phone: _phone.text,
+                  password: _password,
+                  confirmation: _confirmation,
+                  obscurePassword: _obscurePassword,
+                  obscureConfirmation: _obscureConfirmation,
+                  recaptchaEnabled: config.recaptchaEnabled,
+                  submitting: _submitting,
+                  error: _error,
+                  onEditDetails: () => setState(() => _step = 0),
+                  onTogglePassword: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
+                  onToggleConfirmation: () => setState(
+                    () => _obscureConfirmation = !_obscureConfirmation,
+                  ),
+                  onSubmit: () => _submit(config),
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+class _IdentityStep extends StatelessWidget {
+  const _IdentityStep({
+    required this.formKey,
+    required this.firstName,
+    required this.lastName,
+    required this.email,
+    required this.phone,
+    required this.invitation,
+    required this.error,
+    required this.onContinue,
+    super.key,
+  });
+
+  final GlobalKey<FormState> formKey;
+  final TextEditingController firstName;
+  final TextEditingController lastName;
+  final TextEditingController email;
+  final TextEditingController phone;
+  final TransferInvitationPrefill? invitation;
+  final String? error;
+  final VoidCallback onContinue;
+
+  @override
+  Widget build(BuildContext context) {
+    final locksEmail = invitation?.email.isNotEmpty == true;
+    final locksPhone = invitation?.phone.isNotEmpty == true;
+
+    return AutofillGroup(
       child: Form(
-        key: _formKey,
+        key: formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              widget.hasInvitation
-                  ? 'Activate your account'
-                  : 'Create your account',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              widget.hasInvitation
-                  ? 'Your transfer details have been securely brought across. Confirm them and choose a password.'
-                  : 'Start managing your vehicles and documents in one secure place.',
-              style: const TextStyle(color: AppColors.muted, height: 1.5),
-            ),
-            if (_invitation != null) ...[
-              const SizedBox(height: 18),
-              Container(
-                padding: const EdgeInsets.all(15),
-                decoration: BoxDecoration(
-                  color: AppColors.forest50,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.forest100),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.swap_horiz_rounded,
-                      color: AppColors.forest700,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        '${_invitation!.vehicle}${_invitation!.plateNumber.isEmpty ? '' : ' • ${_invitation!.plateNumber}'}',
-                        style: const TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            if (invitation != null) ...[
+              _TransferInvitationCard(invitation: invitation!),
+              const SizedBox(height: 16),
             ],
-            const SizedBox(height: 24),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: _field(
-                    _firstName,
-                    'First name',
-                    Icons.person_outline_rounded,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _field(
-                    _lastName,
-                    'Last name',
-                    Icons.person_outline_rounded,
-                  ),
-                ),
-              ],
+            PremiumAuthField(
+              controller: firstName,
+              label: 'First name',
+              icon: Icons.person_outline_rounded,
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.givenName],
+              validator: _requiredName,
             ),
-            const SizedBox(height: 14),
-            _field(
-              _email,
-              'Email address',
-              Icons.mail_outline_rounded,
+            const SizedBox(height: 13),
+            PremiumAuthField(
+              controller: lastName,
+              label: 'Last name',
+              icon: Icons.person_outline_rounded,
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.familyName],
+              validator: _requiredName,
+            ),
+            const SizedBox(height: 13),
+            PremiumAuthField(
+              controller: email,
+              label: 'Email address',
+              icon: Icons.mail_outline_rounded,
               keyboardType: TextInputType.emailAddress,
-              readOnly:
-                  widget.hasInvitation && _invitation?.email.isNotEmpty == true,
-              validator: (value) => value == null || !value.contains('@')
-                  ? 'Enter a valid email address.'
-                  : null,
+              textInputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.email],
+              readOnly: locksEmail,
+              suffix: locksEmail ? const _LockedFieldIcon() : null,
+              validator: (value) {
+                final input = value?.trim() ?? '';
+                return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(input)
+                    ? null
+                    : 'Enter a valid email address.';
+              },
             ),
-            const SizedBox(height: 14),
-            _field(
-              _phone,
-              'Nigerian phone number',
-              Icons.phone_outlined,
+            const SizedBox(height: 13),
+            PremiumAuthField(
+              controller: phone,
+              label: 'Nigerian phone number',
+              icon: Icons.phone_outlined,
               keyboardType: TextInputType.phone,
-              readOnly:
-                  widget.hasInvitation && _invitation?.phone.isNotEmpty == true,
+              textInputAction: TextInputAction.done,
+              autofillHints: const [AutofillHints.telephoneNumber],
+              readOnly: locksPhone,
+              suffix: locksPhone ? const _LockedFieldIcon() : null,
+              onSubmitted: (_) => onContinue(),
               validator: (value) {
                 final digits = (value ?? '').replaceAll(RegExp(r'\D'), '');
-                return digits.length < 10
-                    ? 'Enter a valid Nigerian phone number.'
-                    : null;
+                return digits.length >= 10
+                    ? null
+                    : 'Enter a valid Nigerian phone number.';
               },
             ),
-            const SizedBox(height: 14),
-            _passwordField(_password, 'Password', _obscurePassword, () {
-              setState(() => _obscurePassword = !_obscurePassword);
-            }),
-            const SizedBox(height: 14),
-            _passwordField(
-              _confirmation,
-              'Confirm password',
-              _obscureConfirmation,
-              () {
-                setState(() => _obscureConfirmation = !_obscureConfirmation);
-              },
-              confirmation: true,
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Use at least 8 characters, including letters and numbers.',
-              style: TextStyle(color: AppColors.muted, fontSize: 12),
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 16),
-              _InlineMessage(_error!),
+            if (error != null) ...[
+              const SizedBox(height: 14),
+              AuthInlineMessage(message: error!),
             ],
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _submitting ? null : () => _submit(config),
-              child: _submitting
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Text(
-                      config.recaptchaEnabled
-                          ? 'Continue securely'
-                          : 'Create account',
-                    ),
-            ),
-            const SizedBox(height: 16),
-            TextButton(
-              onPressed: () => context.go('/login'),
-              child: const Text('Already have an account? Sign in'),
-            ),
+            const SizedBox(height: 22),
+            AuthPrimaryButton(label: 'Continue', onPressed: onContinue),
           ],
         ),
       ),
     );
   }
 
-  Widget _field(
-    TextEditingController controller,
-    String label,
-    IconData icon, {
-    TextInputType? keyboardType,
-    bool readOnly = false,
-    String? Function(String?)? validator,
-  }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      readOnly: readOnly,
-      textCapitalization: keyboardType == null
-          ? TextCapitalization.words
-          : TextCapitalization.none,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-        suffixIcon: readOnly
-            ? const Icon(Icons.lock_outline_rounded, size: 18)
-            : null,
+  static String? _requiredName(String? value) {
+    final input = value?.trim() ?? '';
+    return input.length >= 2 ? null : 'Enter at least 2 characters.';
+  }
+}
+
+class _SecurityStep extends StatelessWidget {
+  const _SecurityStep({
+    required this.formKey,
+    required this.email,
+    required this.phone,
+    required this.password,
+    required this.confirmation,
+    required this.obscurePassword,
+    required this.obscureConfirmation,
+    required this.recaptchaEnabled,
+    required this.submitting,
+    required this.error,
+    required this.onEditDetails,
+    required this.onTogglePassword,
+    required this.onToggleConfirmation,
+    required this.onSubmit,
+    super.key,
+  });
+
+  final GlobalKey<FormState> formKey;
+  final String email;
+  final String phone;
+  final TextEditingController password;
+  final TextEditingController confirmation;
+  final bool obscurePassword;
+  final bool obscureConfirmation;
+  final bool recaptchaEnabled;
+  final bool submitting;
+  final String? error;
+  final VoidCallback onEditDetails;
+  final VoidCallback onTogglePassword;
+  final VoidCallback onToggleConfirmation;
+  final VoidCallback onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Form(
+      key: formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _ContactSummary(email: email, phone: phone, onEdit: onEditDetails),
+          const SizedBox(height: 16),
+          PremiumAuthField(
+            controller: password,
+            label: 'Password',
+            icon: Icons.lock_outline_rounded,
+            obscureText: obscurePassword,
+            textInputAction: TextInputAction.next,
+            autofillHints: const [AutofillHints.newPassword],
+            suffix: _VisibilityButton(
+              obscure: obscurePassword,
+              onPressed: onTogglePassword,
+            ),
+            validator: _passwordValidator,
+          ),
+          const SizedBox(height: 13),
+          PremiumAuthField(
+            controller: confirmation,
+            label: 'Confirm password',
+            icon: Icons.lock_reset_rounded,
+            obscureText: obscureConfirmation,
+            textInputAction: TextInputAction.done,
+            autofillHints: const [AutofillHints.newPassword],
+            suffix: _VisibilityButton(
+              obscure: obscureConfirmation,
+              onPressed: onToggleConfirmation,
+            ),
+            onSubmitted: (_) => onSubmit(),
+            validator: (value) {
+              final baseError = _passwordValidator(value);
+              if (baseError != null) return baseError;
+              return value == password.text ? null : 'Passwords do not match.';
+            },
+          ),
+          const SizedBox(height: 11),
+          const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: EdgeInsets.only(top: 2),
+                child: Icon(
+                  Icons.shield_outlined,
+                  size: 16,
+                  color: AppColors.forest600,
+                ),
+              ),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Use at least 8 characters with letters and numbers.',
+                  style: TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 12,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (error != null) ...[
+            const SizedBox(height: 14),
+            AuthInlineMessage(message: error!),
+          ],
+          const SizedBox(height: 22),
+          AuthPrimaryButton(
+            label: recaptchaEnabled ? 'Continue securely' : 'Create account',
+            loading: submitting,
+            onPressed: submitting ? null : onSubmit,
+          ),
+          if (recaptchaEnabled) ...[
+            const SizedBox(height: 11),
+            const Text(
+              'A quick security check will open before your account is created.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.muted, fontSize: 11),
+            ),
+          ],
+        ],
       ),
-      validator:
-          validator ??
-          (value) => (value?.trim().isEmpty ?? true) ? 'Required.' : null,
     );
   }
 
-  Widget _passwordField(
-    TextEditingController controller,
-    String label,
-    bool obscure,
-    VoidCallback toggle, {
-    bool confirmation = false,
-  }) {
-    return TextFormField(
-      controller: controller,
-      obscureText: obscure,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: const Icon(Icons.lock_outline_rounded),
-        suffixIcon: IconButton(
-          onPressed: toggle,
-          icon: Icon(
-            obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-          ),
+  static String? _passwordValidator(String? value) {
+    final input = value ?? '';
+    if (input.length < 8 ||
+        !input.contains(RegExp(r'[A-Za-z]')) ||
+        !input.contains(RegExp(r'\d'))) {
+      return 'Use 8+ characters with letters and numbers.';
+    }
+    return null;
+  }
+}
+
+class _StepIndicator extends StatelessWidget {
+  const _StepIndicator({required this.step});
+
+  final int step;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      decoration: BoxDecoration(
+        color: AppColors.white.withValues(alpha: .82),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE5E3DB)),
+      ),
+      child: Text(
+        '$step of 2',
+        style: const TextStyle(
+          color: AppColors.forest700,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
         ),
       ),
-      validator: (value) {
-        if (value == null ||
-            value.length < 8 ||
-            !value.contains(RegExp(r'[A-Za-z]')) ||
-            !value.contains(RegExp(r'\d'))) {
-          return 'Use 8+ letters and numbers.';
-        }
-        if (confirmation && value != _password.text) {
-          return 'Passwords do not match.';
-        }
-        return null;
-      },
     );
   }
 }
 
-class _InlineMessage extends StatelessWidget {
-  const _InlineMessage(this.message);
-  final String message;
+class _ContactSummary extends StatelessWidget {
+  const _ContactSummary({
+    required this.email,
+    required this.phone,
+    required this.onEdit,
+  });
+
+  final String email;
+  final String phone;
+  final VoidCallback onEdit;
+
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      color: const Color(0xFFFFF1F0),
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Text(
-      message,
-      style: const TextStyle(
-        color: AppColors.danger,
-        fontWeight: FontWeight.w600,
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(15, 12, 8, 12),
+      decoration: BoxDecoration(
+        color: AppColors.forest50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.forest100),
       ),
-    ),
-  );
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle_rounded, color: AppColors.forest600),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  email,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  phone,
+                  style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          TextButton(onPressed: onEdit, child: const Text('Edit')),
+        ],
+      ),
+    );
+  }
+}
+
+class _TransferInvitationCard extends StatelessWidget {
+  const _TransferInvitationCard({required this.invitation});
+
+  final TransferInvitationPrefill invitation;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: AppColors.orangeSoft,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFFC9B7)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.swap_horiz_rounded, color: AppColors.orangeDark),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Ownership transfer ready',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${invitation.vehicle}${invitation.plateNumber.isEmpty ? '' : ' • ${invitation.plateNumber}'}',
+                  style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VisibilityButton extends StatelessWidget {
+  const _VisibilityButton({required this.obscure, required this.onPressed});
+
+  final bool obscure;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: obscure ? 'Show password' : 'Hide password',
+      onPressed: onPressed,
+      icon: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 160),
+        child: Icon(
+          obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+          key: ValueKey(obscure),
+          color: AppColors.muted,
+          size: 21,
+        ),
+      ),
+    );
+  }
+}
+
+class _LockedFieldIcon extends StatelessWidget {
+  const _LockedFieldIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Tooltip(
+      message: 'Provided by the transfer invitation',
+      child: Icon(Icons.lock_outline_rounded, color: AppColors.muted, size: 19),
+    );
+  }
 }
 
 class _StateMessage extends StatelessWidget {
   const _StateMessage({
     required this.icon,
-    required this.title,
     required this.message,
     required this.actionLabel,
     required this.onAction,
   });
+
   final IconData icon;
-  final String title;
   final String message;
   final String actionLabel;
   final VoidCallback onAction;
+
   @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(28),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 42, color: AppColors.forest700),
-          const SizedBox(height: 18),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineSmall,
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: 62,
+          height: 62,
+          decoration: const BoxDecoration(
+            color: AppColors.forest50,
+            shape: BoxShape.circle,
           ),
-          const SizedBox(height: 10),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.muted, height: 1.5),
-          ),
-          const SizedBox(height: 24),
-          FilledButton(onPressed: onAction, child: Text(actionLabel)),
-        ],
-      ),
-    ),
-  );
+          child: Icon(icon, color: AppColors.forest700, size: 29),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: AppColors.muted, height: 1.5),
+        ),
+        const SizedBox(height: 22),
+        AuthPrimaryButton(label: actionLabel, onPressed: onAction),
+      ],
+    );
+  }
 }
