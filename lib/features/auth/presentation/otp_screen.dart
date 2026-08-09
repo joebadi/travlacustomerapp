@@ -193,7 +193,7 @@ class _OtpCodeInput extends StatelessWidget {
                 return Expanded(
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 180),
-                    height: 62,
+                    height: 54,
                     margin: EdgeInsets.only(right: index == 5 ? 0 : 7),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(

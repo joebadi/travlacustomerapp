@@ -39,9 +39,9 @@ class CustomerShell extends StatelessWidget {
               label: 'Journeys',
             ),
             NavigationDestination(
-              icon: Icon(Icons.storefront_outlined),
-              selectedIcon: Icon(Icons.storefront_rounded),
-              label: 'Marketplace',
+              icon: Icon(Icons.newspaper_outlined),
+              selectedIcon: Icon(Icons.newspaper_rounded),
+              label: 'News',
             ),
             NavigationDestination(
               icon: Icon(Icons.grid_view_outlined),

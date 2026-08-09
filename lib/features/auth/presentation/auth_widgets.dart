@@ -41,7 +41,7 @@ class AuthPageScaffold extends StatelessWidget {
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final horizontal = constraints.maxWidth >= 600 ? 32.0 : 22.0;
+              final horizontal = constraints.maxWidth >= 600 ? 28.0 : 20.0;
               return SingleChildScrollView(
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
@@ -62,7 +62,7 @@ class AuthPageScaffold extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           SizedBox(
-                            height: 48,
+                            height: 44,
                             child: Stack(
                               alignment: Alignment.center,
                               children: [
@@ -79,11 +79,11 @@ class AuthPageScaffold extends StatelessWidget {
                               ],
                             ),
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 8),
                           const AuthReveal(
                             child: Center(child: TravlaAuthMark()),
                           ),
-                          const SizedBox(height: 18),
+                          const SizedBox(height: 14),
                           AuthReveal(
                             delay: const Duration(milliseconds: 70),
                             child: Text(
@@ -91,6 +91,7 @@ class AuthPageScaffold extends StatelessWidget {
                               textAlign: TextAlign.center,
                               style: Theme.of(context).textTheme.headlineMedium
                                   ?.copyWith(
+                                    fontSize: 24,
                                     color: AppColors.ink,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: -.7,
@@ -106,18 +107,18 @@ class AuthPageScaffold extends StatelessWidget {
                               style: const TextStyle(
                                 color: AppColors.muted,
                                 height: 1.5,
-                                fontSize: 14,
+                                fontSize: 13,
                               ),
                             ),
                           ),
-                          const SizedBox(height: 30),
+                          const SizedBox(height: 22),
                           AuthReveal(
                             delay: const Duration(milliseconds: 170),
                             offset: const Offset(0, .025),
                             child: child,
                           ),
                           if (footer != null) ...[
-                            const SizedBox(height: 28),
+                            const SizedBox(height: 20),
                             AuthReveal(
                               delay: const Duration(milliseconds: 240),
                               child: footer!,
@@ -138,7 +139,7 @@ class AuthPageScaffold extends StatelessWidget {
 }
 
 class TravlaAuthMark extends StatelessWidget {
-  const TravlaAuthMark({this.size = 74, super.key});
+  const TravlaAuthMark({this.size = 64, super.key});
 
   final double size;
 
@@ -150,7 +151,7 @@ class TravlaAuthMark extends StatelessWidget {
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(21),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFE9E6DC)),
         boxShadow: const [
           BoxShadow(
@@ -161,7 +162,7 @@ class TravlaAuthMark extends StatelessWidget {
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(17),
+        borderRadius: BorderRadius.circular(14),
         child: Image.asset(
           'assets/icon/travla-app-icon-foreground.png',
           fit: BoxFit.cover,
@@ -274,7 +275,7 @@ class _PremiumAuthFieldState extends State<PremiumAuthField> {
       curve: Curves.easeOutCubic,
       decoration: BoxDecoration(
         color: widget.readOnly ? const Color(0xFFF2F3EF) : AppColors.white,
-        borderRadius: BorderRadius.circular(17),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: focused ? AppColors.forest600 : const Color(0xFFD9DED9),
           width: focused ? 1.6 : 1,
@@ -311,7 +312,7 @@ class _PremiumAuthFieldState extends State<PremiumAuthField> {
         cursorColor: AppColors.forest600,
         style: const TextStyle(
           color: AppColors.ink,
-          fontSize: 15,
+          fontSize: 14,
           fontWeight: FontWeight.w600,
         ),
         decoration: InputDecoration(
@@ -337,7 +338,7 @@ class _PremiumAuthFieldState extends State<PremiumAuthField> {
           filled: false,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 15,
-            vertical: 18,
+            vertical: 14,
           ),
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
@@ -388,14 +389,14 @@ class _AuthPrimaryButtonState extends State<AuthPrimaryButton> {
         onTapCancel: enabled ? () => setState(() => _pressed = false) : null,
         onTapUp: enabled ? (_) => setState(() => _pressed = false) : null,
         child: SizedBox(
-          height: 58,
+          height: 52,
           child: FilledButton(
             onPressed: enabled ? widget.onPressed : null,
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.forest600,
               disabledBackgroundColor: AppColors.forest100,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(14),
               ),
               elevation: 0,
             ),
@@ -419,7 +420,7 @@ class _AuthPrimaryButtonState extends State<AuthPrimaryButton> {
                         Text(
                           widget.label,
                           style: const TextStyle(
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: FontWeight.w800,
                           ),
                         ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/auth/auth_controller.dart';
 
@@ -62,6 +63,12 @@ class MoreScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
           const _GroupLabel('SERVICES & RECORDS'),
+          _MoreTile(
+            icon: Icons.storefront_outlined,
+            title: 'Marketplace',
+            subtitle: 'Buy, sell and manage vehicle offers',
+            onTap: () => context.go('/more/marketplace'),
+          ),
           const _MoreTile(
             icon: Icons.description_outlined,
             title: 'Renewals & registrations',
@@ -156,18 +163,21 @@ class _MoreTile extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
+    this.onTap,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        enabled: false,
+        enabled: onTap != null,
+        onTap: onTap,
         leading: Icon(icon, color: AppColors.forest700),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
         subtitle: Text(subtitle, style: const TextStyle(fontSize: 11)),

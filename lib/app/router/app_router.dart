@@ -12,6 +12,8 @@ import 'package:travla_customer_app/features/home/presentation/home_screen.dart'
 import 'package:travla_customer_app/features/journeys/presentation/journeys_screen.dart';
 import 'package:travla_customer_app/features/marketplace/presentation/marketplace_screen.dart';
 import 'package:travla_customer_app/features/more/presentation/more_screen.dart';
+import 'package:travla_customer_app/features/news/presentation/news_article_screen.dart';
+import 'package:travla_customer_app/features/news/presentation/news_screen.dart';
 import 'package:travla_customer_app/features/onboarding/presentation/onboarding_screen.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/add_existing_vehicle_screen.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/vehicles_screen.dart';
@@ -118,8 +120,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/marketplace',
-                builder: (context, state) => const MarketplaceScreen(),
+                path: '/news',
+                builder: (context, state) => const NewsScreen(),
+                routes: [
+                  GoRoute(
+                    path: ':slug',
+                    builder: (context, state) => NewsArticleScreen(
+                      slug: state.pathParameters['slug'] ?? '',
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -128,6 +138,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/more',
                 builder: (context, state) => const MoreScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'marketplace',
+                    builder: (context, state) => const MarketplaceScreen(),
+                  ),
+                ],
               ),
             ],
           ),

@@ -167,7 +167,7 @@ class HomeScreen extends ConsumerWidget {
                     _QuickAccess(
                       icon: Icons.storefront_outlined,
                       label: 'Marketplace',
-                      onTap: () => context.go('/marketplace'),
+                      onTap: () => context.go('/more/marketplace'),
                     ),
                   ],
                 ),
