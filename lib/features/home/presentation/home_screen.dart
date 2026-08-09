@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/auth/auth_controller.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
+import 'package:travla_customer_app/features/home/presentation/dashboard_header_actions.dart';
 import 'package:travla_customer_app/features/vehicles/data/garage_repository.dart';
 import 'package:travla_customer_app/features/vehicles/domain/garage_snapshot.dart';
 import 'package:travla_customer_app/shared/widgets/section_heading.dart';
@@ -43,25 +44,7 @@ class HomeScreen extends ConsumerWidget {
                     children: [
                       const TravlaLogo(onDark: true, width: 124),
                       const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 11,
-                          vertical: 7,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: .1),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Text(
-                          'CUSTOMER',
-                          style: TextStyle(
-                            color: AppColors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: .8,
-                          ),
-                        ),
-                      ),
+                      const DashboardHeaderActions(),
                     ],
                   ),
                   const SizedBox(height: 30),
