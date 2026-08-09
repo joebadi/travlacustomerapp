@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/auth/auth_controller.dart';
+import 'package:travla_customer_app/features/auth/data/registration_providers.dart';
+import 'package:travla_customer_app/features/auth/domain/registration.dart';
 import 'package:travla_customer_app/shared/widgets/travla_logo.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -12,177 +15,221 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _obscurePassword = true;
+  final _key = GlobalKey<FormState>();
+  final _email = TextEditingController();
+  final _password = TextEditingController();
+  bool _obscure = true;
 
   @override
   void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
+    _email.dispose();
+    _password.dispose();
     super.dispose();
   }
 
-  Future<void> _submit() async {
+  Future<void> _login() async {
     FocusManager.instance.primaryFocus?.unfocus();
-    ref.read(authControllerProvider.notifier).clearError();
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-
+    if (!(_key.currentState?.validate() ?? false)) return;
     await ref
         .read(authControllerProvider.notifier)
-        .login(
-          email: _emailController.text,
-          password: _passwordController.text,
-        );
+        .login(email: _email.text, password: _password.text);
+    if (!mounted) return;
+    final state = ref.read(authControllerProvider);
+    if (state.verificationPhone != null) {
+      context.go(
+        '/verify-otp',
+        extra: RegistrationStart(
+          message: state.errorMessage ?? 'Verify your account.',
+          phone: state.verificationPhone!,
+          deliveryChannel: state.verificationChannel ?? 'sms',
+          destinationHint: state.verificationDestination ?? '',
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authControllerProvider);
+    final config = ref.watch(registrationConfigProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.white,
+      backgroundColor: AppColors.forest950,
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
-              child: Form(
-                key: _formKey,
-                child: AutofillGroup(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const Align(
-                        alignment: Alignment.centerLeft,
-                        child: TravlaLogo(width: 164),
+        bottom: false,
+        child: Column(
+          children: [
+            Expanded(
+              flex: 3,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 26, 24, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const TravlaLogo(onDark: true, width: 150),
+                    const Spacer(),
+                    Text(
+                      'Your vehicle life,\nconnected.',
+                      style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                        color: Colors.white,
+                        height: 1.02,
                       ),
-                      const SizedBox(height: 52),
-                      Text(
-                        'Welcome back',
-                        style: Theme.of(context).textTheme.displaySmall,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Documents, ownership, transactions and journeys in one secure account.',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: .62),
+                        height: 1.5,
                       ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Sign in to manage your vehicles, transactions and journeys.',
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: AppColors.muted,
-                          height: 1.5,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Expanded(
+              flex: 7,
+              child: Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+                ),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(24, 28, 24, 30),
+                  child: Form(
+                    key: _key,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Sign in',
+                          style: Theme.of(context).textTheme.headlineSmall,
                         ),
-                      ),
-                      const SizedBox(height: 34),
-                      TextFormField(
-                        controller: _emailController,
-                        autofillHints: const [AutofillHints.email],
-                        keyboardType: TextInputType.emailAddress,
-                        textInputAction: TextInputAction.next,
-                        autocorrect: false,
-                        decoration: const InputDecoration(
-                          labelText: 'Email address',
-                          prefixIcon: Icon(Icons.mail_outline_rounded),
+                        const SizedBox(height: 7),
+                        const Text(
+                          'Access your Travla customer account.',
+                          style: TextStyle(color: AppColors.muted),
                         ),
-                        validator: (value) {
-                          final email = value?.trim() ?? '';
-                          if (email.isEmpty) return 'Enter your email address.';
-                          if (!email.contains('@') || !email.contains('.')) {
-                            return 'Enter a valid email address.';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _passwordController,
-                        autofillHints: const [AutofillHints.password],
-                        obscureText: _obscurePassword,
-                        textInputAction: TextInputAction.done,
-                        onFieldSubmitted: (_) => _submit(),
-                        decoration: InputDecoration(
-                          labelText: 'Password',
-                          prefixIcon: const Icon(Icons.lock_outline_rounded),
-                          suffixIcon: IconButton(
-                            tooltip: _obscurePassword
-                                ? 'Show password'
-                                : 'Hide password',
-                            onPressed: () => setState(
-                              () => _obscurePassword = !_obscurePassword,
-                            ),
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined,
-                            ),
+                        const SizedBox(height: 26),
+                        TextFormField(
+                          controller: _email,
+                          keyboardType: TextInputType.emailAddress,
+                          autofillHints: const [AutofillHints.email],
+                          decoration: const InputDecoration(
+                            labelText: 'Email address',
+                            prefixIcon: Icon(Icons.mail_outline_rounded),
                           ),
+                          validator: (v) => (v == null || !v.contains('@'))
+                              ? 'Enter a valid email address.'
+                              : null,
                         ),
-                        validator: (value) => (value?.isEmpty ?? true)
-                            ? 'Enter your password.'
-                            : null,
-                      ),
-                      if (auth.errorMessage != null) ...[
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFF1F0),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFF7C7C3)),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(
-                                Icons.error_outline_rounded,
-                                size: 20,
-                                color: AppColors.danger,
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          controller: _password,
+                          obscureText: _obscure,
+                          autofillHints: const [AutofillHints.password],
+                          onFieldSubmitted: (_) => _login(),
+                          decoration: InputDecoration(
+                            labelText: 'Password',
+                            prefixIcon: const Icon(Icons.lock_outline_rounded),
+                            suffixIcon: IconButton(
+                              onPressed: () =>
+                                  setState(() => _obscure = !_obscure),
+                              icon: Icon(
+                                _obscure
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
                               ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  auth.errorMessage!,
-                                  style: const TextStyle(
-                                    color: AppColors.danger,
-                                    fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          validator: (v) => (v?.isEmpty ?? true)
+                              ? 'Enter your password.'
+                              : null,
+                        ),
+                        if (auth.errorMessage != null &&
+                            auth.verificationPhone == null) ...[
+                          const SizedBox(height: 14),
+                          _InlineError(auth.errorMessage!),
+                        ],
+                        const SizedBox(height: 22),
+                        FilledButton(
+                          onPressed: auth.isSubmitting ? null : _login,
+                          child: auth.isSubmitting
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text('Sign in securely'),
+                        ),
+                        const SizedBox(height: 22),
+                        config.when(
+                          loading: () => const Center(
+                            child: SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                          error: (_, _) => const Text(
+                            'Registration availability could not be checked.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 12,
+                            ),
+                          ),
+                          data: (value) => value.registrationsEnabled
+                              ? OutlinedButton(
+                                  onPressed: () => context.go('/register'),
+                                  style: OutlinedButton.styleFrom(
+                                    minimumSize: const Size.fromHeight(52),
+                                  ),
+                                  child: const Text('Create a Travla account'),
+                                )
+                              : const Text(
+                                  'Public registration is currently closed. Existing users can still sign in.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: AppColors.muted,
+                                    fontSize: 12,
+                                    height: 1.5,
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
                         ),
                       ],
-                      const SizedBox(height: 24),
-                      FilledButton(
-                        onPressed: auth.isSubmitting ? null : _submit,
-                        child: auth.isSubmitting
-                            ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.4,
-                                  color: AppColors.white,
-                                ),
-                              )
-                            : const Text('Sign in securely'),
-                      ),
-                      const SizedBox(height: 24),
-                      const Text(
-                        'Public registration is currently closed. Invited transfer recipients will be able to activate their account from their secure invitation link.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: AppColors.muted,
-                          fontSize: 12,
-                          height: 1.5,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
+}
+
+class _InlineError extends StatelessWidget {
+  const _InlineError(this.message);
+  final String message;
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(13),
+    decoration: BoxDecoration(
+      color: const Color(0xFFFFF1F0),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Text(
+      message,
+      style: const TextStyle(
+        color: AppColors.danger,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+  );
 }

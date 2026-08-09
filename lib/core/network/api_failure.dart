@@ -1,10 +1,11 @@
 import 'package:dio/dio.dart';
 
 class ApiFailure implements Exception {
-  const ApiFailure(this.message, {this.statusCode});
+  const ApiFailure(this.message, {this.statusCode, this.details = const {}});
 
   final String message;
   final int? statusCode;
+  final Map<String, dynamic> details;
 
   factory ApiFailure.fromDio(DioException exception) {
     final response = exception.response;
@@ -18,6 +19,7 @@ class ApiFailure implements Exception {
             return ApiFailure(
               value.first as String,
               statusCode: response?.statusCode,
+              details: payload,
             );
           }
         }
@@ -25,7 +27,11 @@ class ApiFailure implements Exception {
 
       final message = payload['message'];
       if (message is String && message.trim().isNotEmpty) {
-        return ApiFailure(message, statusCode: response?.statusCode);
+        return ApiFailure(
+          message,
+          statusCode: response?.statusCode,
+          details: payload,
+        );
       }
     }
 

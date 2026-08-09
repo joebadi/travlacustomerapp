@@ -4,6 +4,9 @@ import 'package:travla_customer_app/app/router/customer_shell.dart';
 import 'package:travla_customer_app/core/auth/auth_controller.dart';
 import 'package:travla_customer_app/core/config/app_launch_controller.dart';
 import 'package:travla_customer_app/features/auth/presentation/login_screen.dart';
+import 'package:travla_customer_app/features/auth/domain/registration.dart';
+import 'package:travla_customer_app/features/auth/presentation/otp_screen.dart';
+import 'package:travla_customer_app/features/auth/presentation/register_screen.dart';
 import 'package:travla_customer_app/features/auth/presentation/splash_screen.dart';
 import 'package:travla_customer_app/features/home/presentation/home_screen.dart';
 import 'package:travla_customer_app/features/journeys/presentation/journeys_screen.dart';
@@ -25,6 +28,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isSplash = location == '/splash';
       final isLogin = location == '/login';
       final isOnboarding = location == '/onboarding';
+      final isRegister = location == '/register';
+      final isOtp = location == '/verify-otp';
+      final isPublicAuth = isLogin || isRegister || isOtp;
 
       if (phase == AuthPhase.booting ||
           launchState.phase == AppLaunchPhase.loading) {
@@ -32,14 +38,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       if (phase == AuthPhase.authenticated) {
-        return isSplash || isLogin || isOnboarding ? '/home' : null;
+        return isSplash || isPublicAuth || isOnboarding ? '/home' : null;
       }
 
-      if (!launchState.onboardingCompleted) {
+      if (!launchState.onboardingCompleted && !isRegister && !isOtp) {
         return isOnboarding ? null : '/onboarding';
       }
 
-      if (phase == AuthPhase.unauthenticated) return isLogin ? null : '/login';
+      if (phase == AuthPhase.unauthenticated) {
+        return isPublicAuth ? null : '/login';
+      }
       return null;
     },
     routes: [
@@ -48,6 +56,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const SplashScreen(),
       ),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+      GoRoute(
+        path: '/register',
+        builder: (context, state) => RegisterScreen(
+          transferId:
+              state.uri.queryParameters['transfer_invitation'] ??
+              state.uri.queryParameters['transfer'],
+          expires: state.uri.queryParameters['expires'],
+          signature: state.uri.queryParameters['signature'],
+        ),
+      ),
+      GoRoute(
+        path: '/verify-otp',
+        builder: (context, state) {
+          final registration = state.extra;
+          if (registration is! RegistrationStart) return const LoginScreen();
+          return OtpScreen(registration: registration);
+        },
+      ),
       GoRoute(
         path: '/onboarding',
         builder: (context, state) => const OnboardingScreen(),
