@@ -13,6 +13,7 @@ import 'package:travla_customer_app/features/journeys/presentation/journeys_scre
 import 'package:travla_customer_app/features/marketplace/presentation/marketplace_screen.dart';
 import 'package:travla_customer_app/features/more/presentation/more_screen.dart';
 import 'package:travla_customer_app/features/onboarding/presentation/onboarding_screen.dart';
+import 'package:travla_customer_app/features/vehicles/presentation/add_existing_vehicle_screen.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/vehicles_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -96,6 +97,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/vehicles',
                 builder: (context, state) => const VehiclesScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'add-existing',
+                    builder: (context, state) =>
+                        const AddExistingVehicleScreen(),
+                  ),
+                ],
               ),
             ],
           ),

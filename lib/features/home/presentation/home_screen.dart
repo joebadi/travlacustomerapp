@@ -252,7 +252,8 @@ class _GarageOverview extends StatelessWidget {
                           ),
                           const SizedBox(height: 12),
                           TextButton.icon(
-                            onPressed: () => context.go('/vehicles'),
+                            onPressed: () =>
+                                context.go('/vehicles/add-existing'),
                             style: TextButton.styleFrom(
                               foregroundColor: AppColors.orangeDark,
                               padding: EdgeInsets.zero,
@@ -262,7 +263,7 @@ class _GarageOverview extends StatelessWidget {
                             ),
                             iconAlignment: IconAlignment.end,
                             icon: const Icon(Icons.arrow_forward, size: 18),
-                            label: const Text('Go to Vehicles'),
+                            label: const Text('Add existing vehicle'),
                           ),
                         ],
                       ),

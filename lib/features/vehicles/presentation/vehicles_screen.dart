@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/vehicles/data/garage_repository.dart';
@@ -19,7 +20,17 @@ class VehiclesScreen extends ConsumerWidget {
     final garage = ref.watch(garageProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('My Vehicles')),
+      appBar: AppBar(
+        title: const Text('My Vehicles'),
+        actions: [
+          IconButton(
+            tooltip: 'Add existing vehicle',
+            onPressed: () => context.go('/vehicles/add-existing'),
+            icon: const Icon(Icons.add_rounded),
+          ),
+          const SizedBox(width: 6),
+        ],
+      ),
       body: garage.when(
         loading: () => const _GarageLoading(),
         error: (error, stackTrace) => _GarageError(
@@ -368,9 +379,15 @@ class _EmptyGarage extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Your add-vehicle and new-registration choices will appear here in the next form milestone.',
+              'Add a vehicle that already has a plate number. New or imported vehicles use the separate registration process.',
               textAlign: TextAlign.center,
               style: TextStyle(color: AppColors.muted, height: 1.5),
+            ),
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              onPressed: () => context.go('/vehicles/add-existing'),
+              icon: const Icon(Icons.add_road_rounded),
+              label: const Text('Add existing vehicle'),
             ),
           ],
         ),
