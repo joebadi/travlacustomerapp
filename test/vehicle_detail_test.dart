@@ -152,6 +152,8 @@ void main() {
     expect(find.text('Vehicle document vault'), findsOneWidget);
     expect(find.text('Renewable papers'), findsOneWidget);
     expect(find.text('Other documents'), findsOneWidget);
+    expect(find.text('Add renewable paper'), findsOneWidget);
+    expect(find.text('Add other document'), findsOneWidget);
     expect(find.text('Vehicle Licence'), findsOneWidget);
     expect(find.text('Proof of Ownership'), findsOneWidget);
   });

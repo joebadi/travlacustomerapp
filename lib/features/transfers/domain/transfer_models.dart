@@ -347,6 +347,7 @@ class TransferVehicle {
     required this.year,
     required this.color,
     required this.plateNumber,
+    required this.isTinted,
   });
   final String id;
   final String make;
@@ -354,6 +355,7 @@ class TransferVehicle {
   final int? year;
   final String color;
   final String plateNumber;
+  final bool isTinted;
   String get displayName => '$make $model'.trim();
   factory TransferVehicle.fromJson(Map<String, dynamic> json) =>
       TransferVehicle(
@@ -363,6 +365,7 @@ class TransferVehicle {
         year: _nullableInt(json['year']),
         color: json['color']?.toString() ?? '',
         plateNumber: json['plate_number']?.toString() ?? '',
+        isTinted: json['is_tinted'] == true,
       );
 }
 

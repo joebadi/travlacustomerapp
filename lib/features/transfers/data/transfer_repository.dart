@@ -91,6 +91,23 @@ class TransferRepository {
   Future<void> resendConsent(String transferId) =>
       _postAction('/transfers/$transferId/resend-consent');
 
+  Future<void> uploadCorrectionsAndResubmit(
+    String transferId,
+    List<TransferEvidenceUpload> evidence,
+  ) async {
+    final form = FormData();
+    await _appendEvidence(form, evidence);
+    try {
+      await _apiClient.dio.post<void>(
+        '/transfers/$transferId/documents',
+        data: form,
+      );
+      await _apiClient.dio.post<void>('/transfers/$transferId/submit-review');
+    } on DioException catch (exception) {
+      throw ApiFailure.fromDio(exception);
+    }
+  }
+
   Future<void> _postAction(String path, {Map<String, dynamic>? data}) async {
     try {
       await _apiClient.dio.post<void>(path, data: data);
@@ -154,38 +171,7 @@ class TransferRepository {
     for (final entry in payload.entries) {
       form.fields.add(MapEntry(entry.key, entry.value.toString()));
     }
-    for (final item in evidence) {
-      form.files.add(
-        MapEntry(
-          'documents[${item.key}]',
-          await MultipartFile.fromFile(item.path, filename: item.name),
-        ),
-      );
-      if (item.documentNumber.trim().isNotEmpty) {
-        form.fields.add(
-          MapEntry(
-            'document_metadata[${item.key}][document_number]',
-            item.documentNumber.trim(),
-          ),
-        );
-      }
-      if (item.issuer.trim().isNotEmpty) {
-        form.fields.add(
-          MapEntry(
-            'document_metadata[${item.key}][issuer]',
-            item.issuer.trim(),
-          ),
-        );
-      }
-      if (item.issueDate != null) {
-        form.fields.add(
-          MapEntry(
-            'document_metadata[${item.key}][issue_date]',
-            _apiDate(item.issueDate!),
-          ),
-        );
-      }
-    }
+    await _appendEvidence(form, evidence);
     try {
       final response = await _apiClient.dio.post<Map<String, dynamic>>(
         '/transfers',
@@ -200,6 +186,41 @@ class TransferRepository {
       return id;
     } on DioException catch (exception) {
       throw ApiFailure.fromDio(exception);
+    }
+  }
+}
+
+Future<void> _appendEvidence(
+  FormData form,
+  Iterable<TransferEvidenceUpload> evidence,
+) async {
+  for (final item in evidence) {
+    form.files.add(
+      MapEntry(
+        'documents[${item.key}]',
+        await MultipartFile.fromFile(item.path, filename: item.name),
+      ),
+    );
+    if (item.documentNumber.trim().isNotEmpty) {
+      form.fields.add(
+        MapEntry(
+          'document_metadata[${item.key}][document_number]',
+          item.documentNumber.trim(),
+        ),
+      );
+    }
+    if (item.issuer.trim().isNotEmpty) {
+      form.fields.add(
+        MapEntry('document_metadata[${item.key}][issuer]', item.issuer.trim()),
+      );
+    }
+    if (item.issueDate != null) {
+      form.fields.add(
+        MapEntry(
+          'document_metadata[${item.key}][issue_date]',
+          _apiDate(item.issueDate!),
+        ),
+      );
     }
   }
 }

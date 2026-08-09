@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
@@ -6,6 +7,7 @@ import 'package:travla_customer_app/features/marketplace/data/marketplace_reposi
 import 'package:travla_customer_app/features/transfers/data/transfer_repository.dart';
 import 'package:travla_customer_app/features/transfers/domain/transfer_models.dart';
 import 'package:travla_customer_app/features/vehicles/data/garage_repository.dart';
+import 'package:travla_customer_app/features/vehicles/domain/vehicle_detail.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class TransferDetailScreen extends ConsumerStatefulWidget {
@@ -19,6 +21,7 @@ class TransferDetailScreen extends ConsumerStatefulWidget {
 
 class _TransferDetailScreenState extends ConsumerState<TransferDetailScreen> {
   final _otp = TextEditingController();
+  final Map<String, TransferEvidenceUpload> _corrections = {};
   bool _mutating = false;
   String? _error;
   String? _notice;
@@ -32,6 +35,7 @@ class _TransferDetailScreenState extends ConsumerState<TransferDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final transfer = ref.watch(transferDetailProvider(widget.transferId));
+    final setup = ref.watch(transferSetupProvider);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Transfer record'),
@@ -52,12 +56,12 @@ class _TransferDetailScreenState extends ConsumerState<TransferDetailScreen> {
               : 'This transfer could not be loaded.',
           onRetry: _refresh,
         ),
-        data: _content,
+        data: (record) => _content(record, setup.asData?.value),
       ),
     );
   }
 
-  Widget _content(TransferRecord transfer) {
+  Widget _content(TransferRecord transfer, TransferSetup? setup) {
     final progress = _progressFor(transfer);
     return RefreshIndicator(
       color: AppColors.forest700,
@@ -86,6 +90,30 @@ class _TransferDetailScreenState extends ConsumerState<TransferDetailScreen> {
             const SizedBox(height: 12),
           ],
           _ReviewNotice(transfer: transfer),
+          if (transfer.reviewStatus == 'NEEDS_CORRECTION' &&
+              transfer.transferMode == 'EXTERNAL_VERIFICATION' &&
+              transfer.amISender) ...[
+            const SizedBox(height: 12),
+            if (setup == null)
+              const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(18),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              )
+            else
+              _CorrectionEvidenceCard(
+                fields: setup.fieldsFor(
+                  transfer.transferBasis,
+                  tinted: transfer.vehicle?.isTinted == true,
+                ),
+                evidence: _corrections,
+                submitting: _mutating,
+                onPick: _pickCorrection,
+                onRemove: (key) => setState(() => _corrections.remove(key)),
+                onSubmit: _submitCorrections,
+              ),
+          ],
           const SizedBox(height: 12),
           _ProgressCard(progress: progress),
           const SizedBox(height: 12),
@@ -138,6 +166,212 @@ class _TransferDetailScreenState extends ConsumerState<TransferDetailScreen> {
     success: 'A fresh consent code has been queued for delivery.',
   );
 
+  Future<void> _pickCorrection(TransferDocumentField field) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['jpg', 'jpeg', 'png', 'pdf'],
+      allowMultiple: false,
+      withData: false,
+    );
+    if (!mounted || result == null || result.files.isEmpty) return;
+    final file = result.files.single;
+    if (file.path == null || file.path!.isEmpty) {
+      setState(() => _error = 'That file could not be opened on this device.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setState(() => _error = '${field.label} must be 10 MB or smaller.');
+      return;
+    }
+
+    final previous = _corrections[field.key];
+    final selected = TransferEvidenceUpload(
+      key: field.key,
+      path: file.path!,
+      name: file.name,
+      documentNumber: previous?.documentNumber ?? '',
+      issuer: previous?.issuer ?? '',
+      issueDate: previous?.issueDate,
+    );
+    if (!field.requiresMetadata) {
+      setState(() {
+        _corrections[field.key] = selected;
+        _error = null;
+      });
+      return;
+    }
+
+    final completed = await _correctionMetadata(field, selected);
+    if (!mounted || completed == null) return;
+    setState(() {
+      _corrections[field.key] = completed;
+      _error = null;
+    });
+  }
+
+  Future<TransferEvidenceUpload?> _correctionMetadata(
+    TransferDocumentField field,
+    TransferEvidenceUpload selected,
+  ) async {
+    final number = TextEditingController(text: selected.documentNumber);
+    final issuer = TextEditingController(text: selected.issuer);
+    var issueDate = selected.issueDate;
+    String? validation;
+    final result = await showModalBottomSheet<TransferEvidenceUpload>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: AppColors.canvas,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) => Padding(
+          padding: EdgeInsets.fromLTRB(
+            18,
+            18,
+            18,
+            MediaQuery.viewInsetsOf(context).bottom + 22,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  field.label,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  selected.name,
+                  style: const TextStyle(color: AppColors.muted, fontSize: 10),
+                ),
+                const SizedBox(height: 15),
+                TextField(
+                  controller: number,
+                  decoration: const InputDecoration(
+                    labelText: 'Document number',
+                    prefixIcon: Icon(Icons.tag_rounded),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: issuer,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Issuing authority',
+                    prefixIcon: Icon(Icons.account_balance_outlined),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                InkWell(
+                  onTap: () async {
+                    final now = DateTime.now();
+                    final value = await showDatePicker(
+                      context: sheetContext,
+                      firstDate: DateTime(1950),
+                      lastDate: now,
+                      initialDate: issueDate ?? now,
+                    );
+                    if (value != null) {
+                      setSheetState(() {
+                        issueDate = value;
+                        validation = null;
+                      });
+                    }
+                  },
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Issue date',
+                      prefixIcon: Icon(Icons.event_outlined),
+                    ),
+                    child: Text(
+                      issueDate == null
+                          ? 'Select issue date'
+                          : _shortDate(issueDate!),
+                    ),
+                  ),
+                ),
+                if (issueDate != null) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.forest50,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      'Locked expiry · ${_shortDate(oneYearAfterNoOverflow(issueDate!))}',
+                      style: const TextStyle(
+                        color: AppColors.forest700,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+                if (validation != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    validation!,
+                    style: const TextStyle(
+                      color: AppColors.danger,
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 15),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () {
+                      if (number.text.trim().isEmpty ||
+                          issuer.text.trim().isEmpty ||
+                          issueDate == null) {
+                        setSheetState(
+                          () => validation =
+                              'Document number, issuer and issue date are required.',
+                        );
+                        return;
+                      }
+                      Navigator.of(sheetContext).pop(
+                        TransferEvidenceUpload(
+                          key: selected.key,
+                          path: selected.path,
+                          name: selected.name,
+                          documentNumber: number.text.trim(),
+                          issuer: issuer.text.trim(),
+                          issueDate: issueDate,
+                        ),
+                      );
+                    },
+                    child: const Text('Use this replacement'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    number.dispose();
+    issuer.dispose();
+    return result;
+  }
+
+  Future<void> _submitCorrections() async {
+    if (_corrections.isEmpty) return;
+    final succeeded = await _runAction(
+      () => ref
+          .read(transferRepositoryProvider)
+          .uploadCorrectionsAndResubmit(
+            widget.transferId,
+            _corrections.values.toList(growable: false),
+          ),
+      success: 'Replacement evidence submitted for manager verification.',
+    );
+    if (succeeded && mounted) setState(_corrections.clear);
+  }
+
   Future<void> _cancel(TransferRecord transfer) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -175,7 +409,7 @@ class _TransferDetailScreenState extends ConsumerState<TransferDetailScreen> {
     );
   }
 
-  Future<void> _runAction(
+  Future<bool> _runAction(
     Future<void> Function() action, {
     required String success,
     bool refreshGarage = false,
@@ -191,11 +425,13 @@ class _TransferDetailScreenState extends ConsumerState<TransferDetailScreen> {
       ref.invalidate(transferListProvider);
       if (refreshGarage) ref.invalidate(garageProvider);
       ref.invalidate(myMarketplaceListingsProvider);
-      if (!mounted) return;
+      if (!mounted) return true;
       setState(() => _notice = success);
       await ref.read(transferDetailProvider(widget.transferId).future);
+      return true;
     } on ApiFailure catch (failure) {
       if (mounted) setState(() => _error = failure.message);
+      return false;
     } finally {
       if (mounted) setState(() => _mutating = false);
     }
@@ -463,6 +699,161 @@ class _ConsentCard extends StatelessWidget {
       ],
     ),
   );
+}
+
+class _CorrectionEvidenceCard extends StatelessWidget {
+  const _CorrectionEvidenceCard({
+    required this.fields,
+    required this.evidence,
+    required this.submitting,
+    required this.onPick,
+    required this.onRemove,
+    required this.onSubmit,
+  });
+  final List<TransferDocumentField> fields;
+  final Map<String, TransferEvidenceUpload> evidence;
+  final bool submitting;
+  final ValueChanged<TransferDocumentField> onPick;
+  final ValueChanged<String> onRemove;
+  final VoidCallback onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedFields = fields.where(
+      (field) => evidence.containsKey(field.key),
+    );
+    final incomplete = selectedFields.any(
+      (field) => !(evidence[field.key]?.completeFor(field) ?? false),
+    );
+    return Card(
+      color: const Color(0xFFFFFCF5),
+      child: Padding(
+        padding: const EdgeInsets.all(17),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'REPLACE AFFECTED EVIDENCE',
+              style: TextStyle(
+                color: AppColors.orangeDark,
+                fontSize: 8,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              'Upload corrected documents',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Use the manager’s note above to replace only the affected files. Existing accepted documents remain attached.',
+              style: TextStyle(
+                color: AppColors.muted,
+                fontSize: 10,
+                height: 1.45,
+              ),
+            ),
+            const SizedBox(height: 13),
+            ...fields.map((field) {
+              final upload = evidence[field.key];
+              final complete = upload?.completeFor(field) ?? false;
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: upload == null
+                      ? AppColors.white
+                      : complete
+                      ? AppColors.forest50
+                      : AppColors.orangeSoft,
+                  borderRadius: BorderRadius.circular(11),
+                  border: Border.all(
+                    color: upload == null
+                        ? AppColors.border
+                        : complete
+                        ? AppColors.forest700
+                        : AppColors.orange,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      complete
+                          ? Icons.check_circle_rounded
+                          : Icons.description_outlined,
+                      color: complete ? AppColors.forest700 : AppColors.muted,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            field.label,
+                            style: const TextStyle(
+                              color: AppColors.ink,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            upload?.name ??
+                                (field.requiresMetadata
+                                    ? 'File and document details'
+                                    : 'PDF or image · maximum 10 MB'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 8,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (upload != null)
+                      IconButton(
+                        tooltip: 'Remove replacement',
+                        onPressed: submitting
+                            ? null
+                            : () => onRemove(field.key),
+                        icon: const Icon(Icons.close_rounded, size: 18),
+                      ),
+                    TextButton(
+                      onPressed: submitting ? null : () => onPick(field),
+                      child: Text(upload == null ? 'Choose' : 'Replace'),
+                    ),
+                  ],
+                ),
+              );
+            }),
+            const SizedBox(height: 6),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: submitting || evidence.isEmpty || incomplete
+                    ? null
+                    : onSubmit,
+                icon: submitting
+                    ? const SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.fact_check_outlined),
+                label: Text(
+                  submitting
+                      ? 'Resubmitting…'
+                      : 'Upload replacements & resubmit',
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _ReviewNotice extends StatelessWidget {
@@ -997,3 +1388,6 @@ String _dateTime(DateTime? value) {
   final period = local.hour >= 12 ? 'PM' : 'AM';
   return '${local.day}/${local.month}/${local.year} · $hour:$minute $period';
 }
+
+String _shortDate(DateTime value) =>
+    '${value.day}/${value.month}/${value.year}';

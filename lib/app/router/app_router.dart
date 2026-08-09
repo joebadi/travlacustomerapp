@@ -24,6 +24,7 @@ import 'package:travla_customer_app/features/transfers/presentation/transfers_sc
 import 'package:travla_customer_app/features/vehicles/presentation/add_existing_vehicle_screen.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/vehicle_detail_screen.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/vehicles_screen.dart';
+import 'package:travla_customer_app/features/wallet/presentation/transactions_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final phase = ref.watch(
@@ -167,6 +168,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: '/more',
                 builder: (context, state) => const MoreScreen(),
                 routes: [
+                  GoRoute(
+                    path: 'transactions',
+                    builder: (context, state) => const TransactionsScreen(),
+                  ),
                   GoRoute(
                     path: 'marketplace',
                     builder: (context, state) => const MarketplaceScreen(),

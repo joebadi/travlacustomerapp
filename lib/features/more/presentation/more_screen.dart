@@ -87,10 +87,11 @@ class MoreScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 18),
           const _GroupLabel('ACCOUNT'),
-          const _MoreTile(
+          _MoreTile(
             icon: Icons.receipt_long_outlined,
             title: 'Transactions',
             subtitle: 'Wallet funding and service payments',
+            onTap: () => context.go('/more/transactions'),
           ),
           const _MoreTile(
             icon: Icons.support_agent_outlined,

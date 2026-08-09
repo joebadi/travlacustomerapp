@@ -1039,7 +1039,7 @@ class _DocumentsTab extends StatelessWidget {
                   SizedBox(width: 11),
                   Expanded(
                     child: Text(
-                      'Document management is unavailable for a dealer or temporary plate. Complete registration and receive a valid plate first.',
+                      'Document management is unavailable because this vehicle has no permanent plate or is marked with a dealer/temporary plate. If the permanent plate is already available, tap Edit vehicle at the top-right, update the plate, then return here.',
                       style: TextStyle(
                         color: AppColors.orangeDark,
                         fontSize: 11,
@@ -1068,14 +1068,32 @@ class _DocumentsTab extends StatelessWidget {
                   ],
                 ),
               ),
-              if (vehicle.hasValidPlateNumber)
-                FilledButton.tonalIcon(
-                  onPressed: () => onAdd(DocumentTypeFilter.all),
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('Add'),
-                ),
             ],
           ),
+          if (vehicle.hasValidPlateNumber) ...[
+            const SizedBox(height: 14),
+            Column(
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () => onAdd(DocumentTypeFilter.renewable),
+                    icon: const Icon(Icons.event_repeat_rounded, size: 18),
+                    label: const Text('Add renewable paper'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => onAdd(DocumentTypeFilter.other),
+                    icon: const Icon(Icons.post_add_rounded, size: 18),
+                    label: const Text('Add other document'),
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 18),
           _DocumentSection(
             title: 'Renewable papers',

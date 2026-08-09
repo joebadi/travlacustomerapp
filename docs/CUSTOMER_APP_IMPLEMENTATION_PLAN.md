@@ -140,10 +140,10 @@ Items may be progressively enabled, but disabled placeholders must clearly say
 | Add an existing vehicle | ✅ | 🧪 | Canonical make/model/category data and validation. |
 | Register a new vehicle | ✅ | 🧪 | Four-stage flow, uploads, handover and server quote. |
 | Vehicle workspace | ✅ | 🧪 | Overview, audit-aware editing, gallery, document vault, service ordering/history and tracker-source management are coded. |
-| Transactions/wallet funding | ⬜ | — | Required before payment-heavy flows are complete. |
+| Transactions/wallet funding | 🟡 | 🧪 | Native balance, credit/debit ledger, filters, virtual account and verified Paystack top-up are coded; receipts, pagination and hybrid service shortfall remain. |
 | Vehicle-paper renewal | ⬜ | — | Backend/web complete; mobile not started. |
 | Driver's-licence renewal | ⬜ | — | Backend/web complete; mobile not started. |
-| Ownership transfer | 🟡 | 🧪 | Managed/offline creation, sent/received records, detail timeline, consent, evidence viewing and permitted cancellation are coded; correction resubmission and hybrid top-up remain. |
+| Ownership transfer | 🟡 | 🧪 | Managed/offline creation, records, detail timeline, consent, evidence, correction resubmission and permitted cancellation are coded; hybrid wallet top-up remains. |
 | Marketplace | 🟡 | 🧪 | Seller activation, owned-vehicle picker, eligibility-aware listing creation and seller listing summary are coded; browse, offers, wanted and settlement remain. |
 | Fleet | ⬜ | — | Backend/web complete; native mobile module pending. |
 | Journeys | 🟡 | — | Navigation placeholder; native GPS client is the main remaining work. |
@@ -322,14 +322,14 @@ immediate paths to the highest-value actions.
 **Goal:** Customers understand every naira entering or leaving Travla and can fund
 the wallet before time-sensitive renewals.
 
-- [ ] Rename/use one native **Transactions** destination.
-- [ ] Wallet balance and available/held amounts.
-- [ ] Complete ledger for funding, services, refunds, holds and releases.
+- [x] Rename/use one native **Transactions** destination.
+- [x] Wallet balance (the current API does not expose a separate held balance).
+- [x] Unified credit/debit ledger for every transaction returned by the wallet API.
 - [ ] Filter by transaction type, service and date.
 - [ ] Transaction-detail receipt with references and fee allocation.
-- [ ] Paystack wallet top-up initialization.
+- [x] Paystack wallet top-up initialization.
 - [ ] Paystack callback/deep-link completion.
-- [ ] Server verification before displaying a successful credit.
+- [x] Server verification before displaying a successful credit.
 - [ ] Hybrid wallet/card shortfall payment.
 - [ ] Correct display of wallet portion versus Paystack portion.
 - [ ] Offline-deposit request/status if this remains enabled for customers.
@@ -404,7 +404,7 @@ verification sequence and distinguish Travla-managed versus offline paperwork.
 - [x] Category/city/delivery fee breakdown and wallet submission.
 - [ ] Wallet-shortfall gateway top-up/hybrid payment continuation.
 - [x] Admin verification pending state before recipient notification.
-- [ ] Admin correction query shown to sender with edit/resubmit path.
+- [x] Admin correction query shown to sender with edit/resubmit path.
 - [x] Recipient consent code entry only after admin approval.
 - [x] Immediate ownership completion after valid recipient consent when approved.
 - [x] Cancel a permitted transfer and correctly unwind linked marketplace state.
