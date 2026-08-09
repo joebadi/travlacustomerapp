@@ -18,6 +18,7 @@ import 'package:travla_customer_app/features/notifications/presentation/notifica
 import 'package:travla_customer_app/features/onboarding/presentation/onboarding_screen.dart';
 import 'package:travla_customer_app/features/registrations/presentation/new_vehicle_registration_screen.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/add_existing_vehicle_screen.dart';
+import 'package:travla_customer_app/features/vehicles/presentation/vehicle_detail_screen.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/vehicles_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -117,6 +118,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     path: 'register-new',
                     builder: (context, state) =>
                         const NewVehicleRegistrationScreen(),
+                  ),
+                  GoRoute(
+                    path: ':vehicleId',
+                    builder: (context, state) => VehicleDetailScreen(
+                      vehicleId: state.pathParameters['vehicleId'] ?? '',
+                      initialTab:
+                          state.uri.queryParameters['tab'] == 'documents'
+                          ? VehicleDetailTab.documents
+                          : VehicleDetailTab.overview,
+                    ),
                   ),
                 ],
               ),

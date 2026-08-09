@@ -234,103 +234,107 @@ class _VehicleCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            height: 154,
-            width: double.infinity,
-            child: vehicle.images.isEmpty
-                ? const _VehicleImageFallback()
-                : Image.network(
-                    vehicle.images.first,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const _VehicleImageFallback();
-                    },
-                  ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(17),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            vehicle.displayName.isEmpty
-                                ? 'Vehicle'
-                                : vehicle.displayName,
-                            style: Theme.of(context).textTheme.titleLarge,
-                          ),
-                          const SizedBox(height: 5),
-                          Text(
-                            [
-                              if (vehicle.year != null) vehicle.year.toString(),
-                              if (vehicle.color.isNotEmpty) vehicle.color,
-                            ].join(' · '),
-                            style: const TextStyle(
-                              color: AppColors.muted,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
+      child: InkWell(
+        onTap: () => context.push('/vehicles/${vehicle.id}'),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: 154,
+              width: double.infinity,
+              child: vehicle.images.isEmpty
+                  ? const _VehicleImageFallback()
+                  : Image.network(
+                      vehicle.images.first,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const _VehicleImageFallback();
+                      },
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: status.background,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        vehicle.statusLabel ?? 'Papers not added',
-                        style: TextStyle(
-                          color: status.foreground,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w900,
+            ),
+            Padding(
+              padding: const EdgeInsets.all(17),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              vehicle.displayName.isEmpty
+                                  ? 'Vehicle'
+                                  : vehicle.displayName,
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              [
+                                if (vehicle.year != null)
+                                  vehicle.year.toString(),
+                                if (vehicle.color.isNotEmpty) vehicle.color,
+                              ].join(' · '),
+                              style: const TextStyle(
+                                color: AppColors.muted,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.pin_outlined,
-                      size: 18,
-                      color: AppColors.forest700,
-                    ),
-                    const SizedBox(width: 7),
-                    Text(
-                      vehicle.plateNumber?.isNotEmpty == true
-                          ? vehicle.plateNumber!
-                          : 'Plate not assigned',
-                      style: const TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                    const Spacer(),
-                    Text(
-                      '${vehicle.documentsCount} paper${vehicle.documentsCount == 1 ? '' : 's'}',
-                      style: const TextStyle(
-                        color: AppColors.muted,
-                        fontSize: 11,
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: status.background,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          vehicle.statusLabel ?? 'Papers not added',
+                          style: TextStyle(
+                            color: status.foreground,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.pin_outlined,
+                        size: 18,
+                        color: AppColors.forest700,
+                      ),
+                      const SizedBox(width: 7),
+                      Text(
+                        vehicle.plateNumber?.isNotEmpty == true
+                            ? vehicle.plateNumber!
+                            : 'Plate not assigned',
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '${vehicle.documentsCount} paper${vehicle.documentsCount == 1 ? '' : 's'}',
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

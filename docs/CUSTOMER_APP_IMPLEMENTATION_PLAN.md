@@ -139,7 +139,7 @@ Items may be progressively enabled, but disabled placeholders must clearly say
 | Vehicle garage/list/readiness | ✅ | 🧪 | Owned and incoming vehicle summary is connected. |
 | Add an existing vehicle | ✅ | 🧪 | Canonical make/model/category data and validation. |
 | Register a new vehicle | ✅ | 🧪 | Four-stage flow, uploads, handover and server quote. |
-| Vehicle detail/documents/gallery | 🟡 | — | Full web parity is still required. |
+| Vehicle detail/documents/gallery | 🟡 | 🧪 | Overview, gallery viewing and document vault are coded; vehicle editing, gallery management and service tabs remain. |
 | Transactions/wallet funding | ⬜ | — | Required before payment-heavy flows are complete. |
 | Vehicle-paper renewal | ⬜ | — | Backend/web complete; mobile not started. |
 | Driver's-licence renewal | ⬜ | — | Backend/web complete; mobile not started. |
@@ -280,7 +280,7 @@ immediate paths to the highest-value actions.
 - [ ] Search, sort and filter garage vehicles.
 - [ ] Distinguish owned, incoming, fleet-linked and marketplace-reserved states.
 - [ ] Greyed incoming vehicle cards with direct transfer-detail link.
-- [ ] Vehicle thumbnails and image fallback states.
+- [x] Vehicle thumbnails and image fallback states.
 
 #### Add an existing vehicle
 
@@ -296,12 +296,16 @@ immediate paths to the highest-value actions.
 
 #### Vehicle detail
 
-- [ ] Premium vehicle overview with status, identity and primary actions.
-- [ ] Vehicle image gallery and upload/reorder/hide behavior.
-- [ ] Renewable Documents section.
-- [ ] Other Documents section.
-- [ ] Document detail with signed file viewing/download.
-- [ ] Add-document modal/screen with issue date and locked one-year expiry.
+- [x] Premium vehicle overview with status, identity and document-readiness action.
+- [x] Swipeable vehicle image gallery viewing.
+- [ ] Vehicle image upload/reorder/hide behavior.
+- [x] Renewable Documents section.
+- [x] Other Documents section.
+- [x] Document detail and version history with signed file opening.
+- [x] Add-document sheet with issue date and locked one-year expiry preview.
+- [x] Server-owned expiry submission: mobile never sends an expiry date.
+- [x] Auto-renew toggle for renewable documents.
+- [x] Confirmed document removal and workspace refresh.
 - [ ] Edit permitted vehicle identifiers with audit-aware confirmation.
 - [ ] Other Services screen adapted from web.
 - [ ] Sell-on-marketplace entry point and eligibility explanation.
@@ -591,6 +595,7 @@ The detailed behavioral source is `../../docs/JOURNEYS.md`.
 - [ ] Authentication repository/controller tests.
 - [ ] Registration gate/reCAPTCHA tests.
 - [ ] Vehicle catalogue/category-resolution tests.
+- [x] Vehicle detail parsing, document grouping and expiry-derivation tests.
 - [ ] Registration quote/submission tests.
 - [ ] Notifications repository and read-state tests.
 - [ ] Router/deep-link tests.
@@ -665,7 +670,7 @@ than relying exclusively on this high-level map.
 
 This order unlocks complete customer journeys before expanding to specialist modules.
 
-1. **Vehicle detail and document vault** — makes the existing garage truly usable.
+1. **Finish vehicle management** — editing, gallery management and the remaining vehicle service/tracking entry points.
 2. **Profile/security and Transactions/wallet** — required identity and payment foundation.
 3. **Vehicle-paper and driver’s-licence renewals** — Travla’s primary revenue product.
 4. **Complete registration list/detail/delivery tracking** — closes the already-built form.
