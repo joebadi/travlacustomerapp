@@ -143,7 +143,7 @@ Items may be progressively enabled, but disabled placeholders must clearly say
 | Transactions/wallet funding | ⬜ | — | Required before payment-heavy flows are complete. |
 | Vehicle-paper renewal | ⬜ | — | Backend/web complete; mobile not started. |
 | Driver's-licence renewal | ⬜ | — | Backend/web complete; mobile not started. |
-| Ownership transfer | 🟡 | 🧪 | Incoming summaries plus a preselected, readiness-aware Travla-managed creation flow are coded; offline evidence, lists/detail and recipient consent remain. |
+| Ownership transfer | 🟡 | 🧪 | Managed/offline creation, sent/received records, detail timeline, consent, evidence viewing and permitted cancellation are coded; correction resubmission and hybrid top-up remain. |
 | Marketplace | 🟡 | 🧪 | Seller activation, owned-vehicle picker, eligibility-aware listing creation and seller listing summary are coded; browse, offers, wanted and settlement remain. |
 | Fleet | ⬜ | — | Backend/web complete; native mobile module pending. |
 | Journeys | 🟡 | — | Navigation placeholder; native GPS client is the main remaining work. |
@@ -390,25 +390,25 @@ reconstructs commission or payment amounts independently.
 **Goal:** Native transfer behavior must preserve the approved admin-first
 verification sequence and distinguish Travla-managed versus offline paperwork.
 
-- [ ] Sent/received transfer lists with clear states.
+- [x] Sent/received transfer lists with clear states.
 - [x] Transfer-readiness check before form entry.
 - [x] Start from a selected vehicle without repeating known details.
 - [x] Reason defaults to **Select**; sale, gift and other supported reasons.
 - [x] Online/agent-prepared transfer path.
-- [ ] Offline-completed transfer with customer document uploads.
+- [x] Offline-completed transfer with customer document uploads.
 - [x] Recipient phone-first lookup.
 - [x] Populate and lock matched account email/details.
 - [x] Required recipient NIN handling.
 - [x] Prevent phone/email from resolving to separate accounts.
-- [ ] Document issue dates with server-derived one-year expiry.
+- [x] Document issue dates with server-derived one-year expiry.
 - [x] Category/city/delivery fee breakdown and wallet submission.
 - [ ] Wallet-shortfall gateway top-up/hybrid payment continuation.
-- [ ] Admin verification pending state before recipient notification.
+- [x] Admin verification pending state before recipient notification.
 - [ ] Admin correction query shown to sender with edit/resubmit path.
-- [ ] Recipient consent code entry only after admin approval.
-- [ ] Immediate ownership completion after valid recipient consent when approved.
-- [ ] Cancel a permitted transfer and correctly unwind linked marketplace state.
-- [ ] Full transfer detail and audit trail.
+- [x] Recipient consent code entry only after admin approval.
+- [x] Immediate ownership completion after valid recipient consent when approved.
+- [x] Cancel a permitted transfer and correctly unwind linked marketplace state.
+- [x] Full transfer detail and audit trail.
 - [ ] Incoming transfer dashboard prompt in portrait-safe layout.
 - [ ] Accepted NIN populates recipient profile according to backend rules.
 - [ ] Transferred renewable/other documents appear automatically for recipient.

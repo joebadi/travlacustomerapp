@@ -104,48 +104,62 @@ class _PendingTransferCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(17),
-      decoration: BoxDecoration(
-        color: AppColors.orangeSoft,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFFC9B7)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.mark_email_unread_outlined, color: AppColors.orange),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Incoming ownership transfer',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  '${transfer.currentOwnerName} is transferring ${transfer.vehicleName.isEmpty ? 'a vehicle' : transfer.vehicleName} to you.',
-                  style: const TextStyle(color: AppColors.muted, height: 1.45),
-                ),
-                if (transfer.trackingNumber.isNotEmpty) ...[
-                  const SizedBox(height: 8),
+    return InkWell(
+      onTap: () => context.push('/more/transfers/${transfer.id}'),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(17),
+        decoration: BoxDecoration(
+          color: AppColors.orangeSoft,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFFFC9B7)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(
+              Icons.mark_email_unread_outlined,
+              color: AppColors.orange,
+            ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    transfer.trackingNumber,
+                    'Incoming ownership transfer',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    '${transfer.currentOwnerName} is transferring ${transfer.vehicleName.isEmpty ? 'a vehicle' : transfer.vehicleName} to you.',
                     style: const TextStyle(
-                      color: AppColors.orangeDark,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: .5,
+                      color: AppColors.muted,
+                      height: 1.45,
                     ),
                   ),
+                  if (transfer.trackingNumber.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      transfer.trackingNumber,
+                      style: const TextStyle(
+                        color: AppColors.orangeDark,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: .5,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-        ],
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.orangeDark,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -161,61 +175,65 @@ class _IncomingVehicleCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       color: const Color(0xFFF0F2F1),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: const Color(0xFFDDE2E0),
-                borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => context.push('/more/transfers/${transfer.id}'),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDDE2E0),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.directions_car_outlined,
+                  color: AppColors.muted,
+                ),
               ),
-              child: const Icon(
-                Icons.directions_car_outlined,
-                color: AppColors.muted,
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      transfer.vehicleName.isEmpty
+                          ? 'Incoming vehicle'
+                          : transfer.vehicleName,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: const Color(0xFF53615B),
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      transfer.plateNumber?.isNotEmpty == true
+                          ? transfer.plateNumber!
+                          : 'Plate not assigned',
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 11,
+                      ),
+                    ),
+                    const SizedBox(height: 9),
+                    Text(
+                      transfer.reviewStatusLabel.isEmpty
+                          ? 'Transfer in progress'
+                          : transfer.reviewStatusLabel,
+                      style: const TextStyle(
+                        color: AppColors.orangeDark,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    transfer.vehicleName.isEmpty
-                        ? 'Incoming vehicle'
-                        : transfer.vehicleName,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: const Color(0xFF53615B),
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    transfer.plateNumber?.isNotEmpty == true
-                        ? transfer.plateNumber!
-                        : 'Plate not assigned',
-                    style: const TextStyle(
-                      color: AppColors.muted,
-                      fontSize: 11,
-                    ),
-                  ),
-                  const SizedBox(height: 9),
-                  Text(
-                    transfer.reviewStatusLabel.isEmpty
-                        ? 'Transfer in progress'
-                        : transfer.reviewStatusLabel,
-                    style: const TextStyle(
-                      color: AppColors.orangeDark,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.lock_clock_outlined, color: AppColors.muted),
-          ],
+              const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+            ],
+          ),
         ),
       ),
     );

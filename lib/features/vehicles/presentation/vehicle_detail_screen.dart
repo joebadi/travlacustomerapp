@@ -33,6 +33,8 @@ class VehicleDetailScreen extends ConsumerStatefulWidget {
 
 class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
   late VehicleDetailTab _tab;
+  final _scrollController = ScrollController();
+  final _tabContentKey = GlobalKey();
   int _imageIndex = 0;
   final Set<String> _mutatingDocuments = {};
 
@@ -40,6 +42,12 @@ class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
   void initState() {
     super.initState();
     _tab = widget.initialTab;
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -77,6 +85,7 @@ class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
           color: AppColors.forest700,
           onRefresh: _refresh,
           child: ListView(
+            controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.only(bottom: 38),
             children: [
@@ -90,53 +99,61 @@ class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
                 child: _DetailTabSelector(
                   selected: _tab,
                   documentCount: vehicle.documents.length,
-                  onChanged: (tab) => setState(() => _tab = tab),
+                  onChanged: _selectTab,
                 ),
               ),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 220),
-                switchInCurve: Curves.easeOutCubic,
-                child: switch (_tab) {
-                  VehicleDetailTab.overview => _OverviewTab(
-                    key: const ValueKey('overview'),
-                    vehicle: vehicle,
-                    onOpenDocuments: () =>
-                        setState(() => _tab = VehicleDetailTab.documents),
-                    onSell: () => context.push(
-                      '/more/marketplace/list-new?vehicle=${vehicle.id}',
-                    ),
-                    onTransfer: () => context.push(
-                      '/more/transfers/new?vehicle=${vehicle.id}',
-                    ),
-                  ),
-                  VehicleDetailTab.documents => _DocumentsTab(
-                    key: const ValueKey('documents'),
-                    vehicle: vehicle,
-                    mutatingDocuments: _mutatingDocuments,
-                    onAdd: _addDocument,
-                    onView: (document) =>
-                        _showDocumentDetails(vehicle, document),
-                    onAutoRenew: (document, enabled) =>
-                        _setAutoRenew(document, enabled),
-                    onDelete: _deleteDocument,
-                  ),
-                  VehicleDetailTab.tracking => VehicleTrackingTab(
-                    key: const ValueKey('tracking'),
-                    vehicle: vehicle,
-                    onOrderTracker: () =>
-                        setState(() => _tab = VehicleDetailTab.services),
-                  ),
-                  VehicleDetailTab.services => VehicleServicesTab(
-                    key: const ValueKey('services'),
-                    vehicle: vehicle,
-                  ),
-                },
-              ),
+              KeyedSubtree(key: _tabContentKey, child: _activeTab(vehicle)),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Widget _activeTab(VehicleDetail vehicle) {
+    return switch (_tab) {
+      VehicleDetailTab.overview => _OverviewTab(
+        key: const ValueKey('overview'),
+        vehicle: vehicle,
+        onOpenDocuments: () => _selectTab(VehicleDetailTab.documents),
+        onSell: () =>
+            context.push('/more/marketplace/list-new?vehicle=${vehicle.id}'),
+        onTransfer: () =>
+            context.push('/more/transfers/new?vehicle=${vehicle.id}'),
+      ),
+      VehicleDetailTab.documents => _DocumentsTab(
+        key: const ValueKey('documents'),
+        vehicle: vehicle,
+        mutatingDocuments: _mutatingDocuments,
+        onAdd: _addDocument,
+        onView: (document) => _showDocumentDetails(vehicle, document),
+        onAutoRenew: (document, enabled) => _setAutoRenew(document, enabled),
+        onDelete: _deleteDocument,
+      ),
+      VehicleDetailTab.tracking => VehicleTrackingTab(
+        key: const ValueKey('tracking'),
+        vehicle: vehicle,
+        onOrderTracker: () => _selectTab(VehicleDetailTab.services),
+      ),
+      VehicleDetailTab.services => VehicleServicesTab(
+        key: const ValueKey('services'),
+        vehicle: vehicle,
+      ),
+    };
+  }
+
+  void _selectTab(VehicleDetailTab tab) {
+    if (_tab == tab) return;
+    setState(() => _tab = tab);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _tabContentKey.currentContext == null) return;
+      Scrollable.ensureVisible(
+        _tabContentKey.currentContext!,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        alignment: 0,
+      );
+    });
   }
 
   Future<void> _refresh() async {

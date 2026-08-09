@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -26,6 +27,7 @@ class _NewTransferScreenState extends ConsumerState<NewTransferScreen> {
   final _address = TextEditingController();
   final _notes = TextEditingController();
   int _step = 1;
+  String _mode = 'MANAGED';
   String _basis = '';
   String _paymentMode = 'BANK_TRANSFER';
   String _delivery = 'PICKUP';
@@ -33,6 +35,7 @@ class _NewTransferScreenState extends ConsumerState<NewTransferScreen> {
   DateTime? _saleDate;
   TransferRecipientMatch? _match;
   TransferReadiness? _readiness;
+  final Map<String, TransferEvidenceUpload> _evidence = {};
   bool _lookingUp = false;
   bool _checking = false;
   bool _submitting = false;
@@ -97,7 +100,7 @@ class _NewTransferScreenState extends ConsumerState<NewTransferScreen> {
       const SizedBox(height: 12),
       if (_step == 1) _basisStep(vehicle),
       if (_step == 2) _recipientStep(vehicle, setup),
-      if (_step == 3) _reviewStep(vehicle),
+      if (_step == 3) _reviewStep(vehicle, setup),
     ],
   );
 
@@ -109,9 +112,39 @@ class _NewTransferScreenState extends ConsumerState<NewTransferScreen> {
         children: [
           const _TransferHeading(
             number: '01',
-            title: 'Why is ownership changing?',
+            title: 'Choose the ownership path',
             body:
-                'The basis determines the legal documents Travla’s agent prepares. Choose deliberately; Sale is never selected by default.',
+                'Use Travla agents for a new transfer, or submit documents from a transfer already completed offline.',
+          ),
+          const SizedBox(height: 15),
+          Row(
+            children: [
+              Expanded(
+                child: _PathChoice(
+                  title: 'Travla managed',
+                  body: 'Agents prepare the legal documents.',
+                  selected: _mode == 'MANAGED',
+                  onTap: () => setState(() {
+                    _mode = 'MANAGED';
+                    _evidence.clear();
+                    _readiness = null;
+                  }),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _PathChoice(
+                  title: 'Done offline',
+                  body: 'Admin verifies documents you received.',
+                  selected: _mode == 'EXTERNAL_VERIFICATION',
+                  onTap: () => setState(() {
+                    _mode = 'EXTERNAL_VERIFICATION';
+                    _delivery = 'PICKUP';
+                    _readiness = null;
+                  }),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 15),
           DropdownButtonFormField<String>(
@@ -132,7 +165,11 @@ class _NewTransferScreenState extends ConsumerState<NewTransferScreen> {
               ),
               DropdownMenuItem(value: 'OTHER', child: Text('Other')),
             ],
-            onChanged: (value) => setState(() => _basis = value ?? ''),
+            onChanged: (value) => setState(() {
+              _basis = value ?? '';
+              _evidence.clear();
+              _readiness = null;
+            }),
           ),
           const SizedBox(height: 14),
           Container(
@@ -142,15 +179,20 @@ class _NewTransferScreenState extends ConsumerState<NewTransferScreen> {
               borderRadius: BorderRadius.circular(11),
               border: Border.all(color: AppColors.border),
             ),
-            child: const Row(
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.verified_user_outlined, color: AppColors.forest700),
-                SizedBox(width: 9),
+                const Icon(
+                  Icons.verified_user_outlined,
+                  color: AppColors.forest700,
+                ),
+                const SizedBox(width: 9),
                 Expanded(
                   child: Text(
-                    'Travla-managed path: an agent prepares the legal pack, then a manager verifies it before the recipient receives a consent code. Entering the code completes the approved ownership move.',
-                    style: TextStyle(
+                    _mode == 'MANAGED'
+                        ? 'An agent prepares the legal pack, then a manager verifies it before the recipient receives a consent code.'
+                        : 'This bypasses agents. Admin checks every official document before approving the recipient invitation.',
+                    style: const TextStyle(
                       color: AppColors.muted,
                       fontSize: 10,
                       height: 1.45,
@@ -353,32 +395,33 @@ class _NewTransferScreenState extends ConsumerState<NewTransferScreen> {
                 },
               ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _DeliveryChoice(
-                      label: 'Office pickup',
-                      selected: _delivery == 'PICKUP',
-                      onTap: () {
-                        setState(() => _delivery = 'PICKUP');
-                        _refreshReadiness();
-                      },
+              if (_mode == 'MANAGED')
+                Row(
+                  children: [
+                    Expanded(
+                      child: _DeliveryChoice(
+                        label: 'Office pickup',
+                        selected: _delivery == 'PICKUP',
+                        onTap: () {
+                          setState(() => _delivery = 'PICKUP');
+                          _refreshReadiness();
+                        },
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _DeliveryChoice(
-                      label: 'Doorstep delivery',
-                      selected: _delivery == 'DELIVERY',
-                      onTap: () {
-                        setState(() => _delivery = 'DELIVERY');
-                        _refreshReadiness();
-                      },
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _DeliveryChoice(
+                        label: 'Doorstep delivery',
+                        selected: _delivery == 'DELIVERY',
+                        onTap: () {
+                          setState(() => _delivery = 'DELIVERY');
+                          _refreshReadiness();
+                        },
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              if (_delivery == 'DELIVERY') ...[
+                  ],
+                ),
+              if (_mode == 'MANAGED' && _delivery == 'DELIVERY') ...[
                 const SizedBox(height: 12),
                 TextField(
                   controller: _address,
@@ -431,93 +474,137 @@ class _NewTransferScreenState extends ConsumerState<NewTransferScreen> {
     ),
   );
 
-  Widget _reviewStep(VehicleDetail vehicle) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(17),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _TransferHeading(
-            number: '03',
-            title: 'Review and submit',
-            body:
-                'The transfer fee is paid from your Travla wallet. The recipient is contacted only after manager approval.',
-          ),
-          const SizedBox(height: 15),
-          _ReviewLine('Vehicle', vehicle.displayName),
-          _ReviewLine('Recipient', '${_firstName.text} ${_lastName.text}'),
-          _ReviewLine('Basis', _pretty(_basis)),
-          _ReviewLine('Jurisdiction', '${_city!.city}, ${_city!.state}'),
-          _ReviewLine('Processing fee', '₦${_readiness!.processingFeeNaira}'),
-          if (_readiness!.deliveryFeeNaira != '0.00')
-            _ReviewLine(
-              'Doorstep delivery',
-              '₦${_readiness!.deliveryFeeNaira}',
+  Widget _reviewStep(VehicleDetail vehicle, TransferSetup setup) {
+    final fields = setup.fieldsFor(_basis, tinted: vehicle.isTinted);
+    final missing = _mode == 'EXTERNAL_VERIFICATION'
+        ? fields
+              .where(
+                (field) =>
+                    field.required &&
+                    !(_evidence[field.key]?.completeFor(field) ?? false),
+              )
+              .toList(growable: false)
+        : const <TransferDocumentField>[];
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(17),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _TransferHeading(
+              number: '03',
+              title: _mode == 'MANAGED'
+                  ? 'Review and submit'
+                  : 'Upload and verify evidence',
+              body: _mode == 'MANAGED'
+                  ? 'The fee is paid from your wallet. The recipient is contacted only after manager approval.'
+                  : 'Upload every required official record. Renewable issue dates produce a locked one-year expiry preview.',
             ),
-          _ReviewLine('Total', '₦${_readiness!.totalFeeNaira}', strong: true),
-          if (_readiness!.expiredDocuments.isNotEmpty)
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.orangeSoft,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                '${_readiness!.expiredDocuments.length} expired paper(s) will transfer in their current state and remain available for renewal by the recipient.',
-                style: const TextStyle(
-                  color: AppColors.orangeDark,
-                  fontSize: 10,
-                  height: 1.4,
-                ),
-              ),
-            ),
-          const SizedBox(height: 13),
-          Container(
-            padding: const EdgeInsets.all(13),
-            decoration: BoxDecoration(
-              color: AppColors.forest950,
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: const Text(
-              'Submitting creates the request for agent preparation and manager verification. It does not notify the recipient immediately.',
-              style: TextStyle(
-                color: Color(0xBBFFFFFF),
-                fontSize: 10,
-                height: 1.45,
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _submitting
+            const SizedBox(height: 15),
+            if (_mode == 'EXTERNAL_VERIFICATION') ...[
+              ...fields.map(
+                (field) => _EvidenceTile(
+                  field: field,
+                  upload: _evidence[field.key],
+                  onPick: () => _pickEvidence(field),
+                  onRemove: _evidence[field.key] == null
                       ? null
-                      : () => setState(() => _step = 2),
-                  child: const Text('Back'),
+                      : () => setState(() => _evidence.remove(field.key)),
                 ),
               ),
-              const SizedBox(width: 9),
-              Expanded(
-                child: FilledButton(
-                  onPressed: _submitting ? null : _submit,
-                  child: Text(
-                    _submitting
-                        ? 'Submitting…'
-                        : _readiness!.totalFeeKobo == 0
-                        ? 'Submit request'
-                        : 'Pay & submit',
+              const SizedBox(height: 8),
+            ],
+            _ReviewLine('Vehicle', vehicle.displayName),
+            _ReviewLine('Recipient', '${_firstName.text} ${_lastName.text}'),
+            _ReviewLine('Basis', _pretty(_basis)),
+            _ReviewLine(
+              'Path',
+              _mode == 'MANAGED' ? 'Travla managed' : 'Offline verification',
+            ),
+            _ReviewLine('Jurisdiction', '${_city!.city}, ${_city!.state}'),
+            _ReviewLine('Processing fee', '₦${_readiness!.processingFeeNaira}'),
+            if (_readiness!.deliveryFeeNaira != '0.00')
+              _ReviewLine(
+                'Doorstep delivery',
+                '₦${_readiness!.deliveryFeeNaira}',
+              ),
+            _ReviewLine('Total', '₦${_readiness!.totalFeeNaira}', strong: true),
+            if (_readiness!.expiredDocuments.isNotEmpty)
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.orangeSoft,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${_readiness!.expiredDocuments.length} expired paper(s) will remain expired after transfer and available for renewal by the recipient.',
+                  style: const TextStyle(
+                    color: AppColors.orangeDark,
+                    fontSize: 10,
+                    height: 1.4,
                   ),
                 ),
               ),
-            ],
-          ),
-        ],
+            const SizedBox(height: 13),
+            Container(
+              padding: const EdgeInsets.all(13),
+              decoration: BoxDecoration(
+                color: AppColors.forest950,
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: Text(
+                _mode == 'MANAGED'
+                    ? 'Submitting starts agent preparation and manager verification. It does not notify the recipient immediately.'
+                    : 'This evidence goes directly to admin verification. No agent work or agent fee is claimed for a transfer completed offline.',
+                style: const TextStyle(
+                  color: Color(0xBBFFFFFF),
+                  fontSize: 10,
+                  height: 1.45,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _submitting
+                        ? null
+                        : () => setState(() => _step = 2),
+                    child: const Text('Back'),
+                  ),
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _submitting || missing.isNotEmpty
+                        ? null
+                        : _submit,
+                    child: Text(
+                      _submitting
+                          ? 'Submitting…'
+                          : _readiness!.totalFeeKobo == 0
+                          ? 'Submit request'
+                          : 'Pay & submit',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (missing.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 9),
+                child: Text(
+                  'Complete: ${missing.map((item) => item.label).join(', ')}.',
+                  style: const TextStyle(color: AppColors.danger, fontSize: 9),
+                ),
+              ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   bool get _canReview =>
       _readiness?.isReady == true &&
@@ -529,7 +616,9 @@ class _NewTransferScreenState extends ConsumerState<NewTransferScreen> {
       (_basis != 'SALE' ||
           (_saleDate != null &&
               (double.tryParse(_saleValue.text) ?? -1) >= 0)) &&
-      (_delivery != 'DELIVERY' || _address.text.trim().length >= 5);
+      (_mode != 'MANAGED' ||
+          _delivery != 'DELIVERY' ||
+          _address.text.trim().length >= 5);
 
   Future<void> _lookupPhone() async {
     if (_phone.text.replaceAll(RegExp(r'\D'), '').length < 10) {
@@ -594,7 +683,8 @@ class _NewTransferScreenState extends ConsumerState<NewTransferScreen> {
           .read(transferRepositoryProvider)
           .readiness(
             vehicleId: widget.vehicleId,
-            deliveryMethod: _delivery,
+            mode: _mode,
+            deliveryMethod: _mode == 'MANAGED' ? _delivery : 'PICKUP',
             city: _city?.city ?? '',
           );
       if (mounted) setState(() => _readiness = value);
@@ -616,35 +706,243 @@ class _NewTransferScreenState extends ConsumerState<NewTransferScreen> {
     if (value != null) setState(() => _saleDate = value);
   }
 
+  Future<void> _pickEvidence(TransferDocumentField field) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['jpg', 'jpeg', 'png', 'pdf'],
+      allowMultiple: false,
+      withData: false,
+    );
+    if (!mounted || result == null || result.files.isEmpty) return;
+    final file = result.files.single;
+    if (file.path == null || file.path!.isEmpty) {
+      setState(() => _error = 'That file could not be opened on this device.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setState(() => _error = '${field.label} must be 10 MB or smaller.');
+      return;
+    }
+
+    final previous = _evidence[field.key];
+    final selected = TransferEvidenceUpload(
+      key: field.key,
+      path: file.path!,
+      name: file.name,
+      documentNumber: previous?.documentNumber ?? '',
+      issuer: previous?.issuer ?? '',
+      issueDate: previous?.issueDate,
+    );
+    if (!field.requiresMetadata) {
+      setState(() {
+        _evidence[field.key] = selected;
+        _error = null;
+      });
+      return;
+    }
+
+    final completed = await _collectEvidenceMetadata(field, selected);
+    if (!mounted || completed == null) return;
+    setState(() {
+      _evidence[field.key] = completed;
+      _error = null;
+    });
+  }
+
+  Future<TransferEvidenceUpload?> _collectEvidenceMetadata(
+    TransferDocumentField field,
+    TransferEvidenceUpload selected,
+  ) async {
+    final number = TextEditingController(text: selected.documentNumber);
+    final issuer = TextEditingController(text: selected.issuer);
+    var issueDate = selected.issueDate;
+    String? validation;
+    final value = await showModalBottomSheet<TransferEvidenceUpload>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) => Padding(
+          padding: EdgeInsets.fromLTRB(
+            18,
+            18,
+            18,
+            MediaQuery.viewInsetsOf(context).bottom + 22,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 42,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+                Text(
+                  field.label,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  selected.name,
+                  style: const TextStyle(color: AppColors.muted, fontSize: 10),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: number,
+                  decoration: const InputDecoration(
+                    labelText: 'Document number',
+                    prefixIcon: Icon(Icons.tag_rounded),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: issuer,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Issuing authority',
+                    prefixIcon: Icon(Icons.account_balance_outlined),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                InkWell(
+                  onTap: () async {
+                    final now = DateTime.now();
+                    final picked = await showDatePicker(
+                      context: sheetContext,
+                      firstDate: DateTime(1950),
+                      lastDate: now,
+                      initialDate: issueDate ?? now,
+                    );
+                    if (picked != null) {
+                      setSheetState(() {
+                        issueDate = picked;
+                        validation = null;
+                      });
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Issue date',
+                      prefixIcon: Icon(Icons.event_outlined),
+                    ),
+                    child: Text(
+                      issueDate == null
+                          ? 'Select issue date'
+                          : _date(issueDate!),
+                    ),
+                  ),
+                ),
+                if (issueDate != null) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.forest50,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      'Expiry date · ${_date(oneYearAfterNoOverflow(issueDate!))}\nLocked to exactly one year from the issue date.',
+                      style: const TextStyle(
+                        color: AppColors.forest700,
+                        fontSize: 10,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+                if (validation != null) ...[
+                  const SizedBox(height: 9),
+                  Text(
+                    validation!,
+                    style: const TextStyle(
+                      color: AppColors.danger,
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () {
+                      if (number.text.trim().isEmpty ||
+                          issuer.text.trim().isEmpty ||
+                          issueDate == null) {
+                        setSheetState(
+                          () => validation =
+                              'Document number, issuer and issue date are required.',
+                        );
+                        return;
+                      }
+                      Navigator.of(sheetContext).pop(
+                        TransferEvidenceUpload(
+                          key: selected.key,
+                          path: selected.path,
+                          name: selected.name,
+                          documentNumber: number.text.trim(),
+                          issuer: issuer.text.trim(),
+                          issueDate: issueDate,
+                        ),
+                      );
+                    },
+                    child: const Text('Save document details'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    number.dispose();
+    issuer.dispose();
+    return value;
+  }
+
   Future<void> _submit() async {
     setState(() {
       _submitting = true;
       _error = null;
     });
     try {
-      await ref.read(transferRepositoryProvider).create({
-        'vehicle_id': widget.vehicleId,
-        'transfer_mode': 'MANAGED',
-        'transfer_basis': _basis,
-        'recipient_first_name': _firstName.text.trim(),
-        'recipient_last_name': _lastName.text.trim(),
-        'recipient_email': _email.text.trim(),
-        'recipient_phone': _phone.text.trim(),
-        'recipient_nin': _match?.ninOnFile == true ? '' : _nin.text,
-        'collection_city': _city!.city,
-        'jurisdiction_state': _city!.state,
-        if (_basis == 'SALE') 'transaction_date': _apiDate(_saleDate!),
-        if (_basis == 'SALE')
-          'transaction_value_naira': double.parse(_saleValue.text),
-        if (_basis == 'SALE') 'payment_mode': _paymentMode,
-        'delivery_method': _delivery,
-        if (_delivery == 'DELIVERY') 'delivery_address': _address.text.trim(),
-        if (_notes.text.trim().isNotEmpty) 'notes': _notes.text.trim(),
-      });
+      final transferId = await ref.read(transferRepositoryProvider).create(
+        {
+          'vehicle_id': widget.vehicleId,
+          'transfer_mode': _mode,
+          'transfer_basis': _basis,
+          'recipient_first_name': _firstName.text.trim(),
+          'recipient_last_name': _lastName.text.trim(),
+          'recipient_email': _email.text.trim(),
+          'recipient_phone': _phone.text.trim(),
+          'recipient_nin': _match?.ninOnFile == true ? '' : _nin.text,
+          'collection_city': _city!.city,
+          'jurisdiction_state': _city!.state,
+          if (_basis == 'SALE') 'transaction_date': _apiDate(_saleDate!),
+          if (_basis == 'SALE')
+            'transaction_value_naira': double.parse(_saleValue.text),
+          if (_basis == 'SALE') 'payment_mode': _paymentMode,
+          'delivery_method': _mode == 'MANAGED' ? _delivery : 'PICKUP',
+          if (_mode == 'MANAGED' && _delivery == 'DELIVERY')
+            'delivery_address': _address.text.trim(),
+          if (_notes.text.trim().isNotEmpty) 'notes': _notes.text.trim(),
+        },
+        evidence: _mode == 'EXTERNAL_VERIFICATION'
+            ? _evidence.values.toList(growable: false)
+            : const [],
+      );
       ref.invalidate(garageProvider);
       ref.invalidate(vehicleDetailProvider(widget.vehicleId));
+      ref.invalidate(transferListProvider);
       if (mounted) {
-        context.go('/vehicles/${widget.vehicleId}');
+        context.go('/more/transfers/$transferId');
       }
     } on ApiFailure catch (failure) {
       if (mounted) {
@@ -658,6 +956,212 @@ class _NewTransferScreenState extends ConsumerState<NewTransferScreen> {
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
+  }
+}
+
+class _PathChoice extends StatelessWidget {
+  const _PathChoice({
+    required this.title,
+    required this.body,
+    required this.selected,
+    required this.onTap,
+  });
+  final String title;
+  final String body;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(12),
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      padding: const EdgeInsets.all(12),
+      constraints: const BoxConstraints(minHeight: 112),
+      decoration: BoxDecoration(
+        color: selected ? AppColors.forest950 : AppColors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: selected ? AppColors.forest950 : AppColors.border,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            selected ? Icons.check_circle_rounded : Icons.circle_outlined,
+            color: selected ? AppColors.orange : AppColors.muted,
+            size: 19,
+          ),
+          const SizedBox(height: 9),
+          Text(
+            title,
+            style: TextStyle(
+              color: selected ? AppColors.white : AppColors.ink,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            body,
+            style: TextStyle(
+              color: selected ? const Color(0xAAFFFFFF) : AppColors.muted,
+              fontSize: 9,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _EvidenceTile extends StatelessWidget {
+  const _EvidenceTile({
+    required this.field,
+    required this.upload,
+    required this.onPick,
+    required this.onRemove,
+  });
+  final TransferDocumentField field;
+  final TransferEvidenceUpload? upload;
+  final VoidCallback onPick;
+  final VoidCallback? onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final complete = upload?.completeFor(field) ?? false;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: complete ? AppColors.forest50 : AppColors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: complete ? AppColors.forest700 : AppColors.border,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: complete ? AppColors.forest700 : AppColors.canvas,
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Icon(
+                  complete ? Icons.check_rounded : Icons.description_outlined,
+                  color: complete ? AppColors.white : AppColors.forest700,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            field.label,
+                            style: const TextStyle(
+                              color: AppColors.ink,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          field.required ? 'REQUIRED' : 'OPTIONAL',
+                          style: TextStyle(
+                            color: field.required
+                                ? AppColors.orangeDark
+                                : AppColors.muted,
+                            fontSize: 7,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      field.requiresMetadata
+                          ? 'PDF or image · document details required'
+                          : 'PDF or image · maximum 10 MB',
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 9,
+                      ),
+                    ),
+                    if (field.conditionalNote?.isNotEmpty == true) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        field.conditionalNote!,
+                        style: const TextStyle(
+                          color: AppColors.orangeDark,
+                          fontSize: 8,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (upload != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              upload!.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.forest700,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            if (field.requiresMetadata && upload!.issueDate != null) ...[
+              const SizedBox(height: 3),
+              Text(
+                '${upload!.documentNumber} · ${upload!.issuer}\nIssued ${_date(upload!.issueDate!)} · expires ${_date(oneYearAfterNoOverflow(upload!.issueDate!))}',
+                style: const TextStyle(
+                  color: AppColors.muted,
+                  fontSize: 9,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ],
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onPick,
+                  icon: const Icon(Icons.upload_file_rounded, size: 17),
+                  label: Text(upload == null ? 'Choose file' : 'Replace'),
+                ),
+              ),
+              if (onRemove != null) ...[
+                const SizedBox(width: 8),
+                IconButton.outlined(
+                  onPressed: onRemove,
+                  tooltip: 'Remove file',
+                  icon: const Icon(Icons.delete_outline_rounded),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 

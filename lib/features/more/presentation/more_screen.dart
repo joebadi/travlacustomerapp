@@ -78,7 +78,7 @@ class MoreScreen extends ConsumerWidget {
             icon: Icons.swap_horiz_rounded,
             title: 'Ownership transfers',
             subtitle: 'Sent, received and pending transfers',
-            onTap: () => context.go('/vehicles'),
+            onTap: () => context.go('/more/transfers'),
           ),
           const _MoreTile(
             icon: Icons.shield_outlined,

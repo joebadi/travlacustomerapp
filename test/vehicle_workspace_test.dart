@@ -106,4 +106,103 @@ void main() {
       expect(readiness.problems, isEmpty);
     },
   );
+
+  test('transfer evidence enforces renewable metadata', () {
+    const field = TransferDocumentField(
+      key: 'vehicle_licence',
+      label: 'Vehicle licence',
+      category: 'RENEWABLE',
+      required: true,
+      requiresMetadata: true,
+      conditionalNote: null,
+    );
+    const incomplete = TransferEvidenceUpload(
+      key: 'vehicle_licence',
+      path: '/tmp/licence.pdf',
+      name: 'licence.pdf',
+      documentNumber: '',
+      issuer: '',
+      issueDate: null,
+    );
+    final complete = TransferEvidenceUpload(
+      key: 'vehicle_licence',
+      path: '/tmp/licence.pdf',
+      name: 'licence.pdf',
+      documentNumber: 'VL-12345',
+      issuer: 'Lagos State',
+      issueDate: DateTime(2026, 8, 9),
+    );
+
+    expect(incomplete.completeFor(field), isFalse);
+    expect(complete.completeFor(field), isTrue);
+  });
+
+  test('tinted vehicles require their permit evidence', () {
+    const permit = TransferDocumentField(
+      key: 'tinted_permit',
+      label: 'Tinted permit',
+      category: 'OTHER',
+      required: false,
+      requiresMetadata: false,
+      conditionalNote: 'Required when applicable.',
+    );
+    const setup = TransferSetup(
+      cities: [],
+      fieldsByBasis: {
+        'SALE': [permit],
+      },
+    );
+
+    expect(setup.fieldsFor('SALE').single.required, isFalse);
+    expect(setup.fieldsFor('SALE', tinted: true).single.required, isTrue);
+  });
+
+  test('received approved transfer requires recipient consent', () {
+    final transfer = TransferRecord.fromJson({
+      'id': 'transfer-1',
+      'tracking_number': 'TVL-2026-001',
+      'status': 'PENDING',
+      'status_label': 'Pending',
+      'transfer_mode': 'MANAGED',
+      'transfer_mode_label': 'Travla managed',
+      'transfer_basis': 'GIFT',
+      'transfer_basis_label': 'Gift',
+      'review_status': 'AWAITING_RECIPIENT',
+      'review_status_label': 'Awaiting recipient',
+      'consent_verified': false,
+      'am_i_sender': false,
+      'am_i_recipient': true,
+      'recipient': {
+        'first_name': 'Ada',
+        'last_name': 'Okafor',
+        'name': 'Ada Okafor',
+        'email': 'ada@example.com',
+      },
+      'vehicle': {
+        'id': 'vehicle-1',
+        'make': 'Honda',
+        'model': 'Pilot',
+        'plate_number': 'ABC-123-XY',
+      },
+    });
+
+    expect(transfer.awaitsMyConsent, isTrue);
+    expect(transfer.directionLabel, 'Received');
+    expect(transfer.vehicle?.displayName, 'Honda Pilot');
+    expect(transfer.recipient.name, 'Ada Okafor');
+  });
+
+  test('finished transfer never requests consent again', () {
+    final transfer = TransferRecord.fromJson({
+      'id': 'transfer-2',
+      'status': 'COMPLETED',
+      'review_status': 'AWAITING_RECIPIENT',
+      'consent_verified': false,
+      'am_i_recipient': true,
+      'recipient': {'name': 'Recipient'},
+    });
+
+    expect(transfer.isFinished, isTrue);
+    expect(transfer.awaitsMyConsent, isFalse);
+  });
 }
