@@ -292,7 +292,7 @@ class _ProfileMenu extends StatelessWidget {
         const Divider(height: 1),
         MenuItemButton(
           leadingIcon: const Icon(Icons.manage_accounts_outlined, size: 20),
-          onPressed: () => context.go('/more'),
+          onPressed: () => context.go('/more/profile'),
           child: const Text('Account & security'),
         ),
         MenuItemButton(

@@ -17,6 +17,7 @@ import 'package:travla_customer_app/features/news/presentation/news_article_scre
 import 'package:travla_customer_app/features/news/presentation/news_screen.dart';
 import 'package:travla_customer_app/features/notifications/presentation/notifications_screen.dart';
 import 'package:travla_customer_app/features/onboarding/presentation/onboarding_screen.dart';
+import 'package:travla_customer_app/features/profile/presentation/profile_screen.dart';
 import 'package:travla_customer_app/features/registrations/presentation/new_vehicle_registration_screen.dart';
 import 'package:travla_customer_app/features/transfers/presentation/new_transfer_screen.dart';
 import 'package:travla_customer_app/features/transfers/presentation/transfer_detail_screen.dart';
@@ -171,6 +172,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'transactions',
                     builder: (context, state) => const TransactionsScreen(),
+                  ),
+                  GoRoute(
+                    path: 'profile',
+                    builder: (context, state) => const ProfileScreen(),
                   ),
                   GoRoute(
                     path: 'marketplace',

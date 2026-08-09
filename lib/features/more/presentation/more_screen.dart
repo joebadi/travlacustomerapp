@@ -98,10 +98,11 @@ class MoreScreen extends ConsumerWidget {
             title: 'Support',
             subtitle: 'Get help from Travla',
           ),
-          const _MoreTile(
+          _MoreTile(
             icon: Icons.person_outline_rounded,
             title: 'Profile & security',
             subtitle: 'Identity, bank details and account settings',
+            onTap: () => context.go('/more/profile'),
           ),
           const SizedBox(height: 22),
           OutlinedButton.icon(

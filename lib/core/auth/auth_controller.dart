@@ -151,4 +151,9 @@ class AuthController extends Notifier<AuthSessionState> {
   void clearError() {
     state = state.copyWith(clearError: true);
   }
+
+  void replaceUser(AppUser user) {
+    if (state.phase != AuthPhase.authenticated) return;
+    state = state.copyWith(user: user, clearError: true);
+  }
 }

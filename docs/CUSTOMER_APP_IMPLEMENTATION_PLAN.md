@@ -151,7 +151,7 @@ Items may be progressively enabled, but disabled placeholders must clearly say
 | Stolen vehicle registry | ⬜ | — | Report, search, sighting and map workflows remain. |
 | Insurance and claims | ⬜ | — | Policy, purchase/renewal and claims workflows remain. |
 | Vehicle tracking/live map | ⬜ | — | Mobile map and phone-as-tracker flows remain. |
-| Support/profile/security | 🟡 | — | Profile dropdown exists; full pages and editing are pending. |
+| Support/profile/security | 🟡 | 🧪 | Full profile, avatar, personal/NIN editing, Paystack bank verification and password change are coded; support and legal/preferences pages remain. |
 | Push notifications and deep links | 🟡 | — | In-app polling exists; FCM/APNs and full link routing remain. |
 | Release hardening/store submission | ⬜ | — | Privacy, signing, QA, telemetry and store assets remain. |
 
@@ -259,12 +259,12 @@ immediate paths to the highest-value actions.
 - [x] Profile image/initials icon replaces the Customer label.
 - [x] Dropdown shows name, email, phone and verification state.
 - [x] Logout is available from the dropdown.
-- [ ] Full profile screen.
-- [ ] Edit name, phone and profile image with reverification where required.
-- [ ] NIN submission and verification-status display.
-- [ ] Bank-account entry and Paystack verification status.
-- [ ] First/last-name match explanations for protected-payment eligibility.
-- [ ] Security settings and password change.
+- [x] Full profile screen.
+- [x] Edit name, phone and profile image with reverification where required.
+- [x] NIN submission and verification-status display.
+- [x] Bank-account entry and Paystack verification status.
+- [x] First/last-name match explanations for protected-payment eligibility.
+- [x] Security settings and password change.
 - [ ] Legal/privacy/support links.
 
 ### Phase 3 — Vehicles and document vault
