@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "ng.com.travla.customer"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
