@@ -24,6 +24,11 @@ class VehiclesScreen extends ConsumerWidget {
         title: const Text('My Vehicles'),
         actions: [
           IconButton(
+            tooltip: 'Register new vehicle',
+            onPressed: () => context.go('/vehicles/register-new'),
+            icon: const Icon(Icons.assignment_add),
+          ),
+          IconButton(
             tooltip: 'Add existing vehicle',
             onPressed: () => context.go('/vehicles/add-existing'),
             icon: const Icon(Icons.add_rounded),
@@ -388,6 +393,12 @@ class _EmptyGarage extends StatelessWidget {
               onPressed: () => context.go('/vehicles/add-existing'),
               icon: const Icon(Icons.add_road_rounded),
               label: const Text('Add existing vehicle'),
+            ),
+            const SizedBox(height: 9),
+            OutlinedButton.icon(
+              onPressed: () => context.go('/vehicles/register-new'),
+              icon: const Icon(Icons.assignment_add),
+              label: const Text('Register a new vehicle'),
             ),
           ],
         ),

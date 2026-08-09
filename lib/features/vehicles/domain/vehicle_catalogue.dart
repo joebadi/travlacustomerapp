@@ -33,13 +33,49 @@ class VehicleMakeOption {
   }
 }
 
+class VehicleCategoryOption {
+  const VehicleCategoryOption({
+    required this.value,
+    required this.label,
+    required this.registrationFeeNaira,
+  });
+
+  final String value;
+  final String label;
+  final String registrationFeeNaira;
+
+  factory VehicleCategoryOption.fromJson(Map<String, dynamic> json) {
+    return VehicleCategoryOption(
+      value: json['value']?.toString() ?? '',
+      label: json['label']?.toString() ?? '',
+      registrationFeeNaira:
+          json['effective_registration_fee_naira']?.toString() ?? '0.00',
+    );
+  }
+}
+
 class VehicleCatalogue {
-  const VehicleCatalogue({required this.makes, required this.fallbackCategory});
+  const VehicleCatalogue({
+    required this.makes,
+    required this.categories,
+    required this.fallbackCategory,
+  });
 
   final List<VehicleMakeOption> makes;
+  final List<VehicleCategoryOption> categories;
   final String fallbackCategory;
 
-  factory VehicleCatalogue.fromJson(Map<String, dynamic> json) {
+  VehicleCategoryOption? category(String? value) {
+    for (final category in categories) {
+      if (category.value == value) return category;
+    }
+    return null;
+  }
+
+  factory VehicleCatalogue.fromJson(
+    Map<String, dynamic> json,
+    List<dynamic> rawCategories,
+  ) {
     final rawMakes = json['makes'];
     return VehicleCatalogue(
       makes: rawMakes is List
@@ -49,6 +85,11 @@ class VehicleCatalogue {
                 .where((make) => make.name.isNotEmpty)
                 .toList(growable: false)
           : const [],
+      categories: rawCategories
+          .whereType<Map<String, dynamic>>()
+          .map(VehicleCategoryOption.fromJson)
+          .where((category) => category.value.isNotEmpty)
+          .toList(growable: false),
       fallbackCategory: json['fallback_category']?.toString() ?? 'other',
     );
   }

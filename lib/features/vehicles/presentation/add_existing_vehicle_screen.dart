@@ -75,9 +75,16 @@ class _AddExistingVehicleScreenState
     });
   }
 
-  void _continue() {
+  void _continue(VehicleCatalogue catalogue) {
     FocusManager.instance.primaryFocus?.unfocus();
     if (!(_detailsKey.currentState?.validate() ?? false)) return;
+    if (catalogue.category(_category) == null) {
+      setState(() {
+        _error =
+            'This vehicle category is not currently available. Choose another make and model or contact Travla support.';
+      });
+      return;
+    }
     setState(() {
       _error = null;
       _step = 1;
@@ -312,9 +319,16 @@ class _AddExistingVehicleScreenState
             ],
           ),
           const SizedBox(height: 14),
-          _AutoCategory(category: _category),
+          _AutoCategory(category: catalogue.category(_category)),
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            AuthInlineMessage(message: _error!),
+          ],
           const SizedBox(height: 24),
-          AuthPrimaryButton(label: 'Continue', onPressed: _continue),
+          AuthPrimaryButton(
+            label: 'Continue',
+            onPressed: () => _continue(catalogue),
+          ),
         ],
       ),
     );
@@ -487,7 +501,7 @@ class _VehicleFormHeader extends StatelessWidget {
 class _AutoCategory extends StatelessWidget {
   const _AutoCategory({required this.category});
 
-  final String? category;
+  final VehicleCategoryOption? category;
 
   @override
   Widget build(BuildContext context) {
@@ -512,8 +526,7 @@ class _AutoCategory extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  category?.replaceAll('_', ' ').toUpperCase() ??
-                      'SELECT MAKE AND MODEL',
+                  category?.label.toUpperCase() ?? 'SELECT MAKE AND MODEL',
                   style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
               ],

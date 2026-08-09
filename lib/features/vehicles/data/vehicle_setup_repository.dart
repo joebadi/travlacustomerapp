@@ -12,14 +12,22 @@ class VehicleSetupRepository {
 
   Future<VehicleCatalogue> catalogue() async {
     try {
-      final response = await _apiClient.dio.get<Map<String, dynamic>>(
-        '/catalogue/vehicles',
-      );
-      final data = response.data?['data'];
-      if (data is! Map<String, dynamic>) {
+      final responses = await Future.wait([
+        _apiClient.dio.get<Map<String, dynamic>>('/catalogue/vehicles'),
+        _apiClient.dio.get<Map<String, dynamic>>('/catalogue/categories'),
+      ]);
+      final vehicleData = responses[0].data?['data'];
+      final categoryData = responses[1].data?['data'];
+      if (vehicleData is! Map<String, dynamic> || categoryData is! List) {
         throw const ApiFailure('Travla returned an invalid vehicle catalogue.');
       }
-      return VehicleCatalogue.fromJson(data);
+      final catalogue = VehicleCatalogue.fromJson(vehicleData, categoryData);
+      if (catalogue.categories.isEmpty) {
+        throw const ApiFailure(
+          'Vehicle categories are not configured. Please contact Travla support.',
+        );
+      }
+      return catalogue;
     } on DioException catch (exception) {
       throw ApiFailure.fromDio(exception);
     }

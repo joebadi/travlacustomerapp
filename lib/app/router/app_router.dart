@@ -15,6 +15,7 @@ import 'package:travla_customer_app/features/more/presentation/more_screen.dart'
 import 'package:travla_customer_app/features/news/presentation/news_article_screen.dart';
 import 'package:travla_customer_app/features/news/presentation/news_screen.dart';
 import 'package:travla_customer_app/features/onboarding/presentation/onboarding_screen.dart';
+import 'package:travla_customer_app/features/registrations/presentation/new_vehicle_registration_screen.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/add_existing_vehicle_screen.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/vehicles_screen.dart';
 
@@ -104,6 +105,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     path: 'add-existing',
                     builder: (context, state) =>
                         const AddExistingVehicleScreen(),
+                  ),
+                  GoRoute(
+                    path: 'register-new',
+                    builder: (context, state) =>
+                        const NewVehicleRegistrationScreen(),
                   ),
                 ],
               ),
