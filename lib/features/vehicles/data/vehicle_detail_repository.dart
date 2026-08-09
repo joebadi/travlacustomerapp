@@ -115,6 +115,66 @@ class VehicleDetailRepository {
       throw ApiFailure.fromDio(exception);
     }
   }
+
+  Future<void> updateVehicle({
+    required String vehicleId,
+    required String make,
+    required String model,
+    required int year,
+    required String color,
+    required String plateNumber,
+    required String engineNumber,
+    required String category,
+    required bool isTinted,
+    required String description,
+    required String changeReason,
+    required List<VehicleImageUpload> newImages,
+    required List<String> removedImages,
+  }) async {
+    final form = FormData();
+    form.fields.addAll([
+      const MapEntry('_method', 'PATCH'),
+      MapEntry('make', make.trim()),
+      MapEntry('model', model.trim()),
+      MapEntry('year', year.toString()),
+      MapEntry('color', color.trim()),
+      MapEntry('plate_number', plateNumber.trim()),
+      MapEntry('engine_number', engineNumber.trim()),
+      MapEntry('vehicle_category', category),
+      MapEntry('is_tinted', isTinted ? '1' : '0'),
+      MapEntry('description', description.trim()),
+      MapEntry('change_reason', changeReason.trim()),
+    ]);
+    for (final image in newImages) {
+      form.files.add(
+        MapEntry(
+          'images[]',
+          await MultipartFile.fromFile(image.path, filename: image.name),
+        ),
+      );
+    }
+    for (final imageUrl in removedImages) {
+      form.fields.add(MapEntry('remove_images[]', imageUrl));
+    }
+
+    try {
+      await _apiClient.dio.post<void>('/vehicles/$vehicleId', data: form);
+    } on DioException catch (exception) {
+      throw ApiFailure.fromDio(exception);
+    }
+  }
+}
+
+class VehicleImageUpload {
+  const VehicleImageUpload({
+    required this.path,
+    required this.name,
+    required this.sizeBytes,
+  });
+
+  final String path;
+  final String name;
+  final int sizeBytes;
 }
 
 final vehicleDetailRepositoryProvider = Provider<VehicleDetailRepository>((

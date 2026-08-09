@@ -8,7 +8,9 @@ class VehicleDetail {
     required this.plateNumber,
     required this.chassisNumber,
     required this.engineNumber,
+    required this.categoryValue,
     required this.categoryLabel,
+    required this.description,
     required this.isTinted,
     required this.hasValidPlateNumber,
     required this.status,
@@ -27,7 +29,9 @@ class VehicleDetail {
   final String plateNumber;
   final String chassisNumber;
   final String engineNumber;
+  final String categoryValue;
   final String categoryLabel;
+  final String description;
   final bool isTinted;
   final bool hasValidPlateNumber;
   final String? status;
@@ -64,7 +68,9 @@ class VehicleDetail {
       plateNumber: json['plate_number']?.toString() ?? '',
       chassisNumber: json['chassis_number']?.toString() ?? '',
       engineNumber: json['engine_number']?.toString() ?? '',
+      categoryValue: category['value']?.toString() ?? '',
       categoryLabel: category['label']?.toString() ?? 'Not specified',
+      description: json['description']?.toString() ?? '',
       isTinted: json['is_tinted'] == true,
       hasValidPlateNumber: json['has_valid_plate_number'] == true,
       status: json['status']?.toString(),

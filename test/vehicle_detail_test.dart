@@ -26,6 +26,7 @@ void main() {
       'plate_number': 'ABC-123-XY',
       'chassis_number': 'CHASSIS-1',
       'engine_number': 'ENGINE-1',
+      'description': 'Primary family vehicle',
       'has_valid_plate_number': true,
       'is_tinted': false,
       'category': {'value': 'suv', 'label': 'SUV'},
@@ -56,7 +57,9 @@ void main() {
     });
 
     expect(vehicle.displayName, 'Honda Pilot');
+    expect(vehicle.categoryValue, 'suv');
     expect(vehicle.categoryLabel, 'SUV');
+    expect(vehicle.description, 'Primary family vehicle');
     expect(vehicle.renewableDocuments.single.name, 'Vehicle Licence');
     expect(vehicle.renewableDocuments.single.autoRenew, isTrue);
     expect(vehicle.otherDocuments.single.name, 'Proof of Ownership');

@@ -6,6 +6,7 @@ import 'package:travla_customer_app/features/vehicles/data/garage_repository.dar
 import 'package:travla_customer_app/features/vehicles/data/vehicle_detail_repository.dart';
 import 'package:travla_customer_app/features/vehicles/domain/vehicle_detail.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/add_vehicle_document_sheet.dart';
+import 'package:travla_customer_app/features/vehicles/presentation/edit_vehicle_sheet.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 enum VehicleDetailTab { overview, documents }
@@ -39,11 +40,18 @@ class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final detail = ref.watch(vehicleDetailProvider(widget.vehicleId));
+    final vehicle = detail.asData?.value;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Vehicle details'),
         actions: [
+          if (vehicle != null)
+            IconButton(
+              tooltip: 'Edit vehicle',
+              onPressed: () => _editVehicle(vehicle),
+              icon: const Icon(Icons.edit_outlined),
+            ),
           IconButton(
             tooltip: 'Refresh',
             onPressed: () => _refresh(),
@@ -113,6 +121,20 @@ class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
     ref.invalidate(vehicleDetailProvider(widget.vehicleId));
     ref.invalidate(availableDocumentTypesProvider(widget.vehicleId));
     await ref.read(vehicleDetailProvider(widget.vehicleId).future);
+  }
+
+  Future<void> _editVehicle(VehicleDetail vehicle) async {
+    final saved = await showEditVehicleSheet(
+      context: context,
+      vehicle: vehicle,
+    );
+    if (saved != true || !mounted) return;
+
+    ref.invalidate(vehicleDetailProvider(widget.vehicleId));
+    ref.invalidate(availableDocumentTypesProvider(widget.vehicleId));
+    ref.invalidate(garageProvider);
+    setState(() => _imageIndex = 0);
+    _showMessage('Vehicle details updated.');
   }
 
   Future<void> _addDocument(DocumentTypeFilter filter) async {

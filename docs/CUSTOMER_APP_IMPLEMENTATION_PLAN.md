@@ -139,7 +139,7 @@ Items may be progressively enabled, but disabled placeholders must clearly say
 | Vehicle garage/list/readiness | ✅ | 🧪 | Owned and incoming vehicle summary is connected. |
 | Add an existing vehicle | ✅ | 🧪 | Canonical make/model/category data and validation. |
 | Register a new vehicle | ✅ | 🧪 | Four-stage flow, uploads, handover and server quote. |
-| Vehicle detail/documents/gallery | 🟡 | 🧪 | Overview, gallery viewing and document vault are coded; vehicle editing, gallery management and service tabs remain. |
+| Vehicle detail/documents/gallery | 🟡 | 🧪 | Overview, audit-aware editing, gallery viewing/upload/removal and the document vault are coded; service and tracking tabs remain. |
 | Transactions/wallet funding | ⬜ | — | Required before payment-heavy flows are complete. |
 | Vehicle-paper renewal | ⬜ | — | Backend/web complete; mobile not started. |
 | Driver's-licence renewal | ⬜ | — | Backend/web complete; mobile not started. |
@@ -298,7 +298,8 @@ immediate paths to the highest-value actions.
 
 - [x] Premium vehicle overview with status, identity and document-readiness action.
 - [x] Swipeable vehicle image gallery viewing.
-- [ ] Vehicle image upload/reorder/hide behavior.
+- [x] Vehicle image upload/removal with six-image and 5 MB-per-file limits.
+- [ ] Vehicle image reordering (requires a persistent backend ordering contract).
 - [x] Renewable Documents section.
 - [x] Other Documents section.
 - [x] Document detail and version history with signed file opening.
@@ -306,7 +307,8 @@ immediate paths to the highest-value actions.
 - [x] Server-owned expiry submission: mobile never sends an expiry date.
 - [x] Auto-renew toggle for renewable documents.
 - [x] Confirmed document removal and workspace refresh.
-- [ ] Edit permitted vehicle identifiers with audit-aware confirmation.
+- [x] Edit permitted vehicle identifiers with audit-aware confirmation.
+- [x] Keep VIN immutable and auto-resolve/lock category from canonical make/model.
 - [ ] Other Services screen adapted from web.
 - [ ] Sell-on-marketplace entry point and eligibility explanation.
 - [ ] Ownership-transfer entry point.
@@ -670,7 +672,7 @@ than relying exclusively on this high-level map.
 
 This order unlocks complete customer journeys before expanding to specialist modules.
 
-1. **Finish vehicle management** — editing, gallery management and the remaining vehicle service/tracking entry points.
+1. **Finish vehicle management** — build the remaining vehicle service, marketplace/transfer and tracking entry points.
 2. **Profile/security and Transactions/wallet** — required identity and payment foundation.
 3. **Vehicle-paper and driver’s-licence renewals** — Travla’s primary revenue product.
 4. **Complete registration list/detail/delivery tracking** — closes the already-built form.
