@@ -11,12 +11,14 @@ import 'package:travla_customer_app/features/auth/presentation/splash_screen.dar
 import 'package:travla_customer_app/features/home/presentation/home_screen.dart';
 import 'package:travla_customer_app/features/journeys/presentation/journeys_screen.dart';
 import 'package:travla_customer_app/features/marketplace/presentation/marketplace_screen.dart';
+import 'package:travla_customer_app/features/marketplace/presentation/new_listing_screen.dart';
 import 'package:travla_customer_app/features/more/presentation/more_screen.dart';
 import 'package:travla_customer_app/features/news/presentation/news_article_screen.dart';
 import 'package:travla_customer_app/features/news/presentation/news_screen.dart';
 import 'package:travla_customer_app/features/notifications/presentation/notifications_screen.dart';
 import 'package:travla_customer_app/features/onboarding/presentation/onboarding_screen.dart';
 import 'package:travla_customer_app/features/registrations/presentation/new_vehicle_registration_screen.dart';
+import 'package:travla_customer_app/features/transfers/presentation/new_transfer_screen.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/add_existing_vehicle_screen.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/vehicle_detail_screen.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/vehicles_screen.dart';
@@ -166,6 +168,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'marketplace',
                     builder: (context, state) => const MarketplaceScreen(),
+                    routes: [
+                      GoRoute(
+                        path: 'list-new',
+                        builder: (context, state) =>
+                            NewMarketplaceListingScreen(
+                              vehicleId:
+                                  state.uri.queryParameters['vehicle'] ?? '',
+                            ),
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: 'transfers/new',
+                    builder: (context, state) => NewTransferScreen(
+                      vehicleId: state.uri.queryParameters['vehicle'] ?? '',
+                    ),
                   ),
                 ],
               ),

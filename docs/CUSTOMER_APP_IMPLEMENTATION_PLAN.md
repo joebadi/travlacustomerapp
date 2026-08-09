@@ -139,12 +139,12 @@ Items may be progressively enabled, but disabled placeholders must clearly say
 | Vehicle garage/list/readiness | ✅ | 🧪 | Owned and incoming vehicle summary is connected. |
 | Add an existing vehicle | ✅ | 🧪 | Canonical make/model/category data and validation. |
 | Register a new vehicle | ✅ | 🧪 | Four-stage flow, uploads, handover and server quote. |
-| Vehicle detail/documents/gallery | 🟡 | 🧪 | Overview, audit-aware editing, gallery viewing/upload/removal and the document vault are coded; service and tracking tabs remain. |
+| Vehicle workspace | ✅ | 🧪 | Overview, audit-aware editing, gallery, document vault, service ordering/history and tracker-source management are coded. |
 | Transactions/wallet funding | ⬜ | — | Required before payment-heavy flows are complete. |
 | Vehicle-paper renewal | ⬜ | — | Backend/web complete; mobile not started. |
 | Driver's-licence renewal | ⬜ | — | Backend/web complete; mobile not started. |
-| Ownership transfer | 🟡 | — | Incoming summaries exist; complete transfer workflow is pending. |
-| Marketplace | 🟡 | — | Navigation placeholder only; full marketplace remains. |
+| Ownership transfer | 🟡 | 🧪 | Incoming summaries plus a preselected, readiness-aware Travla-managed creation flow are coded; offline evidence, lists/detail and recipient consent remain. |
+| Marketplace | 🟡 | 🧪 | Seller activation, owned-vehicle picker, eligibility-aware listing creation and seller listing summary are coded; browse, offers, wanted and settlement remain. |
 | Fleet | ⬜ | — | Backend/web complete; native mobile module pending. |
 | Journeys | 🟡 | — | Navigation placeholder; native GPS client is the main remaining work. |
 | Car Talk forum | ⬜ | — | News is separate and complete; forum remains. |
@@ -309,10 +309,13 @@ immediate paths to the highest-value actions.
 - [x] Confirmed document removal and workspace refresh.
 - [x] Edit permitted vehicle identifiers with audit-aware confirmation.
 - [x] Keep VIN immutable and auto-resolve/lock category from canonical make/model.
-- [ ] Other Services screen adapted from web.
+- [x] Other Services catalogue, requirements, service-city/delivery form and order history.
+- [x] Fixed-fee wallet submission, quoted-order payment and pending-order cancellation.
 - [ ] Sell-on-marketplace entry point and eligibility explanation.
 - [ ] Ownership-transfer entry point.
-- [ ] Tracking tab and source management.
+- [x] Tracking tab with latest fix, trail summary and external map opening.
+- [x] Hardware/API tracker creation, activation, key rotation and removal.
+- [ ] Background phone-as-tracker streaming (native location/offline phase).
 
 ### Phase 4 — Transactions, wallet and payments
 
@@ -388,17 +391,18 @@ reconstructs commission or payment amounts independently.
 verification sequence and distinguish Travla-managed versus offline paperwork.
 
 - [ ] Sent/received transfer lists with clear states.
-- [ ] Transfer-readiness check before form entry.
-- [ ] Start from a selected vehicle without repeating known details.
-- [ ] Reason defaults to **Select**; sale, gift and other supported reasons.
-- [ ] Online/agent-prepared transfer path.
+- [x] Transfer-readiness check before form entry.
+- [x] Start from a selected vehicle without repeating known details.
+- [x] Reason defaults to **Select**; sale, gift and other supported reasons.
+- [x] Online/agent-prepared transfer path.
 - [ ] Offline-completed transfer with customer document uploads.
-- [ ] Recipient phone-first lookup.
-- [ ] Populate and lock matched account email/details.
-- [ ] Required recipient NIN handling.
-- [ ] Prevent phone/email from resolving to separate accounts.
+- [x] Recipient phone-first lookup.
+- [x] Populate and lock matched account email/details.
+- [x] Required recipient NIN handling.
+- [x] Prevent phone/email from resolving to separate accounts.
 - [ ] Document issue dates with server-derived one-year expiry.
-- [ ] Quote, wallet/hybrid payment and submission.
+- [x] Category/city/delivery fee breakdown and wallet submission.
+- [ ] Wallet-shortfall gateway top-up/hybrid payment continuation.
 - [ ] Admin verification pending state before recipient notification.
 - [ ] Admin correction query shown to sender with edit/resubmit path.
 - [ ] Recipient consent code entry only after admin approval.
@@ -417,11 +421,12 @@ exposing buyer contact details by default.
 - [x] Marketplace is located under More.
 - [ ] Premium browse with search/filter/sort and pagination.
 - [ ] Listing detail, image gallery, documents/readiness summary and seller name.
-- [ ] Create listing from an eligible owned vehicle.
-- [ ] New-vehicle exemption versus used-vehicle required-paper gate.
-- [ ] Use existing vehicle images by default.
-- [ ] Listing-only hide/show image controls.
-- [ ] New listing images propagate to the main vehicle gallery.
+- [x] Create listing from an eligible owned vehicle.
+- [x] One-time verified seller activation gate.
+- [x] New-vehicle exemption versus used-vehicle required-paper gate.
+- [x] Use existing vehicle images by default.
+- [x] Listing-only hide/show image controls.
+- [x] New listing images propagate to the main vehicle gallery.
 - [ ] Edit, pause, manually remove and relist.
 - [ ] Make/counter/revise/reject/accept offers.
 - [ ] Buyer-seller private messaging without default phone/email disclosure.
@@ -598,6 +603,7 @@ The detailed behavioral source is `../../docs/JOURNEYS.md`.
 - [ ] Registration gate/reCAPTCHA tests.
 - [ ] Vehicle catalogue/category-resolution tests.
 - [x] Vehicle detail parsing, document grouping and expiry-derivation tests.
+- [x] Vehicle service payment-state and tracker workspace parsing tests.
 - [ ] Registration quote/submission tests.
 - [ ] Notifications repository and read-state tests.
 - [ ] Router/deep-link tests.
@@ -672,7 +678,7 @@ than relying exclusively on this high-level map.
 
 This order unlocks complete customer journeys before expanding to specialist modules.
 
-1. **Finish vehicle management** — build the remaining vehicle service, marketplace/transfer and tracking entry points.
+1. **Finish vehicle actions** — build marketplace/transfer eligibility and native entry points.
 2. **Profile/security and Transactions/wallet** — required identity and payment foundation.
 3. **Vehicle-paper and driver’s-licence renewals** — Travla’s primary revenue product.
 4. **Complete registration list/detail/delivery tracking** — closes the already-built form.

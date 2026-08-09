@@ -74,10 +74,11 @@ class MoreScreen extends ConsumerWidget {
             title: 'Renewals & registrations',
             subtitle: 'Vehicle papers, registration and driver’s licence',
           ),
-          const _MoreTile(
+          _MoreTile(
             icon: Icons.swap_horiz_rounded,
             title: 'Ownership transfers',
             subtitle: 'Sent, received and pending transfers',
+            onTap: () => context.go('/vehicles'),
           ),
           const _MoreTile(
             icon: Icons.shield_outlined,

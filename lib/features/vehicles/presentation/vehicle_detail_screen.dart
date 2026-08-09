@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/vehicles/data/garage_repository.dart';
 import 'package:travla_customer_app/features/vehicles/data/vehicle_detail_repository.dart';
+import 'package:travla_customer_app/features/vehicles/data/vehicle_service_repository.dart';
+import 'package:travla_customer_app/features/vehicles/data/vehicle_tracking_repository.dart';
 import 'package:travla_customer_app/features/vehicles/domain/vehicle_detail.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/add_vehicle_document_sheet.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/edit_vehicle_sheet.dart';
+import 'package:travla_customer_app/features/vehicles/presentation/vehicle_services_tab.dart';
+import 'package:travla_customer_app/features/vehicles/presentation/vehicle_tracking_tab.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-enum VehicleDetailTab { overview, documents }
+enum VehicleDetailTab { overview, documents, tracking, services }
 
 class VehicleDetailScreen extends ConsumerStatefulWidget {
   const VehicleDetailScreen({
@@ -91,24 +96,41 @@ class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 220),
                 switchInCurve: Curves.easeOutCubic,
-                child: _tab == VehicleDetailTab.overview
-                    ? _OverviewTab(
-                        key: const ValueKey('overview'),
-                        vehicle: vehicle,
-                        onOpenDocuments: () =>
-                            setState(() => _tab = VehicleDetailTab.documents),
-                      )
-                    : _DocumentsTab(
-                        key: const ValueKey('documents'),
-                        vehicle: vehicle,
-                        mutatingDocuments: _mutatingDocuments,
-                        onAdd: _addDocument,
-                        onView: (document) =>
-                            _showDocumentDetails(vehicle, document),
-                        onAutoRenew: (document, enabled) =>
-                            _setAutoRenew(document, enabled),
-                        onDelete: _deleteDocument,
-                      ),
+                child: switch (_tab) {
+                  VehicleDetailTab.overview => _OverviewTab(
+                    key: const ValueKey('overview'),
+                    vehicle: vehicle,
+                    onOpenDocuments: () =>
+                        setState(() => _tab = VehicleDetailTab.documents),
+                    onSell: () => context.push(
+                      '/more/marketplace/list-new?vehicle=${vehicle.id}',
+                    ),
+                    onTransfer: () => context.push(
+                      '/more/transfers/new?vehicle=${vehicle.id}',
+                    ),
+                  ),
+                  VehicleDetailTab.documents => _DocumentsTab(
+                    key: const ValueKey('documents'),
+                    vehicle: vehicle,
+                    mutatingDocuments: _mutatingDocuments,
+                    onAdd: _addDocument,
+                    onView: (document) =>
+                        _showDocumentDetails(vehicle, document),
+                    onAutoRenew: (document, enabled) =>
+                        _setAutoRenew(document, enabled),
+                    onDelete: _deleteDocument,
+                  ),
+                  VehicleDetailTab.tracking => VehicleTrackingTab(
+                    key: const ValueKey('tracking'),
+                    vehicle: vehicle,
+                    onOrderTracker: () =>
+                        setState(() => _tab = VehicleDetailTab.services),
+                  ),
+                  VehicleDetailTab.services => VehicleServicesTab(
+                    key: const ValueKey('services'),
+                    vehicle: vehicle,
+                  ),
+                },
               ),
             ],
           ),
@@ -120,6 +142,8 @@ class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
   Future<void> _refresh() async {
     ref.invalidate(vehicleDetailProvider(widget.vehicleId));
     ref.invalidate(availableDocumentTypesProvider(widget.vehicleId));
+    ref.invalidate(vehicleServiceWorkspaceProvider(widget.vehicleId));
+    ref.invalidate(vehicleTrackingWorkspaceProvider(widget.vehicleId));
     await ref.read(vehicleDetailProvider(widget.vehicleId).future);
   }
 
@@ -491,13 +515,8 @@ class _DetailTabSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: AppColors.border),
-      ),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
       child: Row(
         children: [
           _DetailTabButton(
@@ -511,6 +530,18 @@ class _DetailTabSelector extends StatelessWidget {
             icon: Icons.folder_copy_outlined,
             selected: selected == VehicleDetailTab.documents,
             onTap: () => onChanged(VehicleDetailTab.documents),
+          ),
+          _DetailTabButton(
+            label: 'Tracking',
+            icon: Icons.near_me_outlined,
+            selected: selected == VehicleDetailTab.tracking,
+            onTap: () => onChanged(VehicleDetailTab.tracking),
+          ),
+          _DetailTabButton(
+            label: 'Services',
+            icon: Icons.home_repair_service_outlined,
+            selected: selected == VehicleDetailTab.services,
+            onTap: () => onChanged(VehicleDetailTab.services),
           ),
         ],
       ),
@@ -533,16 +564,20 @@ class _DetailTabButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
+    return Padding(
+      padding: const EdgeInsets.only(right: 7),
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(vertical: 11),
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
           decoration: BoxDecoration(
-            color: selected ? AppColors.forest800 : Colors.transparent,
+            color: selected ? AppColors.forest800 : AppColors.white,
             borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: selected ? AppColors.forest800 : AppColors.border,
+            ),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -553,15 +588,12 @@ class _DetailTabButton extends StatelessWidget {
                 color: selected ? AppColors.white : AppColors.muted,
               ),
               const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  label,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: selected ? AppColors.white : AppColors.muted,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                  ),
+              Text(
+                label,
+                style: TextStyle(
+                  color: selected ? AppColors.white : AppColors.muted,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
             ],
@@ -576,11 +608,15 @@ class _OverviewTab extends StatelessWidget {
   const _OverviewTab({
     required this.vehicle,
     required this.onOpenDocuments,
+    required this.onSell,
+    required this.onTransfer,
     super.key,
   });
 
   final VehicleDetail vehicle;
   final VoidCallback onOpenDocuments;
+  final VoidCallback onSell;
+  final VoidCallback onTransfer;
 
   @override
   Widget build(BuildContext context) {
@@ -602,6 +638,98 @@ class _OverviewTab extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _ReadinessCard(vehicle: vehicle, onOpenDocuments: onOpenDocuments),
+          const SizedBox(height: 14),
+          Card(
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: onSell,
+              child: const Padding(
+                padding: EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: AppColors.orangeSoft,
+                      foregroundColor: AppColors.orangeDark,
+                      child: Icon(Icons.sell_outlined),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Sell on Travla Marketplace',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          SizedBox(height: 3),
+                          Text(
+                            'Check transfer readiness and create a verified listing.',
+                            style: TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 9,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      color: AppColors.orangeDark,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Card(
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: onTransfer,
+              child: const Padding(
+                padding: EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: AppColors.forest100,
+                      foregroundColor: AppColors.forest700,
+                      child: Icon(Icons.swap_horiz_rounded),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Transfer vehicle ownership',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          SizedBox(height: 3),
+                          Text(
+                            'Preselect this vehicle and check legal readiness.',
+                            style: TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 9,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      color: AppColors.forest700,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
           const SizedBox(height: 14),
           Card(
             child: Padding(
