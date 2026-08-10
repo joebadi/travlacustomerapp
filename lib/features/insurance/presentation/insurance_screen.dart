@@ -39,6 +39,33 @@ class InsuranceScreen extends ConsumerWidget {
                   : _ExpiringSection(policies: policies),
               orElse: () => const SizedBox.shrink(),
             ),
+            Card(
+              margin: const EdgeInsets.only(bottom: 18),
+              child: ListTile(
+                onTap: () => context.push('/more/claims'),
+                leading: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.forest50,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.gavel_rounded,
+                    color: AppColors.forest700,
+                  ),
+                ),
+                title: const Text(
+                  'Claims',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+                subtitle: const Text(
+                  'File and track incident claims',
+                  style: TextStyle(fontSize: 12),
+                ),
+                trailing: const Icon(Icons.chevron_right_rounded),
+              ),
+            ),
             const _SectionLabel('Your vehicles'),
             garage.when(
               loading: () => const _Loading(),

@@ -11,6 +11,9 @@ import 'package:travla_customer_app/features/auth/presentation/splash_screen.dar
 import 'package:travla_customer_app/features/drivers_license/presentation/add_license_screen.dart';
 import 'package:travla_customer_app/features/drivers_license/presentation/drivers_license_screen.dart';
 import 'package:travla_customer_app/features/drivers_license/presentation/new_license_renewal_screen.dart';
+import 'package:travla_customer_app/features/claims/presentation/claim_detail_screen.dart';
+import 'package:travla_customer_app/features/claims/presentation/claims_screen.dart';
+import 'package:travla_customer_app/features/claims/presentation/new_claim_screen.dart';
 import 'package:travla_customer_app/features/home/presentation/home_screen.dart';
 import 'package:travla_customer_app/features/insurance/presentation/add_policy_screen.dart';
 import 'package:travla_customer_app/features/insurance/presentation/buy_insurance_screen.dart';
@@ -257,6 +260,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                                 ),
                           ),
                         ],
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: 'claims',
+                    builder: (context, state) => const ClaimsScreen(),
+                    routes: [
+                      GoRoute(
+                        path: 'new',
+                        builder: (context, state) => NewClaimScreen(
+                          vehicleId: state.uri.queryParameters['vehicle'],
+                        ),
+                      ),
+                      GoRoute(
+                        path: ':claimId',
+                        builder: (context, state) => ClaimDetailScreen(
+                          claimId: state.pathParameters['claimId'] ?? '',
+                        ),
                       ),
                     ],
                   ),

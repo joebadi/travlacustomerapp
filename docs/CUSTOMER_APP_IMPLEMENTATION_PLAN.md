@@ -149,7 +149,7 @@ Items may be progressively enabled, but disabled placeholders must clearly say
 | Journeys | 🟡 | — | Navigation placeholder; native GPS client is the main remaining work. |
 | Car Talk forum | ⬜ | — | News is separate and complete; forum remains. |
 | Stolen vehicle registry | ⬜ | — | Report, search, sighting and map workflows remain. |
-| Insurance and claims | 🧪 | — | Insurance done: policies list, add-with-doc, NIID verify/recheck, expiring list, cancel, buy + renew (automated/agent). Combined-checkout + claims remain. |
+| Insurance and claims | 🧪 | — | Insurance: policies, add-with-doc, NIID verify, buy+renew, cert download. Claims: rollout gate, list+timeline, file draft, evidence, submit (fee), messages, disputes+NAICOM. Combined-checkout + geolocation remain. |
 | Vehicle tracking/live map | ⬜ | — | Mobile map and phone-as-tracker flows remain. |
 | Support/profile/security | 🟡 | 🧪 | Full profile, avatar, personal/NIN editing, Paystack bank verification and password change are coded; support and legal/preferences pages remain. |
 | Push notifications and deep links | 🟡 | — | In-app polling exists; FCM/APNs and full link routing remain. |
@@ -554,13 +554,15 @@ The detailed behavioral source is `../../docs/JOURNEYS.md`.
 
 #### Claims
 
-- [ ] Claims rollout/allowlist gate from system settings.
-- [ ] Claims list and lifecycle status.
-- [ ] Cover and fault-basis eligibility gate.
-- [ ] Multi-stage incident/party/witness/evidence form.
-- [ ] Geolocation, damage images and document uploads.
-- [ ] Police-report fee quote/payment where applicable.
-- [ ] Draft persistence and safe resume.
+- [x] Claims rollout/allowlist gate from system settings (coming-soon 403 → in-app gate).
+- [x] Claims list and lifecycle status (+ progress timeline).
+- [x] Incident/party/witness form + severity + fault/third-party.
+- [x] Damage images and document uploads (evidence add/remove + required-doc checklist).
+- [x] Police-report fee payment on submit (wallet).
+- [x] Claim detail: correspondence thread (reply), disputes + NAICOM escalation, delete draft.
+- [ ] Geolocation capture on the incident form.
+- [ ] Cover/fault-basis eligibility pre-check (currently server-enforced on submit).
+- [ ] Draft edit/resume of already-entered fields (create + evidence + submit works; field edit TBD).
 - [ ] Correspondence timeline and Travla claim alias.
 - [ ] Assessment, decision, excess and settlement display.
 - [ ] Dispute and post-insurer NAICOM escalation flow.
