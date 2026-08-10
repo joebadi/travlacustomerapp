@@ -147,7 +147,7 @@ Items may be progressively enabled, but disabled placeholders must clearly say
 | Marketplace | 🟡 | 🧪 | Seller activation, owned-vehicle picker, eligibility-aware listing creation and seller listing summary are coded; browse, offers, wanted and settlement remain. |
 | Fleet | ⬜ | — | Backend/web complete; native mobile module pending. |
 | Journeys | 🟡 | — | Navigation placeholder; native GPS client is the main remaining work. |
-| Car Talk forum | ⬜ | — | News is separate and complete; forum remains. |
+| Car Talk forum | 🧪 | — | Category filter + sort + thread list, thread detail with replies/like/delete, reply composer, new-thread create. (`lib/features/forum/`) |
 | Stolen vehicle registry | 🧪 | — | Report a theft, my-reports, report detail with owner actions (recover/close) + sightings (verify/dismiss), public plate check, and report-a-sighting (with photos). (`lib/features/stolen/`) |
 | Insurance and claims | 🧪 | — | Insurance: policies, add-with-doc, NIID verify, buy+renew, cert download. Claims: rollout gate, list+timeline, file draft, evidence, submit (fee), messages, disputes+NAICOM. Combined-checkout + geolocation remain. |
 | Vehicle tracking/live map | 🧪 | — | Live map (flutter_map/OSM) of all vehicles' latest positions, selected-vehicle trail overlay, phone-as-tracker with **background** foreground-service streaming, and Traccar-device add (from hub + per-vehicle tab). |

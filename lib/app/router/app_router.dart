@@ -21,6 +21,9 @@ import 'package:travla_customer_app/features/stolen/presentation/stolen_screen.d
 import 'package:travla_customer_app/features/stolen/presentation/report_stolen_screen.dart';
 import 'package:travla_customer_app/features/stolen/presentation/stolen_report_detail_screen.dart';
 import 'package:travla_customer_app/features/stolen/presentation/report_sighting_screen.dart';
+import 'package:travla_customer_app/features/forum/presentation/forum_screen.dart';
+import 'package:travla_customer_app/features/forum/presentation/forum_thread_screen.dart';
+import 'package:travla_customer_app/features/forum/presentation/new_thread_screen.dart';
 import 'package:travla_customer_app/features/insurance/presentation/add_policy_screen.dart';
 import 'package:travla_customer_app/features/insurance/presentation/buy_insurance_screen.dart';
 import 'package:travla_customer_app/features/insurance/presentation/insurance_screen.dart';
@@ -266,6 +269,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                                 ),
                           ),
                         ],
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: 'forum',
+                    builder: (context, state) => const ForumScreen(),
+                    routes: [
+                      GoRoute(
+                        path: 'new',
+                        builder: (context, state) => const NewThreadScreen(),
+                      ),
+                      GoRoute(
+                        path: ':threadId',
+                        builder: (context, state) => ForumThreadScreen(
+                          threadId: state.pathParameters['threadId'] ?? '',
+                        ),
                       ),
                     ],
                   ),

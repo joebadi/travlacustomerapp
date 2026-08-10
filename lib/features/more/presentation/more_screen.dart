@@ -106,6 +106,12 @@ class MoreScreen extends ConsumerWidget {
             subtitle: 'Report a theft, check a plate, log sightings',
             onTap: () => context.go('/more/stolen'),
           ),
+          _MoreTile(
+            icon: Icons.forum_outlined,
+            title: 'Car Talk forum',
+            subtitle: 'Discuss cars, roads and tips with the community',
+            onTap: () => context.go('/more/forum'),
+          ),
           const SizedBox(height: 18),
           const _GroupLabel('ACCOUNT'),
           _MoreTile(
