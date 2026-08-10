@@ -1,19 +1,19 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
+import 'package:travla_customer_app/core/config/app_config.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
-import 'package:travla_customer_app/features/tracking/data/tracking_map_repository.dart';
+import 'package:travla_customer_app/features/tracking/data/tracking_task_handler.dart';
 import 'package:travla_customer_app/features/vehicles/data/garage_repository.dart';
 import 'package:travla_customer_app/features/vehicles/data/vehicle_tracking_repository.dart';
 import 'package:travla_customer_app/features/vehicles/domain/garage_snapshot.dart';
 
-/// Turns this phone into a GPS tracker for one of the user's vehicles: it ensures
-/// a PHONE tracker exists (creating it and caching its key), then streams the
-/// device's location to the ingest endpoint while the screen is open.
+/// Turns this phone into a GPS tracker for one of the user's vehicles. Streaming
+/// runs inside a foreground service so it continues while the app is backgrounded
+/// or the screen is off, and reports status back to this screen.
 class PhoneTrackerScreen extends ConsumerStatefulWidget {
   const PhoneTrackerScreen({super.key});
 
@@ -23,22 +23,51 @@ class PhoneTrackerScreen extends ConsumerStatefulWidget {
 
 class _PhoneTrackerScreenState extends ConsumerState<PhoneTrackerScreen> {
   static const _storage = FlutterSecureStorage();
+  static const _vehicleKey = 'tracker_vehicle_id';
 
   String? _vehicleId;
-  String? _apiKey;
-  StreamSubscription<Position>? _sub;
-
   bool _busy = false;
   bool _tracking = false;
   int _pointsSent = 0;
-  Position? _last;
+  double? _lastLat;
+  double? _lastLng;
+  double? _lastAccuracy;
+  double? _lastSpeed;
   String? _error;
   String? _status;
 
   @override
+  void initState() {
+    super.initState();
+    FlutterForegroundTask.addTaskDataCallback(_onData);
+    // Reflect an already-running service (e.g. returning to this screen).
+    FlutterForegroundTask.isRunningService.then((running) async {
+      if (!running || !mounted) return;
+      final vid = await FlutterForegroundTask.getData<String>(key: _vehicleKey);
+      if (!mounted) return;
+      setState(() {
+        _tracking = true;
+        _vehicleId ??= vid;
+        _status = 'Tracking in progress.';
+      });
+    });
+  }
+
+  @override
   void dispose() {
-    _sub?.cancel();
+    FlutterForegroundTask.removeTaskDataCallback(_onData);
     super.dispose();
+  }
+
+  void _onData(Object data) {
+    if (data is! Map || !mounted) return;
+    setState(() {
+      _pointsSent = (data['sent'] as num?)?.toInt() ?? _pointsSent;
+      _lastLat = (data['lat'] as num?)?.toDouble() ?? _lastLat;
+      _lastLng = (data['lng'] as num?)?.toDouble() ?? _lastLng;
+      _lastAccuracy = (data['accuracy'] as num?)?.toDouble() ?? _lastAccuracy;
+      _lastSpeed = (data['speed'] as num?)?.toDouble() ?? _lastSpeed;
+    });
   }
 
   String _keyName(String vehicleId) => 'phone_tracker_key_$vehicleId';
@@ -57,26 +86,48 @@ class _PhoneTrackerScreenState extends ConsumerState<PhoneTrackerScreen> {
 
     try {
       if (!await _ensurePermission()) return;
+      await FlutterForegroundTask.requestNotificationPermission();
 
       setState(() => _status = 'Preparing tracker…');
       final key = await _ensureKey(vehicleId);
-      _apiKey = key;
 
-      final settings = const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 10,
+      await FlutterForegroundTask.saveData(key: kTrackerApiKey, value: key);
+      await FlutterForegroundTask.saveData(
+        key: kTrackerIngestUrl,
+        value: '${AppConfig.apiBaseUrl}/track/ingest',
       );
-      _sub = Geolocator.getPositionStream(locationSettings: settings).listen(
-        _onPosition,
-        onError: (Object e) {
-          if (mounted) setState(() => _error = 'Location error: $e');
-        },
+      await FlutterForegroundTask.saveData(key: _vehicleKey, value: vehicleId);
+
+      FlutterForegroundTask.init(
+        androidNotificationOptions: AndroidNotificationOptions(
+          channelId: 'travla_tracking',
+          channelName: 'Vehicle tracking',
+          channelDescription: 'Shown while your phone is sharing its location.',
+          channelImportance: NotificationChannelImportance.LOW,
+          priority: NotificationPriority.LOW,
+        ),
+        iosNotificationOptions: const IOSNotificationOptions(),
+        foregroundTaskOptions: ForegroundTaskOptions(
+          eventAction: ForegroundTaskEventAction.repeat(15000),
+          allowWakeLock: true,
+          allowWifiLock: true,
+        ),
       );
+
+      final result = await FlutterForegroundTask.startService(
+        serviceTypes: [ForegroundServiceTypes.location],
+        notificationTitle: 'Travla tracking active',
+        notificationText: 'Sharing this phone\'s location.',
+        callback: trackerTaskCallback,
+      );
+      if (result is ServiceRequestFailure) {
+        throw ApiFailure('Could not start the tracking service: ${result.error}');
+      }
 
       setState(() {
         _tracking = true;
         _pointsSent = 0;
-        _status = 'Tracking — keep this screen open.';
+        _status = 'Tracking — you can minimise the app or lock the screen.';
       });
     } on ApiFailure catch (failure) {
       setState(() => _error = failure.message);
@@ -88,8 +139,7 @@ class _PhoneTrackerScreenState extends ConsumerState<PhoneTrackerScreen> {
   }
 
   Future<void> _stop() async {
-    await _sub?.cancel();
-    _sub = null;
+    await FlutterForegroundTask.stopService();
     if (mounted) {
       setState(() {
         _tracking = false;
@@ -127,7 +177,6 @@ class _PhoneTrackerScreenState extends ConsumerState<PhoneTrackerScreen> {
 
     final String key;
     if (existing != null) {
-      // Key was only shown at creation; re-key to obtain a fresh usable one.
       key = await trackingRepo.regenerateKey(existing.id);
     } else {
       final created = await trackingRepo.create(
@@ -143,31 +192,6 @@ class _PhoneTrackerScreenState extends ConsumerState<PhoneTrackerScreen> {
     }
     await _storage.write(key: _keyName(vehicleId), value: key);
     return key;
-  }
-
-  Future<void> _onPosition(Position position) async {
-    final key = _apiKey;
-    if (key == null) return;
-    setState(() => _last = position);
-    try {
-      await ref.read(trackingMapRepositoryProvider).ingest(
-            apiKey: key,
-            latitude: position.latitude,
-            longitude: position.longitude,
-            speed: position.speed >= 0 ? position.speed * 3.6 : null, // m/s → km/h
-            heading: position.heading >= 0 ? position.heading : null,
-            accuracy: position.accuracy >= 0 ? position.accuracy : null,
-          );
-      if (mounted) {
-        setState(() {
-          _pointsSent++;
-          _error = null;
-        });
-      }
-    } on ApiFailure catch (failure) {
-      // Keep streaming; surface the last error non-fatally.
-      if (mounted) setState(() => _error = failure.message);
-    }
   }
 
   @override
@@ -193,7 +217,7 @@ class _PhoneTrackerScreenState extends ConsumerState<PhoneTrackerScreen> {
                 SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Your phone becomes a live GPS source for the chosen vehicle. Keep this screen open while tracking.',
+                    'Your phone becomes a live GPS source for the chosen vehicle. Tracking keeps running in the background behind a notification.',
                     style: TextStyle(color: AppColors.forest800, fontSize: 12.5, height: 1.4),
                   ),
                 ),
@@ -221,7 +245,10 @@ class _PhoneTrackerScreenState extends ConsumerState<PhoneTrackerScreen> {
           _StatusCard(
             tracking: _tracking,
             pointsSent: _pointsSent,
-            last: _last,
+            lat: _lastLat,
+            lng: _lastLng,
+            accuracy: _lastAccuracy,
+            speed: _lastSpeed,
             status: _status,
           ),
           const SizedBox(height: 20),
@@ -307,13 +334,19 @@ class _StatusCard extends StatelessWidget {
   const _StatusCard({
     required this.tracking,
     required this.pointsSent,
-    required this.last,
+    required this.lat,
+    required this.lng,
+    required this.accuracy,
+    required this.speed,
     required this.status,
   });
 
   final bool tracking;
   final int pointsSent;
-  final Position? last;
+  final double? lat;
+  final double? lng;
+  final double? accuracy;
+  final double? speed;
   final String? status;
 
   @override
@@ -357,14 +390,14 @@ class _StatusCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(status!, style: const TextStyle(color: AppColors.ink, fontSize: 12.5)),
           ],
-          if (last != null) ...[
+          if (lat != null && lng != null) ...[
             const Divider(height: 22),
-            _Line(label: 'Latitude', value: last!.latitude.toStringAsFixed(5)),
-            _Line(label: 'Longitude', value: last!.longitude.toStringAsFixed(5)),
-            if (last!.speed >= 0)
-              _Line(label: 'Speed', value: '${(last!.speed * 3.6).round()} km/h'),
-            if (last!.accuracy >= 0)
-              _Line(label: 'Accuracy', value: '±${last!.accuracy.round()} m'),
+            _Line(label: 'Latitude', value: lat!.toStringAsFixed(5)),
+            _Line(label: 'Longitude', value: lng!.toStringAsFixed(5)),
+            if (speed != null && speed! >= 0)
+              _Line(label: 'Speed', value: '${(speed! * 3.6).round()} km/h'),
+            if (accuracy != null && accuracy! >= 0)
+              _Line(label: 'Accuracy', value: '±${accuracy!.round()} m'),
           ],
         ],
       ),

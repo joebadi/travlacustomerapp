@@ -28,6 +28,32 @@ class TrackingMapRepository {
     }
   }
 
+  /// Recent GPS trail for one vehicle, oldest→newest, for the map polyline.
+  Future<List<({double latitude, double longitude})>> trail(
+    String vehicleId, {
+    int limit = 100,
+  }) async {
+    try {
+      final response = await _apiClient.dio.get<Map<String, dynamic>>(
+        '/vehicles/$vehicleId/tracking/trail',
+        queryParameters: {'limit': limit},
+      );
+      final trail = response.data?['data']?['trail'];
+      if (trail is! List) return const [];
+      return trail
+          .whereType<Map>()
+          .map(
+            (e) => (
+              latitude: (e['latitude'] as num?)?.toDouble() ?? 0.0,
+              longitude: (e['longitude'] as num?)?.toDouble() ?? 0.0,
+            ),
+          )
+          .toList(growable: false);
+    } on DioException catch (exception) {
+      throw ApiFailure.fromDio(exception);
+    }
+  }
+
   /// Submit a GPS fix for a phone tracker. Authenticated by the tracker's key
   /// (public ingest endpoint), not the session.
   Future<void> ingest({
@@ -66,3 +92,11 @@ final livePositionsProvider = FutureProvider.autoDispose<List<LivePosition>>((
 ) {
   return ref.watch(trackingMapRepositoryProvider).live();
 });
+
+final vehicleTrailProvider = FutureProvider.autoDispose
+    .family<List<({double latitude, double longitude})>, String>((
+      ref,
+      vehicleId,
+    ) {
+      return ref.watch(trackingMapRepositoryProvider).trail(vehicleId);
+    });

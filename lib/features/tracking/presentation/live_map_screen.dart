@@ -9,6 +9,7 @@ import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/tracking/data/tracking_map_repository.dart';
 import 'package:travla_customer_app/features/tracking/domain/live_position.dart';
+import 'package:travla_customer_app/features/vehicles/data/garage_repository.dart';
 
 const _nigeriaCenter = LatLng(9.0820, 8.6753);
 
@@ -40,6 +41,100 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
     super.dispose();
   }
 
+  void _openAddTracking() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.white,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _AddOption(
+              icon: Icons.my_location_rounded,
+              title: 'Track with this phone',
+              subtitle: 'Use this phone as a live GPS source',
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                context.push('/more/tracking/phone');
+              },
+            ),
+            _AddOption(
+              icon: Icons.gps_fixed_rounded,
+              title: 'Add a GPS device (Traccar)',
+              subtitle: 'Connect a hardware tracker to a vehicle',
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _pickVehicleForDevice();
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _pickVehicleForDevice() {
+    final vehicles = ref.read(garageProvider).value?.vehicles ?? const [];
+    if (vehicles.isEmpty) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('Add a vehicle first, then attach a device.')),
+        );
+      return;
+    }
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.white,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 2, 20, 8),
+              child: Text(
+                'Which vehicle is the device in?',
+                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
+              ),
+            ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: vehicles
+                    .map(
+                      (v) => ListTile(
+                        leading: const Icon(Icons.directions_car_outlined, color: AppColors.forest700),
+                        title: Text(v.displayName, style: const TextStyle(fontWeight: FontWeight.w700)),
+                        subtitle: v.plateNumber?.isNotEmpty == true ? Text(v.plateNumber!) : null,
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () {
+                          Navigator.of(sheetContext).pop();
+                          context.push('/vehicles/${v.id}?tab=tracking');
+                        },
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _fit(List<LivePosition> positions) {
     if (_fitted || positions.isEmpty) return;
     _fitted = true;
@@ -67,6 +162,13 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
     if (async.hasValue) _fit(positions);
     final selected = positions.where((p) => p.vehicleId == _selectedId).firstOrNull;
 
+    // Selected vehicle's recent trail, drawn as a polyline.
+    final trailPoints = selected == null
+        ? const <LatLng>[]
+        : (ref.watch(vehicleTrailProvider(selected.vehicleId)).value ?? const [])
+              .map((p) => LatLng(p.latitude, p.longitude))
+              .toList();
+
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: AppBar(
@@ -81,9 +183,9 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: AppColors.orange,
-        onPressed: () => context.push('/more/tracking/phone'),
-        icon: const Icon(Icons.my_location_rounded),
-        label: const Text('Track with this phone'),
+        onPressed: _openAddTracking,
+        icon: const Icon(Icons.add_location_alt_outlined),
+        label: const Text('Add tracking'),
       ),
       body: Stack(
         children: [
@@ -101,6 +203,16 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'ng.com.travla.customer',
               ),
+              if (trailPoints.length >= 2)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: trailPoints,
+                      strokeWidth: 4,
+                      color: AppColors.orange.withValues(alpha: .85),
+                    ),
+                  ],
+                ),
               MarkerLayer(
                 markers: positions
                     .map(
@@ -323,6 +435,39 @@ class _Fact extends StatelessWidget {
         const SizedBox(width: 4),
         Text(text, style: const TextStyle(color: AppColors.ink, fontSize: 12.5, fontWeight: FontWeight.w600)),
       ],
+    );
+  }
+}
+
+class _AddOption extends StatelessWidget {
+  const _AddOption({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      onTap: onTap,
+      leading: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: AppColors.forest50,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: AppColors.forest700),
+      ),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
+      trailing: const Icon(Icons.chevron_right_rounded),
     );
   }
 }
