@@ -12,6 +12,7 @@ import 'package:travla_customer_app/features/vehicles/presentation/add_vehicle_d
 import 'package:travla_customer_app/features/vehicles/presentation/edit_vehicle_sheet.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/vehicle_services_tab.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/vehicle_tracking_tab.dart';
+import 'package:travla_customer_app/shared/widgets/travla_logo.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 enum VehicleDetailTab { overview, documents, tracking, services }
@@ -94,13 +95,10 @@ class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
                 imageIndex: _imageIndex,
                 onImageChanged: (index) => setState(() => _imageIndex = index),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: _DetailTabSelector(
-                  selected: _tab,
-                  documentCount: vehicle.documents.length,
-                  onChanged: _selectTab,
-                ),
+              _DetailTabSelector(
+                selected: _tab,
+                documentCount: vehicle.documents.length,
+                onChanged: _selectTab,
               ),
               KeyedSubtree(key: _tabContentKey, child: _activeTab(vehicle)),
             ],
@@ -127,7 +125,6 @@ class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
         vehicle: vehicle,
         mutatingDocuments: _mutatingDocuments,
         onAdd: _addDocument,
-        onRenew: () => context.push('/more/renewals/new?vehicle=${vehicle.id}'),
         onView: (document) => _showDocumentDetails(vehicle, document),
         onAutoRenew: (document, enabled) => _setAutoRenew(document, enabled),
         onDelete: _deleteDocument,
@@ -534,8 +531,11 @@ class _DetailTabSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.white,
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
       child: Row(
         children: [
           _DetailTabButton(
@@ -545,8 +545,9 @@ class _DetailTabSelector extends StatelessWidget {
             onTap: () => onChanged(VehicleDetailTab.overview),
           ),
           _DetailTabButton(
-            label: 'Documents · $documentCount',
+            label: 'Documents',
             icon: Icons.folder_copy_outlined,
+            badge: documentCount,
             selected: selected == VehicleDetailTab.documents,
             onTap: () => onChanged(VehicleDetailTab.documents),
           ),
@@ -574,45 +575,71 @@ class _DetailTabButton extends StatelessWidget {
     required this.icon,
     required this.selected,
     required this.onTap,
+    this.badge,
   });
 
   final String label;
   final IconData icon;
   final bool selected;
   final VoidCallback onTap;
+  final int? badge;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 7),
+    final color = selected ? AppColors.forest700 : AppColors.muted;
+    return Expanded(
       child: InkWell(
-        borderRadius: BorderRadius.circular(10),
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+          padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: selected ? AppColors.forest800 : AppColors.white,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: selected ? AppColors.forest800 : AppColors.border,
+            border: Border(
+              bottom: BorderSide(
+                color: selected ? AppColors.forest700 : Colors.transparent,
+                width: 2.5,
+              ),
             ),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                icon,
-                size: 17,
-                color: selected ? AppColors.white : AppColors.muted,
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(icon, size: 20, color: color),
+                  if (badge != null && badge! > 0)
+                    Positioned(
+                      right: -11,
+                      top: -6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: selected ? AppColors.forest700 : AppColors.muted,
+                          borderRadius: BorderRadius.circular(9),
+                        ),
+                        child: Text(
+                          '${badge!}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
-              const SizedBox(width: 6),
+              const SizedBox(height: 5),
               Text(
                 label,
                 style: TextStyle(
-                  color: selected ? AppColors.white : AppColors.muted,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w900,
+                  color: color,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],
@@ -658,7 +685,30 @@ class _OverviewTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ReadinessCard(vehicle: vehicle, onOpenDocuments: onOpenDocuments),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(17),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Vehicle information',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 3),
+                  const Text(
+                    'The registered identity of this vehicle.',
+                    style: TextStyle(color: AppColors.muted, fontSize: 11),
+                  ),
+                  const SizedBox(height: 14),
+                  const Divider(height: 1),
+                  ...specs.map(
+                    (spec) => _SpecRow(label: spec.$1, value: spec.$2),
+                  ),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 14),
           Card(
             color: AppColors.forest950,
@@ -798,31 +848,6 @@ class _OverviewTab extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Card(
-            child: Padding(
-              padding: const EdgeInsets.all(17),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Vehicle information',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 3),
-                  const Text(
-                    'The registered identity of this vehicle.',
-                    style: TextStyle(color: AppColors.muted, fontSize: 11),
-                  ),
-                  const SizedBox(height: 14),
-                  const Divider(height: 1),
-                  ...specs.map(
-                    (spec) => _SpecRow(label: spec.$1, value: spec.$2),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          Card(
             color: AppColors.forest950,
             child: InkWell(
               borderRadius: BorderRadius.circular(14),
@@ -882,127 +907,6 @@ class _OverviewTab extends StatelessWidget {
   }
 }
 
-class _ReadinessCard extends StatelessWidget {
-  const _ReadinessCard({required this.vehicle, required this.onOpenDocuments});
-
-  final VehicleDetail vehicle;
-  final VoidCallback onOpenDocuments;
-
-  @override
-  Widget build(BuildContext context) {
-    final expired = vehicle.expiredDocumentsCount;
-    final expiring = vehicle.expiringSoonCount;
-    final valid = vehicle.documents.length - expired - expiring;
-    final tone = expired > 0
-        ? AppColors.danger
-        : expiring > 0
-        ? AppColors.orange
-        : AppColors.forest700;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(17),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: tone.withValues(alpha: .1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.fact_check_outlined, color: tone),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        vehicle.statusLabel ?? 'Papers not added',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        '${vehicle.documents.length} document${vehicle.documents.length == 1 ? '' : 's'} currently in the vault',
-                        style: const TextStyle(
-                          color: AppColors.muted,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                TextButton(
-                  onPressed: onOpenDocuments,
-                  child: const Text('View'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 15),
-            Row(
-              children: [
-                _ReadinessMetric(
-                  value: valid.clamp(0, vehicle.documents.length),
-                  label: 'Up to date',
-                  color: AppColors.forest700,
-                ),
-                _ReadinessMetric(
-                  value: expiring,
-                  label: 'Expiring',
-                  color: AppColors.orange,
-                ),
-                _ReadinessMetric(
-                  value: expired,
-                  label: 'Expired',
-                  color: AppColors.danger,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ReadinessMetric extends StatelessWidget {
-  const _ReadinessMetric({
-    required this.value,
-    required this.label,
-    required this.color,
-  });
-
-  final int value;
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        children: [
-          Text(
-            '$value',
-            style: TextStyle(
-              color: color,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(color: AppColors.muted, fontSize: 9),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _SpecRow extends StatelessWidget {
   const _SpecRow({required this.label, required this.value});
 
@@ -1052,7 +956,6 @@ class _DocumentsTab extends StatelessWidget {
     required this.vehicle,
     required this.mutatingDocuments,
     required this.onAdd,
-    required this.onRenew,
     required this.onView,
     required this.onAutoRenew,
     required this.onDelete,
@@ -1062,30 +965,22 @@ class _DocumentsTab extends StatelessWidget {
   final VehicleDetail vehicle;
   final Set<String> mutatingDocuments;
   final ValueChanged<DocumentTypeFilter> onAdd;
-  final VoidCallback onRenew;
   final ValueChanged<VehicleDocument> onView;
   final void Function(VehicleDocument, bool) onAutoRenew;
   final ValueChanged<VehicleDocument> onDelete;
 
   @override
   Widget build(BuildContext context) {
-    final renewable = vehicle.renewableDocuments;
-    final currentCount = renewable
-        .where((document) => document.status == 'VALID')
-        .length;
-    final attentionCount = renewable
-        .where(
-          (document) =>
-              document.status == 'EXPIRED' ||
-              document.status == 'EXPIRING_SOON',
-        )
-        .length;
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: TravlaLogo(width: 116),
+          ),
+          const SizedBox(height: 18),
           if (!vehicle.hasValidPlateNumber)
             Container(
               margin: const EdgeInsets.only(bottom: 14),
@@ -1113,59 +1008,6 @@ class _DocumentsTab extends StatelessWidget {
                 ],
               ),
             ),
-          _DocumentVaultHero(
-            currentCount: currentCount,
-            attentionCount: attentionCount,
-            renewableCount: renewable.length,
-            recordCount: vehicle.otherDocuments.length,
-          ),
-          if (vehicle.hasValidPlateNumber) ...[
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: onRenew,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.orange,
-                  foregroundColor: AppColors.white,
-                  minimumSize: const Size.fromHeight(50),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(13),
-                  ),
-                ),
-                icon: const Icon(Icons.event_repeat_rounded, size: 19),
-                label: Text(
-                  attentionCount > 0
-                      ? 'Renew $attentionCount paper${attentionCount == 1 ? '' : 's'} needing attention'
-                      : 'Renew eligible papers',
-                  style: const TextStyle(fontWeight: FontWeight.w900),
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: _VaultActionButton(
-                    icon: Icons.add_circle_outline_rounded,
-                    label: 'Add renewable paper',
-                    helper: 'Tracked by expiry',
-                    onTap: () => onAdd(DocumentTypeFilter.renewable),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _VaultActionButton(
-                    icon: Icons.note_add_outlined,
-                    label: 'Add other document',
-                    helper: 'Permanent record',
-                    onTap: () => onAdd(DocumentTypeFilter.other),
-                  ),
-                ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 24),
           _DocumentSection(
             title: 'Renewable papers',
             description: 'Licence, insurance, permits and roadworthiness',
@@ -1194,281 +1036,6 @@ class _DocumentsTab extends StatelessWidget {
             onDelete: onDelete,
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _DocumentVaultHero extends StatelessWidget {
-  const _DocumentVaultHero({
-    required this.currentCount,
-    required this.attentionCount,
-    required this.renewableCount,
-    required this.recordCount,
-  });
-
-  final int currentCount;
-  final int attentionCount;
-  final int renewableCount;
-  final int recordCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final readinessText = renewableCount == 0
-        ? 'Add your first renewable paper to start expiry tracking.'
-        : attentionCount == 0
-        ? 'Every tracked renewable paper is currently road-ready.'
-        : '$attentionCount paper${attentionCount == 1 ? '' : 's'} need${attentionCount == 1 ? 's' : ''} your attention.';
-
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.forest950, AppColors.forest700],
-        ),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -42,
-            top: -50,
-            child: Container(
-              width: 154,
-              height: 154,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: .07),
-                  width: 24,
-                ),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: .1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: .12),
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.verified_user_outlined,
-                        color: AppColors.orange,
-                        size: 23,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'DOCUMENT VAULT',
-                            style: TextStyle(
-                              color: Color(0xFF8BD8B9),
-                              fontSize: 9,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1.1,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Your vehicle papers, organised.',
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(
-                                  color: AppColors.white,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            readinessText,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: .68),
-                              fontSize: 10,
-                              height: 1.4,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 17),
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: .14),
-                    borderRadius: BorderRadius.circular(13),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: .08),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      _VaultMetric(
-                        value: '$currentCount',
-                        label: 'Up to date',
-                        color: const Color(0xFF79D8B1),
-                      ),
-                      _VaultDivider(),
-                      _VaultMetric(
-                        value: '$attentionCount',
-                        label: 'Attention',
-                        color: attentionCount > 0
-                            ? AppColors.orange
-                            : const Color(0xFF79D8B1),
-                      ),
-                      _VaultDivider(),
-                      _VaultMetric(
-                        value: '$recordCount',
-                        label: 'Other files',
-                        color: AppColors.white,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _VaultMetric extends StatelessWidget {
-  const _VaultMetric({
-    required this.value,
-    required this.label,
-    required this.color,
-  });
-
-  final String value;
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-              height: 1,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: .56),
-              fontSize: 9,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _VaultDivider extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: 31,
-      color: Colors.white.withValues(alpha: .12),
-    );
-  }
-}
-
-class _VaultActionButton extends StatelessWidget {
-  const _VaultActionButton({
-    required this.icon,
-    required this.label,
-    required this.helper,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final String helper;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.white,
-      borderRadius: BorderRadius.circular(13),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(13),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(13),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: AppColors.forest50,
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                child: Icon(icon, color: AppColors.forest700, size: 18),
-              ),
-              const SizedBox(width: 9),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      maxLines: 2,
-                      style: const TextStyle(
-                        color: AppColors.ink,
-                        fontSize: 10,
-                        height: 1.15,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      helper,
-                      style: const TextStyle(
-                        color: AppColors.muted,
-                        fontSize: 8,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
