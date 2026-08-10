@@ -149,7 +149,7 @@ Items may be progressively enabled, but disabled placeholders must clearly say
 | Journeys | 🟡 | — | Navigation placeholder; native GPS client is the main remaining work. |
 | Car Talk forum | ⬜ | — | News is separate and complete; forum remains. |
 | Stolen vehicle registry | ⬜ | — | Report, search, sighting and map workflows remain. |
-| Insurance and claims | ⬜ | — | Policy, purchase/renewal and claims workflows remain. |
+| Insurance and claims | 🧪 | — | Insurance done: policies list, add-with-doc, NIID verify/recheck, expiring list, cancel, buy + renew (automated/agent). Combined-checkout + claims remain. |
 | Vehicle tracking/live map | ⬜ | — | Mobile map and phone-as-tracker flows remain. |
 | Support/profile/security | 🟡 | 🧪 | Full profile, avatar, personal/NIN editing, Paystack bank verification and password change are coded; support and legal/preferences pages remain. |
 | Push notifications and deep links | 🟡 | — | In-app polling exists; FCM/APNs and full link routing remain. |
@@ -543,12 +543,13 @@ The detailed behavioral source is `../../docs/JOURNEYS.md`.
 
 #### Insurance
 
-- [ ] Vehicle policies list and status.
-- [ ] Add/upload an existing policy.
-- [ ] NIID verification state and recheck action.
-- [ ] Buy/renew policy through configured provider or Travla agent.
+- [x] Vehicle policies list and status. (`lib/features/insurance/`)
+- [x] Add/upload an existing policy.
+- [x] NIID verification state and recheck action.
+- [x] Insurance home: expiring-soon list + per-vehicle workspace + cancel policy.
+- [x] Buy/renew policy through configured provider or Travla agent (automated instant vs agent delivery; shared renewal-order handoff).
 - [ ] Include insurance in combined paper-renewal checkout where allowed.
-- [ ] Policy details, document and expiry reminders.
+- [ ] Policy document download + expiry push reminders.
 
 #### Claims
 

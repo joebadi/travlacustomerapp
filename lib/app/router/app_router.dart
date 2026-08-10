@@ -12,6 +12,11 @@ import 'package:travla_customer_app/features/drivers_license/presentation/add_li
 import 'package:travla_customer_app/features/drivers_license/presentation/drivers_license_screen.dart';
 import 'package:travla_customer_app/features/drivers_license/presentation/new_license_renewal_screen.dart';
 import 'package:travla_customer_app/features/home/presentation/home_screen.dart';
+import 'package:travla_customer_app/features/insurance/presentation/add_policy_screen.dart';
+import 'package:travla_customer_app/features/insurance/presentation/buy_insurance_screen.dart';
+import 'package:travla_customer_app/features/insurance/presentation/insurance_screen.dart';
+import 'package:travla_customer_app/features/insurance/presentation/new_insurance_renewal_screen.dart';
+import 'package:travla_customer_app/features/insurance/presentation/vehicle_insurance_screen.dart';
 import 'package:travla_customer_app/features/journeys/presentation/journeys_screen.dart';
 import 'package:travla_customer_app/features/marketplace/presentation/marketplace_screen.dart';
 import 'package:travla_customer_app/features/marketplace/presentation/new_listing_screen.dart';
@@ -214,6 +219,44 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                         builder: (context, state) => NewLicenseRenewalScreen(
                           licenseId: state.pathParameters['licenseId'] ?? '',
                         ),
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: 'insurance',
+                    builder: (context, state) => const InsuranceScreen(),
+                    routes: [
+                      GoRoute(
+                        path: ':vehicleId',
+                        builder: (context, state) => VehicleInsuranceScreen(
+                          vehicleId: state.pathParameters['vehicleId'] ?? '',
+                        ),
+                        routes: [
+                          GoRoute(
+                            path: 'add',
+                            builder: (context, state) => AddPolicyScreen(
+                              vehicleId:
+                                  state.pathParameters['vehicleId'] ?? '',
+                            ),
+                          ),
+                          GoRoute(
+                            path: 'buy',
+                            builder: (context, state) => BuyInsuranceScreen(
+                              vehicleId:
+                                  state.pathParameters['vehicleId'] ?? '',
+                            ),
+                          ),
+                          GoRoute(
+                            path: 'renew/:policyId',
+                            builder: (context, state) =>
+                                NewInsuranceRenewalScreen(
+                                  vehicleId:
+                                      state.pathParameters['vehicleId'] ?? '',
+                                  policyId:
+                                      state.pathParameters['policyId'] ?? '',
+                                ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

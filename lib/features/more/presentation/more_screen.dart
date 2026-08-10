@@ -88,10 +88,11 @@ class MoreScreen extends ConsumerWidget {
             subtitle: 'Sent, received and pending transfers',
             onTap: () => context.go('/more/transfers'),
           ),
-          const _MoreTile(
+          _MoreTile(
             icon: Icons.shield_outlined,
             title: 'Insurance & claims',
             subtitle: 'Policies, renewals and claim records',
+            onTap: () => context.go('/more/insurance'),
           ),
           const SizedBox(height: 18),
           const _GroupLabel('ACCOUNT'),
