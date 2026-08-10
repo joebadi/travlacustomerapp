@@ -36,7 +36,8 @@ class _NotificationMenu extends StatelessWidget {
     final unreadCount = notifications.value?.unreadCount ?? 0;
 
     return MenuAnchor(
-      alignmentOffset: const Offset(-270, 8),
+      // Right-align the panel under the 40px icon button (40 − width).
+      alignmentOffset: const Offset(-278, 8),
       style: _menuStyle(width: 318),
       menuChildren: [
         Padding(
@@ -226,7 +227,8 @@ class _ProfileMenu extends StatelessWidget {
     final auth = ref.watch(authControllerProvider);
 
     return MenuAnchor(
-      alignmentOffset: const Offset(-235, 8),
+      // Right-align the panel under the 40px avatar button (40 − width).
+      alignmentOffset: const Offset(-242, 8),
       style: _menuStyle(width: 282),
       menuChildren: [
         Padding(
