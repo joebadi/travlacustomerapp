@@ -37,7 +37,7 @@ class _VehiclesScreenState extends ConsumerState<VehiclesScreen> {
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            SliverToBoxAdapter(child: _Header(snapshot: garage.value)),
+            const SliverToBoxAdapter(child: _Header()),
             garage.when(
               loading: () => const SliverToBoxAdapter(child: _GarageLoading()),
               error: (error, _) => SliverToBoxAdapter(
@@ -69,14 +69,12 @@ class _VehiclesScreenState extends ConsumerState<VehiclesScreen> {
       padding: const EdgeInsets.fromLTRB(16, 18, 16, 36),
       sliver: SliverList.list(
         children: [
-          if (snapshot.vehicles.isNotEmpty) ...[
-            _FilterBar(
-              snapshot: snapshot,
-              value: _filter,
-              onChanged: (value) => setState(() => _filter = value),
-            ),
-            const SizedBox(height: 16),
-          ],
+          _GarageActionBar(
+            snapshot: snapshot,
+            value: _filter,
+            onChanged: (value) => setState(() => _filter = value),
+          ),
+          const SizedBox(height: 16),
           if (snapshot.pendingTransfers.isNotEmpty) ...[
             ...snapshot.pendingTransfers.map(_PendingTransferBanner.new),
             const SizedBox(height: 8),
@@ -108,25 +106,18 @@ class _VehiclesScreenState extends ConsumerState<VehiclesScreen> {
   }
 }
 
-// ── Header ────────────────────────────────────────────────────────────────
+// ── Header (slim, brand only) ───────────────────────────────────────────────
 class _Header extends StatelessWidget {
-  const _Header({required this.snapshot});
-
-  final GarageSnapshot? snapshot;
+  const _Header();
 
   @override
   Widget build(BuildContext context) {
-    final owned = snapshot?.vehicles.length ?? 0;
-    final valid = snapshot?.validCount ?? 0;
-    final attention =
-        (snapshot?.expiringCount ?? 0) + (snapshot?.expiredCount ?? 0);
-
     return Container(
       padding: EdgeInsets.fromLTRB(
         20,
-        MediaQuery.paddingOf(context).top + 16,
+        MediaQuery.paddingOf(context).top + 14,
         20,
-        24,
+        18,
       ),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -134,194 +125,22 @@ class _Header extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [AppColors.forest950, AppColors.forest700],
         ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: const [
-              TravlaLogo(onDark: true, width: 116),
-              Spacer(),
-              DashboardHeaderActions(),
-            ],
-          ),
-          const SizedBox(height: 26),
-          Text(
-            'Your garage',
-            style: Theme.of(
-              context,
-            ).textTheme.headlineMedium?.copyWith(color: AppColors.white),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            'Vehicles, papers and incoming transfers in one place.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.white.withValues(alpha: .66),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: .09),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: Colors.white.withValues(alpha: .13)),
-            ),
-            child: Row(
-              children: [
-                _Stat(label: 'Owned', value: '$owned'),
-                const _StatDivider(),
-                _Stat(
-                  label: 'Papers valid',
-                  value: '$valid',
-                  tone: AppColors.forest100,
-                ),
-                const _StatDivider(),
-                _Stat(
-                  label: 'Need attention',
-                  value: '$attention',
-                  tone: attention > 0
-                      ? const Color(0xFFFFB59B)
-                      : Colors.white,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _HeaderButton(
-                  icon: Icons.add_rounded,
-                  label: 'Add vehicle',
-                  filled: true,
-                  onTap: () => context.go('/vehicles/add-existing'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _HeaderButton(
-                  icon: Icons.assignment_add,
-                  label: 'Register new',
-                  filled: false,
-                  onTap: () => context.go('/vehicles/register-new'),
-                ),
-              ),
-            ],
-          ),
+      child: Row(
+        children: const [
+          TravlaLogo(onDark: true, width: 116),
+          Spacer(),
+          DashboardHeaderActions(),
         ],
       ),
     );
   }
 }
 
-class _Stat extends StatelessWidget {
-  const _Stat({
-    required this.label,
-    required this.value,
-    this.tone = Colors.white,
-  });
-
-  final String label;
-  final String value;
-  final Color tone;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              color: tone,
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-              height: 1,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: .6),
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatDivider extends StatelessWidget {
-  const _StatDivider();
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: 1,
-    height: 30,
-    color: Colors.white.withValues(alpha: .12),
-  );
-}
-
-class _HeaderButton extends StatelessWidget {
-  const _HeaderButton({
-    required this.icon,
-    required this.label,
-    required this.filled,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool filled;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: filled ? AppColors.orange : Colors.white.withValues(alpha: .1),
-      borderRadius: BorderRadius.circular(13),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(13),
-        onTap: onTap,
-        child: Container(
-          height: 46,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(13),
-            border: filled
-                ? null
-                : Border.all(color: Colors.white.withValues(alpha: .22)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 18, color: AppColors.white),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: AppColors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Filters ─────────────────────────────────────────────────────────────────
-class _FilterBar extends StatelessWidget {
-  const _FilterBar({
+// ── Action bar: collapsible filters (left) + tap-to-reveal actions (right) ───
+class _GarageActionBar extends StatefulWidget {
+  const _GarageActionBar({
     required this.snapshot,
     required this.value,
     required this.onChanged,
@@ -332,29 +151,167 @@ class _FilterBar extends StatelessWidget {
   final ValueChanged<String> onChanged;
 
   @override
-  Widget build(BuildContext context) {
-    final noneCount = snapshot.vehicles.where((v) => v.status == null).length;
-    final chips = <({String key, String label, int count})>[
-      (key: 'ALL', label: 'All', count: snapshot.vehicles.length),
-      (key: 'VALID', label: 'Valid', count: snapshot.validCount),
-      (key: 'EXPIRING_SOON', label: 'Expiring', count: snapshot.expiringCount),
-      (key: 'EXPIRED', label: 'Expired', count: snapshot.expiredCount),
+  State<_GarageActionBar> createState() => _GarageActionBarState();
+}
+
+class _GarageActionBarState extends State<_GarageActionBar> {
+  bool _filtersOpen = false;
+
+  /// Which action pill is currently expanded to reveal its label. A second tap
+  /// on the expanded pill runs its action; tapping a collapsed one expands it.
+  String? _openAction;
+
+  static const _duration = Duration(milliseconds: 200);
+  static const _curve = Curves.easeOutCubic;
+
+  List<({String key, String label, int count})> get _chips {
+    final s = widget.snapshot;
+    final noneCount = s.vehicles.where((v) => v.status == null).length;
+    return [
+      (key: 'ALL', label: 'All', count: s.vehicles.length),
+      (key: 'VALID', label: 'Valid', count: s.validCount),
+      (key: 'EXPIRING_SOON', label: 'Expiring', count: s.expiringCount),
+      (key: 'EXPIRED', label: 'Expired', count: s.expiredCount),
       (key: 'NONE', label: 'No papers', count: noneCount),
     ];
+  }
+
+  void _tapAction(String key, VoidCallback run) {
+    if (_openAction == key) {
+      run();
+      setState(() => _openAction = null);
+    } else {
+      setState(() {
+        _openAction = key;
+        _filtersOpen = false;
+      });
+    }
+  }
+
+  void _openFilters() => setState(() {
+    _filtersOpen = true;
+    _openAction = null;
+  });
+
+  void _pickFilter(String key) {
+    widget.onChanged(key);
+    setState(() => _filtersOpen = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasVehicles = widget.snapshot.vehicles.isNotEmpty;
 
     return SizedBox(
-      height: 36,
+      height: 46,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          if (hasVehicles)
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: _duration,
+                switchInCurve: _curve,
+                switchOutCurve: _curve,
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: SizeTransition(
+                    axis: Axis.horizontal,
+                    axisAlignment: -1,
+                    sizeFactor: animation,
+                    child: child,
+                  ),
+                ),
+                child: _filtersOpen
+                    ? _expandedFilters()
+                    : _collapsedFilter(),
+              ),
+            )
+          else
+            const Spacer(),
+          _actionCluster(context),
+        ],
+      ),
+    );
+  }
+
+  // — Filters —
+  Widget _collapsedFilter() {
+    final active = _chips.firstWhere(
+      (c) => c.key == widget.value,
+      orElse: () => _chips.first,
+    );
+    final isAll = active.key == 'ALL';
+    return Align(
+      key: const ValueKey('filters-collapsed'),
+      alignment: Alignment.centerLeft,
+      child: Material(
+        color: isAll ? AppColors.white : AppColors.forest700,
+        borderRadius: BorderRadius.circular(30),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(30),
+          onTap: _openFilters,
+          child: Container(
+            height: 38,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(
+                color: isAll ? AppColors.border : AppColors.forest700,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.tune_rounded,
+                  size: 16,
+                  color: isAll ? AppColors.forest700 : AppColors.white,
+                ),
+                const SizedBox(width: 7),
+                Text(
+                  active.label,
+                  style: TextStyle(
+                    color: isAll ? AppColors.ink : AppColors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  '${active.count}',
+                  style: TextStyle(
+                    color: isAll
+                        ? AppColors.muted
+                        : Colors.white.withValues(alpha: .82),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _expandedFilters() {
+    final chips = _chips;
+    return SizedBox(
+      key: const ValueKey('filters-expanded'),
+      height: 38,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.zero,
         itemCount: chips.length,
         separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final chip = chips[index];
-          final active = chip.key == value;
+          final active = chip.key == widget.value;
           return GestureDetector(
-            onTap: () => onChanged(chip.key),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 160),
+            onTap: () => _pickFilter(chip.key),
+            child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 15),
               alignment: Alignment.center,
               decoration: BoxDecoration(
@@ -390,6 +347,127 @@ class _FilterBar extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+
+  // — Actions —
+  Widget _actionCluster(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _ActionPill(
+          icon: Icons.verified_user_outlined,
+          label: 'Claim',
+          open: _openAction == 'claim',
+          duration: _duration,
+          curve: _curve,
+          onTap: () => _tapAction('claim', () {
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(
+                const SnackBar(
+                  content: Text('Vehicle claiming is coming to the app soon.'),
+                ),
+              );
+          }),
+        ),
+        const SizedBox(width: 8),
+        _ActionPill(
+          icon: Icons.note_add_outlined,
+          label: 'Register new',
+          open: _openAction == 'register',
+          duration: _duration,
+          curve: _curve,
+          onTap: () => _tapAction(
+            'register',
+            () => context.go('/vehicles/register-new'),
+          ),
+        ),
+        const SizedBox(width: 8),
+        _ActionPill(
+          icon: Icons.add_rounded,
+          label: 'Add vehicle',
+          accent: true,
+          open: _openAction == 'add',
+          duration: _duration,
+          curve: _curve,
+          onTap: () => _tapAction(
+            'add',
+            () => context.go('/vehicles/add-existing'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A circular icon button that grows into a labelled pill on first tap; the
+/// second tap (while open) runs [onTap]'s action.
+class _ActionPill extends StatelessWidget {
+  const _ActionPill({
+    required this.icon,
+    required this.label,
+    required this.open,
+    required this.onTap,
+    required this.duration,
+    required this.curve,
+    this.accent = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool open;
+  final VoidCallback onTap;
+  final Duration duration;
+  final Curve curve;
+  final bool accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = accent ? AppColors.orange : AppColors.white;
+    final fg = accent ? AppColors.white : AppColors.forest800;
+    return Material(
+      color: bg,
+      borderRadius: BorderRadius.circular(30),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(30),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: duration,
+          curve: curve,
+          height: 44,
+          padding: EdgeInsets.symmetric(horizontal: open ? 15 : 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(30),
+            border: accent
+                ? null
+                : Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 20, color: fg),
+              AnimatedSize(
+                duration: duration,
+                curve: curve,
+                child: open
+                    ? Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            color: fg,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -522,16 +600,15 @@ class _VehicleCard extends StatelessWidget {
               ],
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(15, 14, 12, 14),
+              padding: const EdgeInsets.fromLTRB(15, 12, 12, 12),
               child: Row(
                 children: [
                   _PlateChip(plate: vehicle.plateNumber),
                   const Spacer(),
                   _Readiness(vehicle: vehicle),
-                  const SizedBox(width: 4),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    color: AppColors.muted,
+                  const SizedBox(width: 10),
+                  _ManageButton(
+                    onTap: () => _showVehicleActions(context, vehicle),
                   ),
                 ],
               ),
@@ -642,6 +719,200 @@ class _Pill extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ManageButton extends StatelessWidget {
+  const _ManageButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.forest50,
+      borderRadius: BorderRadius.circular(30),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(30),
+        onTap: onTap,
+        child: Container(
+          height: 34,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: AppColors.forest100),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Manage',
+                style: TextStyle(
+                  color: AppColors.forest800,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12.5,
+                ),
+              ),
+              SizedBox(width: 4),
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 18,
+                color: AppColors.forest700,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Per-vehicle action menu — mirrors the web vehicle actions (open, papers,
+/// renew, sell, transfer). Surfaced from the card's "Manage" affordance.
+Future<void> _showVehicleActions(
+  BuildContext context,
+  VehicleSummary vehicle,
+) {
+  final id = vehicle.id;
+  final name = vehicle.displayName.isEmpty ? 'this vehicle' : vehicle.displayName;
+
+  return showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: AppColors.white,
+    showDragHandle: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (sheetContext) {
+      void go(String location) {
+        Navigator.of(sheetContext).pop();
+        context.push(location);
+      }
+
+      void goTab(String location) {
+        Navigator.of(sheetContext).pop();
+        context.go(location);
+      }
+
+      return SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 2, 16, 10),
+                child: Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.ink,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              _ActionRow(
+                icon: Icons.dashboard_customize_outlined,
+                label: 'Open vehicle',
+                subtitle: 'Overview, papers, tracking',
+                onTap: () => go('/vehicles/$id'),
+              ),
+              _ActionRow(
+                icon: Icons.folder_copy_outlined,
+                label: 'Documents & papers',
+                subtitle: 'View and upload vehicle papers',
+                onTap: () => go('/vehicles/$id?tab=documents'),
+              ),
+              _ActionRow(
+                icon: Icons.autorenew_rounded,
+                label: 'Renew papers',
+                subtitle: 'Renew or register vehicle documents',
+                onTap: () => goTab('/more/renewals/new?vehicle=$id'),
+              ),
+              _ActionRow(
+                icon: Icons.sell_outlined,
+                label: 'Sell on marketplace',
+                subtitle: 'List this vehicle for sale',
+                onTap: () => goTab('/more/marketplace/list-new?vehicle=$id'),
+              ),
+              _ActionRow(
+                icon: Icons.swap_horiz_rounded,
+                label: 'Transfer ownership',
+                subtitle: 'Hand this vehicle to another owner',
+                onTap: () => goTab('/more/transfers/new?vehicle=$id'),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class _ActionRow extends StatelessWidget {
+  const _ActionRow({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: AppColors.forest50,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, size: 20, color: AppColors.forest700),
+            ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: AppColors.ink,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 11.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+          ],
+        ),
+      ),
     );
   }
 }
