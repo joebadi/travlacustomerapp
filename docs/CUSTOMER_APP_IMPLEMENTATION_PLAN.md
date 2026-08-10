@@ -548,8 +548,9 @@ The detailed behavioral source is `../../docs/JOURNEYS.md`.
 - [x] NIID verification state and recheck action.
 - [x] Insurance home: expiring-soon list + per-vehicle workspace + cancel policy.
 - [x] Buy/renew policy through configured provider or Travla agent (automated instant vs agent delivery; shared renewal-order handoff).
-- [ ] Include insurance in combined paper-renewal checkout where allowed.
-- [ ] Policy document download + expiry push reminders.
+- [x] Policy certificate view/download (signed URL, opens externally).
+- [ ] Expiry push reminders. (blocked on Firebase/FCM provisioning)
+- [⏸] Include insurance in combined paper-renewal checkout where allowed. Deferred — standalone buy/renew already covers the capability; merge only saves one shared delivery fee, and weaving it through the 3-step renewal wizard is a larger change. Backend already supports it (insurance_renew_policy_ids / insurance_buy_coverage_types).
 
 #### Claims
 

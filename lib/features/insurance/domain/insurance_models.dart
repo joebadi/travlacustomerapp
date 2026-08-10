@@ -46,6 +46,7 @@ class InsurancePolicy {
     required this.isExpired,
     required this.isPending,
     required this.hasDocument,
+    required this.documentUrl,
     required this.vehicleName,
     required this.vehiclePlate,
   });
@@ -68,6 +69,7 @@ class InsurancePolicy {
   final bool isExpired;
   final bool isPending;
   final bool hasDocument;
+  final String? documentUrl;
   final String? vehicleName;
   final String? vehiclePlate;
 
@@ -101,6 +103,7 @@ class InsurancePolicy {
       isExpired: json['is_expired'] == true,
       isPending: json['is_pending'] == true,
       hasDocument: json['has_document'] == true,
+      documentUrl: json['document_url']?.toString(),
       vehicleName: name.isEmpty ? null : name,
       vehiclePlate: vehicleJson['plate_number']?.toString(),
     );

@@ -215,11 +215,13 @@ class PolicyCard extends StatelessWidget {
     required this.policy,
     this.onCancel,
     this.onRenew,
+    this.onViewDocument,
   });
 
   final InsurancePolicy policy;
   final VoidCallback? onCancel;
   final VoidCallback? onRenew;
+  final VoidCallback? onViewDocument;
 
   @override
   Widget build(BuildContext context) {
@@ -293,7 +295,19 @@ class PolicyCard extends StatelessWidget {
                       label: policy.sourceLabel!,
                       color: AppColors.muted,
                     ),
-                  if (policy.hasDocument)
+                  if (policy.hasDocument &&
+                      onViewDocument != null &&
+                      policy.documentUrl != null)
+                    InkWell(
+                      onTap: onViewDocument,
+                      borderRadius: BorderRadius.circular(8),
+                      child: const _Tag(
+                        icon: Icons.open_in_new_rounded,
+                        label: 'View certificate',
+                        color: AppColors.forest700,
+                      ),
+                    )
+                  else if (policy.hasDocument)
                     const _Tag(
                       icon: Icons.attach_file_rounded,
                       label: 'Certificate attached',

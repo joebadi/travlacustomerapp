@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/insurance/data/insurance_repository.dart';
@@ -62,6 +63,18 @@ class _VehicleInsuranceScreenState
       ref.invalidate(expiringPoliciesProvider);
     } on ApiFailure catch (failure) {
       if (mounted) _snack(failure.message);
+    }
+  }
+
+  Future<void> _openDocument(String? url) async {
+    final uri = url == null ? null : Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme) {
+      _snack('This certificate link is invalid. Pull to refresh and try again.');
+      return;
+    }
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      _snack('The certificate could not be opened.');
     }
   }
 
@@ -139,6 +152,7 @@ class _VehicleInsuranceScreenState
                   (p) => PolicyCard(
                     policy: p,
                     onCancel: () => _cancel(p),
+                    onViewDocument: () => _openDocument(p.documentUrl),
                     onRenew: p.status == 'CANCELLED'
                         ? null
                         : () => context.push(
