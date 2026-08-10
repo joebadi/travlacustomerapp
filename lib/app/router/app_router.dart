@@ -8,6 +8,9 @@ import 'package:travla_customer_app/features/auth/domain/registration.dart';
 import 'package:travla_customer_app/features/auth/presentation/otp_screen.dart';
 import 'package:travla_customer_app/features/auth/presentation/register_screen.dart';
 import 'package:travla_customer_app/features/auth/presentation/splash_screen.dart';
+import 'package:travla_customer_app/features/drivers_license/presentation/add_license_screen.dart';
+import 'package:travla_customer_app/features/drivers_license/presentation/drivers_license_screen.dart';
+import 'package:travla_customer_app/features/drivers_license/presentation/new_license_renewal_screen.dart';
 import 'package:travla_customer_app/features/home/presentation/home_screen.dart';
 import 'package:travla_customer_app/features/journeys/presentation/journeys_screen.dart';
 import 'package:travla_customer_app/features/marketplace/presentation/marketplace_screen.dart';
@@ -194,6 +197,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                         path: 'orders/:groupId',
                         builder: (context, state) => RenewalOrderScreen(
                           groupId: state.pathParameters['groupId'] ?? '',
+                        ),
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: 'drivers-license',
+                    builder: (context, state) => const DriversLicenseScreen(),
+                    routes: [
+                      GoRoute(
+                        path: 'add',
+                        builder: (context, state) => const AddLicenseScreen(),
+                      ),
+                      GoRoute(
+                        path: ':licenseId/renew',
+                        builder: (context, state) => NewLicenseRenewalScreen(
+                          licenseId: state.pathParameters['licenseId'] ?? '',
                         ),
                       ),
                     ],

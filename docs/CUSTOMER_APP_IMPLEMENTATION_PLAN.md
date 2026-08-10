@@ -142,7 +142,7 @@ Items may be progressively enabled, but disabled placeholders must clearly say
 | Vehicle workspace | ✅ | 🧪 | Overview, audit-aware editing, gallery, document vault, service ordering/history and tracker-source management are coded. |
 | Transactions/wallet funding | 🟡 | 🧪 | Native balance, credit/debit ledger, filters, virtual account and verified Paystack top-up are coded; receipts, pagination and hybrid service shortfall remain. |
 | Vehicle-paper renewal | 🟡 | 🧪 | Native eligibility, multi-paper quote, wallet checkout, order history, processing/delivery progress, OTP and cancellation are coded; hybrid card continuation remains. |
-| Driver's-licence renewal | ⬜ | — | Backend/web complete; mobile not started. |
+| Driver's-licence renewal | 🧪 | — | Licence list, add-licence (with document upload), eligibility-gated renewal with delivery/city/wallet quote and order handoff are coded. Hybrid card top-up remains. |
 | Ownership transfer | 🟡 | 🧪 | Managed/offline creation, records, detail timeline, consent, evidence, correction resubmission and permitted cancellation are coded; hybrid wallet top-up remains. |
 | Marketplace | 🟡 | 🧪 | Seller activation, owned-vehicle picker, eligibility-aware listing creation and seller listing summary are coded; browse, offers, wanted and settlement remain. |
 | Fleet | ⬜ | — | Backend/web complete; native mobile module pending. |
@@ -358,12 +358,13 @@ reconstructs commission or payment amounts independently.
 
 #### Driver’s licence
 
-- [ ] Licence record/list.
-- [ ] Add licence with class, number, issue and expiry information.
-- [ ] Eligibility and expiry state.
-- [ ] Licence-renewal quote and checkout.
-- [ ] Shared processing/delivery timeline.
-- [ ] Updated licence data after completion.
+- [x] Licence record/list.
+- [x] Add licence with class, number, issue and expiry information (+ optional document upload).
+- [x] Eligibility and expiry state (renewable flag, status pills, days-to-expiry).
+- [x] Licence-renewal quote and checkout (delivery/city/wallet, server-priced).
+- [x] Shared processing/delivery timeline (reuses the renewal order screen).
+- [ ] Updated licence data after completion (verify on device).
+- [ ] Hybrid wallet-shortfall card top-up continuation.
 
 #### New vehicle registration
 

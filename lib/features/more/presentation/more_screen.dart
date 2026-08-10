@@ -73,8 +73,14 @@ class MoreScreen extends ConsumerWidget {
           _MoreTile(
             icon: Icons.description_outlined,
             title: 'Renewals & registrations',
-            subtitle: 'Vehicle papers, registration and driver’s licence',
+            subtitle: 'Vehicle papers and registration',
             onTap: () => context.go('/more/renewals'),
+          ),
+          _MoreTile(
+            icon: Icons.badge_outlined,
+            title: 'Driver’s licence',
+            subtitle: 'Add your licence and renew it before it lapses',
+            onTap: () => context.go('/more/drivers-license'),
           ),
           _MoreTile(
             icon: Icons.swap_horiz_rounded,
