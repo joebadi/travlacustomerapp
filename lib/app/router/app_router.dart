@@ -17,6 +17,10 @@ import 'package:travla_customer_app/features/claims/presentation/new_claim_scree
 import 'package:travla_customer_app/features/home/presentation/home_screen.dart';
 import 'package:travla_customer_app/features/tracking/presentation/live_map_screen.dart';
 import 'package:travla_customer_app/features/tracking/presentation/phone_tracker_screen.dart';
+import 'package:travla_customer_app/features/stolen/presentation/stolen_screen.dart';
+import 'package:travla_customer_app/features/stolen/presentation/report_stolen_screen.dart';
+import 'package:travla_customer_app/features/stolen/presentation/stolen_report_detail_screen.dart';
+import 'package:travla_customer_app/features/stolen/presentation/report_sighting_screen.dart';
 import 'package:travla_customer_app/features/insurance/presentation/add_policy_screen.dart';
 import 'package:travla_customer_app/features/insurance/presentation/buy_insurance_screen.dart';
 import 'package:travla_customer_app/features/insurance/presentation/insurance_screen.dart';
@@ -262,6 +266,30 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                                 ),
                           ),
                         ],
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: 'stolen',
+                    builder: (context, state) => const StolenScreen(),
+                    routes: [
+                      GoRoute(
+                        path: 'report',
+                        builder: (context, state) => ReportStolenScreen(
+                          vehicleId: state.uri.queryParameters['vehicle'] ?? '',
+                        ),
+                      ),
+                      GoRoute(
+                        path: ':reportId',
+                        builder: (context, state) => StolenReportDetailScreen(
+                          reportId: state.pathParameters['reportId'] ?? '',
+                        ),
+                      ),
+                      GoRoute(
+                        path: ':reportId/sighting',
+                        builder: (context, state) => ReportSightingScreen(
+                          reportId: state.pathParameters['reportId'] ?? '',
+                        ),
                       ),
                     ],
                   ),

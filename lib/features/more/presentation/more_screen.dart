@@ -100,6 +100,12 @@ class MoreScreen extends ConsumerWidget {
             subtitle: 'Live map and use this phone as a tracker',
             onTap: () => context.go('/more/tracking'),
           ),
+          _MoreTile(
+            icon: Icons.gpp_maybe_outlined,
+            title: 'Stolen vehicle registry',
+            subtitle: 'Report a theft, check a plate, log sightings',
+            onTap: () => context.go('/more/stolen'),
+          ),
           const SizedBox(height: 18),
           const _GroupLabel('ACCOUNT'),
           _MoreTile(
