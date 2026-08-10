@@ -152,7 +152,7 @@ Items may be progressively enabled, but disabled placeholders must clearly say
 | Insurance and claims | 🧪 | — | Insurance: policies, add-with-doc, NIID verify, buy+renew, cert download. Claims: rollout gate, list+timeline, file draft, evidence, submit (fee), messages, disputes+NAICOM. Combined-checkout + geolocation remain. |
 | Vehicle tracking/live map | ⬜ | — | Mobile map and phone-as-tracker flows remain. |
 | Support/profile/security | 🟡 | 🧪 | Full profile, avatar, personal/NIN editing, Paystack bank verification and password change are coded; support and legal/preferences pages remain. |
-| Push notifications and deep links | 🟡 | — | In-app polling exists; FCM/APNs and full link routing remain. |
+| Push notifications and deep links | 🧪 | — | FCM wired end-to-end (client register/tap-route + backend HTTP v1 sender from NotificationService); needs on-device QA. iOS needs an APNs key; foreground-Android banner + richer per-screen deep links are follow-ups. |
 | Release hardening/store submission | ⬜ | — | Privacy, signing, QA, telemetry and store assets remain. |
 
 ---
@@ -251,8 +251,8 @@ immediate paths to the highest-value actions.
 - [x] Map supported `action_url` values to native destination routes.
 - [ ] Notification preferences page for email, SMS, WhatsApp and document reminders.
 - [ ] Paginated/infinite notification history beyond the first 50 items.
-- [ ] FCM/APNs device registration and push delivery.
-- [ ] Push tap routing and cold-start deep links.
+- [x] FCM device registration and push delivery (backend FcmV1Client → HTTP v1, fanned out from NotificationService; Android live, iOS pending APNs key).
+- [x] Push tap routing and cold-start deep links (tap opens the notification in-app via getInitialMessage/onMessageOpenedApp).
 
 #### Profile menu and account
 

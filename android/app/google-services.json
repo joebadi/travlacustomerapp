@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "87360926974",
+    "project_id": "travlacustomerapp",
+    "storage_bucket": "travlacustomerapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:87360926974:android:2db839c85bf5734fe5e1af",
+        "android_client_info": {
+          "package_name": "ng.com.travla.customer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDF7gEhXh--VCFyy3KI1hZguEGPggy83Wk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
