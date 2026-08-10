@@ -90,7 +90,7 @@ void main() {
     expect(document.displayVersions.single.isOriginal, isTrue);
   });
 
-  testWidgets('vehicle documents tab renders its vault and both sections', (
+  testWidgets('vehicle documents tab renders both document sections', (
     tester,
   ) async {
     final vehicle = VehicleDetail.fromJson({
@@ -146,19 +146,12 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Documents · 2'));
+    await tester.tap(find.text('Documents'));
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.text('DOCUMENT VAULT'), findsOneWidget);
-    expect(find.text('Your vehicle papers, organised.'), findsOneWidget);
-    expect(find.text('Up to date'), findsOneWidget);
-    expect(find.text('Attention'), findsOneWidget);
     expect(find.text('Renewable papers'), findsOneWidget);
     expect(find.text('Other documents'), findsOneWidget);
-    expect(find.text('Add renewable paper'), findsOneWidget);
-    expect(find.text('Add other document'), findsOneWidget);
-    expect(find.text('Renew eligible papers'), findsOneWidget);
     expect(find.text('Vehicle Licence'), findsOneWidget);
     expect(find.text('Proof of Ownership'), findsOneWidget);
   });
@@ -198,9 +191,11 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Add renewable paper'), findsOneWidget);
+    expect(
+      find.text('Stored privately in this vehicle’s document vault.'),
+      findsOneWidget,
+    );
     expect(find.text('Choose the paper'), findsOneWidget);
-    expect(find.text('Details'), findsOneWidget);
-    expect(find.text('File'), findsOneWidget);
 
     await tester.tap(find.byType(DropdownButtonFormField<String>));
     await tester.pumpAndSettle();

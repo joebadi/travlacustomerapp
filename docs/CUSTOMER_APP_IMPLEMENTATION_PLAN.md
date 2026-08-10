@@ -127,7 +127,7 @@ Items may be progressively enabled, but disabled placeholders must clearly say
 | Area | Build status | Device QA | Notes |
 |---|---:|---:|---|
 | Flutter project and native shells | ✅ | 🧪 | Android/iOS scaffolds and production API configuration exist. |
-| Brand, splash and app icon | ✅ | 🧪 | White-background Travla icon and branded splash are present. |
+| Brand, splash and app icon | ✅ | 🧪 | White Travla road mark on a green-gradient adaptive icon, Android themed icon and branded splash are present. |
 | First-launch onboarding | ✅ | 🧪 | Persistent onboarding-completed state is implemented. |
 | Login/session/logout | ✅ | 🧪 | Sanctum bearer token and secure storage are implemented. |
 | Registration/OTP/admin gate/reCAPTCHA | ✅ | 🧪 | Mirrors registration availability settings and OTP flow. |

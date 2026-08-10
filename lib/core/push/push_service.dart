@@ -2,27 +2,32 @@ import 'dart:io';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:travla_customer_app/app/router/app_router.dart';
 import 'package:travla_customer_app/core/push/push_repository.dart';
 
-/// Handles messages that arrive while the app is terminated/background. Kept
-/// minimal — the OS renders the notification; tapping it routes the user via
-/// [PushService._routeFor] on resume.
+/// Handles messages that arrive while the app is terminated/background. The OS
+/// renders the notification; tapping it routes the user via [PushService] on
+/// resume.
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // No work needed — data is read on tap (getInitialMessage / onMessageOpenedApp).
 }
 
-/// Wires Firebase Cloud Messaging into the app: permission, token registration
-/// with the backend, and tap-to-open deep links. Foreground alerts are shown
-/// natively on iOS (presentation options); background/terminated alerts are
-/// rendered by the OS on both platforms.
+const _channelId = 'travla_alerts';
+const _channelName = 'Travla alerts';
+
+/// Wires Firebase Cloud Messaging into the app: permission, token registration,
+/// **foreground display** (Android shows nothing on its own while the app is
+/// open, so we render a local notification), and tap-to-open deep links.
 class PushService {
   PushService(this._ref);
 
   final Ref _ref;
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  final FlutterLocalNotificationsPlugin _local =
+      FlutterLocalNotificationsPlugin();
 
   bool _initialized = false;
   String? _token;
@@ -64,6 +69,8 @@ class PushService {
     if (_initialized) return;
     _initialized = true;
 
+    await _initLocalNotifications();
+
     await _messaging.requestPermission(alert: true, badge: true, sound: true);
     await _messaging.setForegroundNotificationPresentationOptions(
       alert: true,
@@ -71,6 +78,9 @@ class PushService {
       sound: true,
     );
 
+    // App in foreground: Android delivers the message but shows no banner, so
+    // render it ourselves.
+    FirebaseMessaging.onMessage.listen(_showForeground);
     FirebaseMessaging.onMessageOpenedApp.listen((m) => _handleRoute(m.data));
     _messaging.onTokenRefresh.listen((token) {
       _token = token;
@@ -81,6 +91,55 @@ class PushService {
 
     final initial = await _messaging.getInitialMessage();
     if (initial != null) _handleRoute(initial.data);
+  }
+
+  Future<void> _initLocalNotifications() async {
+    await _local.initialize(
+      settings: const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        iOS: DarwinInitializationSettings(),
+      ),
+      onDidReceiveNotificationResponse: (response) {
+        final payload = response.payload;
+        if (payload != null && payload.isNotEmpty) _navigate(payload);
+      },
+    );
+
+    await _local
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.createNotificationChannel(
+          const AndroidNotificationChannel(
+            _channelId,
+            _channelName,
+            description: 'Renewals, transfers, claims and account alerts.',
+            importance: Importance.high,
+          ),
+        );
+  }
+
+  Future<void> _showForeground(RemoteMessage message) async {
+    final notification = message.notification;
+    final title = notification?.title ?? message.data['title']?.toString();
+    final body = notification?.body ?? message.data['body']?.toString();
+    if (title == null && body == null) return;
+
+    await _local.show(
+      id: notification?.hashCode ?? DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      title: title,
+      body: body,
+      notificationDetails: const NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channelId,
+          _channelName,
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(),
+      ),
+      payload: _routeFor(message.data),
+    );
   }
 
   void _handleRoute(Map<String, dynamic> data) => _navigate(_routeFor(data));

@@ -44,6 +44,7 @@ dependencies:
   url_launcher: ^6.3.2
   firebase_core: ^4.13.0
   firebase_messaging: ^16.5.0
+  flutter_local_notifications: ^22.3.0
 
 dev_dependencies:
   flutter_test:
@@ -76,9 +77,10 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: assets/icon/travla-app-icon.png
-  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_background: assets/icon/travla-app-icon-background.png
   adaptive_icon_foreground: assets/icon/travla-app-icon-foreground.png
-  adaptive_icon_foreground_inset: 16
+  adaptive_icon_monochrome: assets/icon/travla-app-icon-foreground.png
+  adaptive_icon_foreground_inset: 8
   remove_alpha_ios: true
 
   # To add assets to your application, add an assets section, like this:
