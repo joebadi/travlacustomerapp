@@ -6,6 +6,7 @@ import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/home/presentation/dashboard_header_actions.dart';
 import 'package:travla_customer_app/features/vehicles/data/garage_repository.dart';
 import 'package:travla_customer_app/features/vehicles/domain/garage_snapshot.dart';
+import 'package:travla_customer_app/shared/widgets/anchored_menu.dart';
 import 'package:travla_customer_app/shared/widgets/travla_logo.dart';
 
 /// Premium garage — a branded hero header with a readiness summary, quick filters
@@ -623,7 +624,7 @@ class _Pill extends StatelessWidget {
   }
 }
 
-/// Per-vehicle action menu — a compact dropdown anchored to the card's "Manage"
+/// Per-vehicle action menu — a premium dropdown anchored to the card's "Manage"
 /// pill (open, papers, renew, sell, transfer), mirroring the web vehicle actions.
 class _ManageMenu extends StatelessWidget {
   const _ManageMenu({required this.vehicle});
@@ -633,96 +634,89 @@ class _ManageMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final id = vehicle.id;
+    final plate = vehicle.plateNumber;
 
-    return MenuAnchor(
-      // Right-align the menu under the pill (pill ≈ 98px, menu 244px) and drop
-      // it just below. MenuAnchor clamps to the screen if space is tight.
-      alignmentOffset: const Offset(-150, 6),
-      style: MenuStyle(
-        minimumSize: const WidgetStatePropertyAll(Size(244, 0)),
-        maximumSize: const WidgetStatePropertyAll(Size(244, 520)),
-        backgroundColor: const WidgetStatePropertyAll(AppColors.white),
-        elevation: const WidgetStatePropertyAll(10),
-        shadowColor: const WidgetStatePropertyAll(Color(0x33021B13)),
-        padding: const WidgetStatePropertyAll(
-          EdgeInsets.symmetric(vertical: 6),
-        ),
-        shape: WidgetStatePropertyAll(
-          RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: AppColors.border),
-          ),
-        ),
-      ),
-      menuChildren: [
-        _ManageMenuItem(
-          icon: Icons.dashboard_customize_outlined,
-          label: 'Open vehicle',
-          onPressed: () => context.push('/vehicles/$id'),
-        ),
-        _ManageMenuItem(
-          icon: Icons.folder_copy_outlined,
-          label: 'Documents & papers',
-          onPressed: () => context.push('/vehicles/$id?tab=documents'),
-        ),
-        _ManageMenuItem(
-          icon: Icons.autorenew_rounded,
-          label: 'Renew papers',
-          onPressed: () => context.go('/more/renewals/new?vehicle=$id'),
-        ),
-        _ManageMenuItem(
-          icon: Icons.sell_outlined,
-          label: 'Sell on marketplace',
-          onPressed: () => context.go('/more/marketplace/list-new?vehicle=$id'),
-        ),
-        _ManageMenuItem(
-          icon: Icons.swap_horiz_rounded,
-          label: 'Transfer ownership',
-          onPressed: () => context.go('/more/transfers/new?vehicle=$id'),
-        ),
-      ],
-      builder: (context, controller, child) {
-        return _ManageButton(
-          onTap: controller.isOpen ? controller.close : controller.open,
-          open: controller.isOpen,
+    return AnchoredMenu(
+      width: 262,
+      triggerBuilder: (context, isOpen, toggle) =>
+          _ManageButton(onTap: toggle, open: isOpen),
+      menuBuilder: (context, close) {
+        void go(String location) {
+          close();
+          context.push(location);
+        }
+
+        void goTab(String location) {
+          close();
+          context.go(location);
+        }
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 11),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    vehicle.displayName.isEmpty ? 'Vehicle' : vehicle.displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.ink,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 14.5,
+                    ),
+                  ),
+                  if (plate?.isNotEmpty == true)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        plate!.toUpperCase(),
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const MenuDivider(),
+            const SizedBox(height: 6),
+            PremiumMenuItem(
+              icon: Icons.dashboard_customize_outlined,
+              label: 'Open vehicle',
+              onTap: () => go('/vehicles/$id'),
+            ),
+            PremiumMenuItem(
+              icon: Icons.folder_copy_outlined,
+              label: 'Documents & papers',
+              onTap: () => go('/vehicles/$id?tab=documents'),
+            ),
+            PremiumMenuItem(
+              icon: Icons.autorenew_rounded,
+              label: 'Renew papers',
+              onTap: () => goTab('/more/renewals/new?vehicle=$id'),
+            ),
+            PremiumMenuItem(
+              icon: Icons.sell_outlined,
+              label: 'Sell on marketplace',
+              onTap: () => goTab('/more/marketplace/list-new?vehicle=$id'),
+            ),
+            PremiumMenuItem(
+              icon: Icons.swap_horiz_rounded,
+              label: 'Transfer ownership',
+              onTap: () => goTab('/more/transfers/new?vehicle=$id'),
+            ),
+            const SizedBox(height: 6),
+          ],
         );
       },
-    );
-  }
-}
-
-class _ManageMenuItem extends StatelessWidget {
-  const _ManageMenuItem({
-    required this.icon,
-    required this.label,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return MenuItemButton(
-      leadingIcon: Icon(icon, size: 20, color: AppColors.forest700),
-      onPressed: onPressed,
-      style: const ButtonStyle(
-        padding: WidgetStatePropertyAll(
-          EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Text(
-          label,
-          style: const TextStyle(
-            color: AppColors.ink,
-            fontWeight: FontWeight.w700,
-            fontSize: 13.5,
-          ),
-        ),
-      ),
     );
   }
 }
