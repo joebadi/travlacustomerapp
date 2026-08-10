@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:travla_customer_app/shared/widgets/travla_app_bar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
@@ -69,8 +70,7 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
     final feed = ref.watch(newsFeedProvider(_feedQuery));
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('News'),
+      appBar: TravlaAppBar(
         actions: [
           PopupMenuButton<String>(
             tooltip: 'Sort news',

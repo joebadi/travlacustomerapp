@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:travla_customer_app/shared/widgets/travla_app_bar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
@@ -13,7 +14,7 @@ class MoreScreen extends ConsumerWidget {
     final user = auth.user;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('More')),
+      appBar: const TravlaAppBar(),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(18, 8, 18, 32),
         children: [
