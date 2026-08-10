@@ -17,9 +17,9 @@ Future<bool?> showAddVehicleDocumentSheet({
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    backgroundColor: AppColors.canvas,
+    backgroundColor: AppColors.white,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
     ),
     builder: (context) =>
         AddVehicleDocumentSheet(vehicleId: vehicleId, filter: filter),
@@ -72,73 +72,16 @@ class _AddVehicleDocumentSheetState
       curve: Curves.easeOut,
       padding: EdgeInsets.only(bottom: bottomInset),
       child: FractionallySizedBox(
-        heightFactor: .92,
+        heightFactor: .94,
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 12, 10),
-              child: Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.border,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    tooltip: 'Close',
-                    onPressed: _isSubmitting
-                        ? null
-                        : () => Navigator.of(context).pop(false),
-                    icon: const Icon(Icons.close_rounded),
-                  ),
-                ],
-              ),
+            _SheetHeader(
+              title: _title,
+              step: _progressStep,
+              onClose: _isSubmitting
+                  ? null
+                  : () => Navigator.of(context).pop(false),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: AppColors.forest100,
-                      borderRadius: BorderRadius.circular(13),
-                    ),
-                    child: const Icon(
-                      Icons.post_add_rounded,
-                      color: AppColors.forest700,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _title,
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 2),
-                        const Text(
-                          'Add a legal paper to this vehicle’s private vault.',
-                          style: TextStyle(
-                            color: AppColors.muted,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Divider(height: 1),
             Expanded(
               child: available.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
@@ -185,176 +128,214 @@ class _AddVehicleDocumentSheetState
 
     return Form(
       key: _formKey,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      child: Column(
         children: [
-          if (_error != null) ...[
-            Container(
-              padding: const EdgeInsets.all(13),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFE9E7),
-                borderRadius: BorderRadius.circular(11),
-                border: Border.all(color: const Color(0xFFF5BBB5)),
-              ),
-              child: Text(
-                _error!,
-                style: const TextStyle(
-                  color: AppColors.danger,
-                  fontSize: 12,
-                  height: 1.4,
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-          ],
-          DropdownButtonFormField<String>(
-            initialValue: _selectedTypeValue,
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Document type',
-              prefixIcon: Icon(Icons.description_outlined),
-            ),
-            items: types
-                .map(
-                  (type) => DropdownMenuItem(
-                    value: type.type,
-                    child: Text(
-                      type.alreadyAdded ? '${type.name} · replace' : type.name,
-                      overflow: TextOverflow.ellipsis,
+          Expanded(
+            child: ListView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+              children: [
+                if (_error != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFE9E7),
+                      borderRadius: BorderRadius.circular(13),
+                      border: Border.all(color: const Color(0xFFF5BBB5)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.error_outline_rounded,
+                          color: AppColors.danger,
+                          size: 19,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _error!,
+                            style: const TextStyle(
+                              color: AppColors.danger,
+                              fontSize: 11,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                )
-                .toList(growable: false),
-            onChanged: _isSubmitting
-                ? null
-                : (value) {
-                    setState(() {
-                      _selectedTypeValue = value;
-                      _error = null;
-                    });
-                  },
-            validator: (value) => value == null || value.isEmpty
-                ? 'Select a document type.'
-                : null,
-          ),
-          if (selected?.description?.trim().isNotEmpty == true) ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.forest50,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                selected!.description!,
-                style: const TextStyle(
-                  color: AppColors.muted,
-                  fontSize: 11,
-                  height: 1.4,
-                ),
-              ),
-            ),
-          ],
-          if (selected != null) ...[
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _numberController,
-              enabled: !_isSubmitting,
-              textCapitalization: TextCapitalization.characters,
-              decoration: InputDecoration(
-                labelText: isRenewable
-                    ? 'Document number'
-                    : 'Reference / document number',
-                hintText: isRenewable ? null : 'Optional',
-                prefixIcon: const Icon(Icons.numbers_rounded),
-              ),
-              validator: (value) => isRenewable && value!.trim().isEmpty
-                  ? 'Enter the document number.'
-                  : null,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _authorityController,
-              enabled: !_isSubmitting,
-              textCapitalization: TextCapitalization.words,
-              decoration: InputDecoration(
-                labelText: isRenewable ? 'Issuing authority' : 'Issued by',
-                hintText: isRenewable ? null : 'Optional',
-                prefixIcon: const Icon(Icons.account_balance_outlined),
-              ),
-              validator: (value) => isRenewable && value!.trim().isEmpty
-                  ? 'Enter the issuing authority.'
-                  : null,
-            ),
-            const SizedBox(height: 12),
-            _DateField(
-              label: isRenewable ? 'Issue date' : 'Issue date · optional',
-              value: _issuedDate,
-              enabled: !_isSubmitting,
-              onTap: _selectIssuedDate,
-              errorText: isRenewable && _issuedDate == null
-                  ? 'Required for renewable papers'
-                  : null,
-            ),
-            if (isRenewable) ...[
-              const SizedBox(height: 12),
-              InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'Expiry date · automatic',
-                  prefixIcon: Icon(Icons.event_available_outlined),
-                  helperText: 'Exactly one calendar year after the issue date.',
-                ),
-                child: Text(
-                  derivedExpiry == null
-                      ? 'Select the issue date'
-                      : _displayDate(derivedExpiry),
-                  style: TextStyle(
-                    color: derivedExpiry == null
-                        ? AppColors.muted
-                        : AppColors.ink,
-                    fontWeight: FontWeight.w700,
+                  const SizedBox(height: 14),
+                ],
+                _FormSection(
+                  number: '01',
+                  title: 'Choose the paper',
+                  helper: 'Select the exact record you want to store.',
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _selectedTypeValue,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Document type',
+                      prefixIcon: Icon(Icons.description_outlined),
+                    ),
+                    items: types
+                        .map(
+                          (type) => DropdownMenuItem(
+                            value: type.type,
+                            child: Text(
+                              type.alreadyAdded
+                                  ? '${type.name} · replace'
+                                  : type.name,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: _isSubmitting
+                        ? null
+                        : (value) {
+                            setState(() {
+                              _selectedTypeValue = value;
+                              _error = null;
+                            });
+                          },
+                    validator: (value) => value == null || value.isEmpty
+                        ? 'Select a document type.'
+                        : null,
                   ),
                 ),
-              ),
-            ],
-            const SizedBox(height: 16),
-            _FilePickerCard(
-              file: _file,
-              required: selected.fileRequired,
-              enabled: !_isSubmitting,
-              onPick: _pickFile,
-              onRemove: () => setState(() => _file = null),
+                if (selected?.description?.trim().isNotEmpty == true) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(13),
+                    decoration: BoxDecoration(
+                      color: AppColors.forest50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.forest100),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.info_outline_rounded,
+                          color: AppColors.forest700,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 9),
+                        Expanded(
+                          child: Text(
+                            selected!.description!,
+                            style: const TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 10,
+                              height: 1.45,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                if (selected != null) ...[
+                  const SizedBox(height: 14),
+                  _FormSection(
+                    number: '02',
+                    title: 'Record the details',
+                    helper: isRenewable
+                        ? 'These details are used to track validity.'
+                        : 'Add any available reference information.',
+                    child: Column(
+                      children: [
+                        TextFormField(
+                          controller: _numberController,
+                          enabled: !_isSubmitting,
+                          textCapitalization: TextCapitalization.characters,
+                          decoration: InputDecoration(
+                            labelText: isRenewable
+                                ? 'Document number'
+                                : 'Reference / document number',
+                            hintText: isRenewable ? null : 'Optional',
+                            prefixIcon: const Icon(Icons.numbers_rounded),
+                          ),
+                          validator: (value) =>
+                              isRenewable && value!.trim().isEmpty
+                              ? 'Enter the document number.'
+                              : null,
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _authorityController,
+                          enabled: !_isSubmitting,
+                          textCapitalization: TextCapitalization.words,
+                          decoration: InputDecoration(
+                            labelText: isRenewable
+                                ? 'Issuing authority'
+                                : 'Issued by',
+                            hintText: isRenewable ? null : 'Optional',
+                            prefixIcon: const Icon(
+                              Icons.account_balance_outlined,
+                            ),
+                          ),
+                          validator: (value) =>
+                              isRenewable && value!.trim().isEmpty
+                              ? 'Enter the issuing authority.'
+                              : null,
+                        ),
+                        const SizedBox(height: 12),
+                        _DateField(
+                          label: isRenewable
+                              ? 'Issue date'
+                              : 'Issue date · optional',
+                          value: _issuedDate,
+                          enabled: !_isSubmitting,
+                          onTap: _selectIssuedDate,
+                          errorText: isRenewable && _issuedDate == null
+                              ? 'Required for renewable papers'
+                              : null,
+                        ),
+                        if (isRenewable) ...[
+                          const SizedBox(height: 12),
+                          _AutomaticExpiryCard(expiry: derivedExpiry),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  _FormSection(
+                    number: '03',
+                    title: 'Attach the secure copy',
+                    helper: selected.fileRequired
+                        ? 'A file is required for this document type.'
+                        : 'Optional, but useful when you need the original quickly.',
+                    child: _FilePickerCard(
+                      file: _file,
+                      required: selected.fileRequired,
+                      enabled: !_isSubmitting,
+                      onPick: _pickFile,
+                      onRemove: () => setState(() => _file = null),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const _SecureStorageNote(),
+                ],
+              ],
             ),
-            const SizedBox(height: 20),
-            FilledButton.icon(
-              onPressed: _isSubmitting ? null : () => _submit(selected),
-              icon: _isSubmitting
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(
-                        color: AppColors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : const Icon(Icons.cloud_upload_outlined),
-              label: Text(
-                _isSubmitting
-                    ? 'Saving document…'
-                    : selected.alreadyAdded
-                    ? 'Replace document'
-                    : 'Save document',
-              ),
+          ),
+          if (selected != null)
+            _SubmitBar(
+              isSubmitting: _isSubmitting,
+              isReplacement: selected.alreadyAdded,
+              onSubmit: () => _submit(selected),
             ),
-            const SizedBox(height: 10),
-            const Text(
-              'Files are stored privately and accessed through short-lived secure links.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.muted, fontSize: 10),
-            ),
-          ],
         ],
       ),
     );
+  }
+
+  int get _progressStep {
+    if (_selectedTypeValue == null) return 1;
+    if (_file == null) return 2;
+    return 3;
   }
 
   String get _title => switch (widget.filter) {
@@ -450,6 +431,458 @@ class _AddVehicleDocumentSheetState
   }
 }
 
+class _SheetHeader extends StatelessWidget {
+  const _SheetHeader({
+    required this.title,
+    required this.step,
+    required this.onClose,
+  });
+
+  final String title;
+  final int step;
+  final VoidCallback? onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.forest950, AppColors.forest700],
+        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -38,
+            bottom: -64,
+            child: Container(
+              width: 154,
+              height: 154,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: .06),
+                  width: 25,
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 9, 10, 17),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    const Spacer(),
+                    Container(
+                      width: 38,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: .22),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      tooltip: 'Close',
+                      onPressed: onClose,
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.white.withValues(alpha: .09),
+                        foregroundColor: AppColors.white,
+                      ),
+                      icon: const Icon(Icons.close_rounded, size: 19),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    Container(
+                      width: 45,
+                      height: 45,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: .1),
+                        borderRadius: BorderRadius.circular(13),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: .12),
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.post_add_rounded,
+                        color: AppColors.orange,
+                        size: 23,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(
+                                  color: AppColors.white,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            'Stored privately in this vehicle’s document vault.',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: .62),
+                              fontSize: 9,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 17),
+                Row(
+                  children: [
+                    _ProgressItem(
+                      number: 1,
+                      label: 'Choose',
+                      currentStep: step,
+                    ),
+                    const SizedBox(width: 8),
+                    _ProgressItem(
+                      number: 2,
+                      label: 'Details',
+                      currentStep: step,
+                    ),
+                    const SizedBox(width: 8),
+                    _ProgressItem(number: 3, label: 'File', currentStep: step),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProgressItem extends StatelessWidget {
+  const _ProgressItem({
+    required this.number,
+    required this.label,
+    required this.currentStep,
+  });
+
+  final int number;
+  final String label;
+  final int currentStep;
+
+  @override
+  Widget build(BuildContext context) {
+    final complete = number < currentStep;
+    final active = number == currentStep;
+
+    return Expanded(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+        decoration: BoxDecoration(
+          color: active
+              ? AppColors.white
+              : complete
+              ? const Color(0xFF0A7C55)
+              : Colors.white.withValues(alpha: .07),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: active
+                ? AppColors.white
+                : Colors.white.withValues(alpha: .1),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              complete ? Icons.check_rounded : Icons.circle,
+              size: complete ? 13 : 7,
+              color: active
+                  ? AppColors.orange
+                  : complete
+                  ? AppColors.white
+                  : Colors.white.withValues(alpha: .38),
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: active
+                      ? AppColors.forest950
+                      : Colors.white.withValues(alpha: complete ? .9 : .5),
+                  fontSize: 8,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FormSection extends StatelessWidget {
+  const _FormSection({
+    required this.number,
+    required this.title,
+    required this.helper,
+    required this.child,
+  });
+
+  final String number;
+  final String title;
+  final String helper;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A021B13),
+            blurRadius: 16,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.forest950,
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Text(
+                  number,
+                  style: const TextStyle(
+                    color: AppColors.orange,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: AppColors.ink,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      helper,
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 9,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 13),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _AutomaticExpiryCard extends StatelessWidget {
+  const _AutomaticExpiryCard({required this.expiry});
+
+  final DateTime? expiry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: AppColors.forest50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.forest100),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.event_available_outlined,
+              color: AppColors.forest700,
+              size: 19,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'EXPIRY DATE · AUTOMATIC',
+                  style: TextStyle(
+                    color: AppColors.forest700,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: .5,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  child: Text(
+                    expiry == null
+                        ? 'Select the issue date first'
+                        : _displayDate(expiry!),
+                    key: ValueKey(expiry),
+                    style: TextStyle(
+                      color: expiry == null ? AppColors.muted : AppColors.ink,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'Always exactly one calendar year after issue.',
+                  style: TextStyle(color: AppColors.muted, fontSize: 8),
+                ),
+              ],
+            ),
+          ),
+          const Icon(
+            Icons.lock_outline_rounded,
+            color: AppColors.muted,
+            size: 16,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SecureStorageNote extends StatelessWidget {
+  const _SecureStorageNote();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.lock_outline_rounded, color: AppColors.muted, size: 13),
+        SizedBox(width: 5),
+        Flexible(
+          child: Text(
+            'Private storage · secure, short-lived viewing links',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.muted, fontSize: 8),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SubmitBar extends StatelessWidget {
+  const _SubmitBar({
+    required this.isSubmitting,
+    required this.isReplacement,
+    required this.onSubmit,
+  });
+
+  final bool isSubmitting;
+  final bool isReplacement;
+  final VoidCallback onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 11, 16, 12),
+      decoration: const BoxDecoration(
+        color: AppColors.white,
+        border: Border(top: BorderSide(color: AppColors.border)),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x10021B13),
+            blurRadius: 18,
+            offset: Offset(0, -5),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: FilledButton.icon(
+          onPressed: isSubmitting ? null : onSubmit,
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.forest800,
+            foregroundColor: AppColors.white,
+            minimumSize: const Size.fromHeight(52),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(13),
+            ),
+          ),
+          icon: isSubmitting
+              ? const SizedBox.square(
+                  dimension: 18,
+                  child: CircularProgressIndicator(
+                    color: AppColors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              : const Icon(Icons.cloud_upload_outlined, size: 19),
+          label: Text(
+            isSubmitting
+                ? 'Saving securely…'
+                : isReplacement
+                ? 'Replace saved document'
+                : 'Save to document vault',
+            style: const TextStyle(fontWeight: FontWeight.w900),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _DateField extends StatelessWidget {
   const _DateField({
     required this.label,
@@ -508,91 +941,167 @@ class _FilePickerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
-      ),
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 220),
+      switchInCurve: Curves.easeOutCubic,
       child: file == null
-          ? Row(
-              children: [
-                const Icon(
-                  Icons.attach_file_rounded,
-                  color: AppColors.forest700,
-                ),
-                const SizedBox(width: 11),
-                Expanded(
+          ? Material(
+              key: const ValueKey('empty-file'),
+              color: AppColors.forest50,
+              borderRadius: BorderRadius.circular(13),
+              child: InkWell(
+                onTap: enabled ? onPick : null,
+                borderRadius: BorderRadius.circular(13),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 18),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(13),
+                    border: Border.all(color: AppColors.forest100, width: 1.2),
+                  ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Container(
+                        width: 46,
+                        height: 46,
+                        decoration: const BoxDecoration(
+                          color: AppColors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.upload_file_outlined,
+                          color: AppColors.orange,
+                          size: 23,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
                       Text(
-                        required ? 'Document file · required' : 'Document file',
+                        required
+                            ? 'Choose the required document file'
+                            : 'Add a scanned copy or clear photo',
+                        textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: AppColors.ink,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      const Text(
-                        'JPG, PNG or PDF · maximum 5 MB',
-                        style: TextStyle(color: AppColors.muted, fontSize: 10),
-                      ),
-                    ],
-                  ),
-                ),
-                TextButton(
-                  onPressed: enabled ? onPick : null,
-                  child: const Text('Choose'),
-                ),
-              ],
-            )
-          : Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: AppColors.forest50,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.task_outlined,
-                    color: AppColors.forest700,
-                  ),
-                ),
-                const SizedBox(width: 11),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        file!.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
                           fontSize: 11,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
-                      Text(
-                        _fileSize(file!.size),
-                        style: const TextStyle(
-                          color: AppColors.muted,
-                          fontSize: 10,
+                      const SizedBox(height: 4),
+                      const Text(
+                        'PDF, JPG or PNG · maximum 5 MB',
+                        style: TextStyle(color: AppColors.muted, fontSize: 9),
+                      ),
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 13,
+                          vertical: 7,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.forest800,
+                          borderRadius: BorderRadius.circular(9),
+                        ),
+                        child: const Text(
+                          'Choose file',
+                          style: TextStyle(
+                            color: AppColors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
-                IconButton(
-                  tooltip: 'Remove file',
-                  onPressed: enabled ? onRemove : null,
-                  icon: const Icon(Icons.close_rounded, size: 20),
-                ),
-              ],
+              ),
+            )
+          : Container(
+              key: ValueKey(file!.name),
+              padding: const EdgeInsets.all(13),
+              decoration: BoxDecoration(
+                color: AppColors.forest50,
+                borderRadius: BorderRadius.circular(13),
+                border: Border.all(color: AppColors.forest100),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Icon(
+                      file!.extension?.toLowerCase() == 'pdf'
+                          ? Icons.picture_as_pdf_outlined
+                          : Icons.image_outlined,
+                      color: AppColors.forest700,
+                      size: 21,
+                    ),
+                  ),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.check_circle_rounded,
+                              color: AppColors.forest600,
+                              size: 13,
+                            ),
+                            const SizedBox(width: 4),
+                            const Text(
+                              'READY TO UPLOAD',
+                              style: TextStyle(
+                                color: AppColors.forest700,
+                                fontSize: 7,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: .4,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          file!.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.ink,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _fileSize(file!.size),
+                          style: const TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 9,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Replace file',
+                    onPressed: enabled ? onPick : null,
+                    icon: const Icon(Icons.sync_rounded, size: 19),
+                  ),
+                  IconButton(
+                    tooltip: 'Remove file',
+                    onPressed: enabled ? onRemove : null,
+                    icon: const Icon(
+                      Icons.delete_outline_rounded,
+                      color: AppColors.danger,
+                      size: 19,
+                    ),
+                  ),
+                ],
+              ),
             ),
     );
   }

@@ -69,10 +69,11 @@ class MoreScreen extends ConsumerWidget {
             subtitle: 'Buy, sell and manage vehicle offers',
             onTap: () => context.go('/more/marketplace'),
           ),
-          const _MoreTile(
+          _MoreTile(
             icon: Icons.description_outlined,
             title: 'Renewals & registrations',
             subtitle: 'Vehicle papers, registration and driver’s licence',
+            onTap: () => context.go('/more/renewals'),
           ),
           _MoreTile(
             icon: Icons.swap_horiz_rounded,

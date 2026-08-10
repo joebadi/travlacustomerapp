@@ -135,7 +135,7 @@ class HomeScreen extends ConsumerWidget {
                     _QuickAccess(
                       icon: Icons.description_outlined,
                       label: 'Renew papers',
-                      onTap: () => context.go('/vehicles'),
+                      onTap: () => context.go('/more/renewals'),
                     ),
                     _QuickAccess(
                       icon: Icons.swap_horiz_rounded,

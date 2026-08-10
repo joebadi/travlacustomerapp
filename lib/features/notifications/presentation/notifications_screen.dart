@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/home/presentation/dashboard_header_actions.dart';
@@ -73,10 +74,14 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                   );
                 }
                 final item = data.items[index - 1];
+                final destination = nativeNotificationPath(item.actionUrl);
                 return _NotificationCard(
                   item: item,
                   isSelected: item.id == _selectedId,
                   onTap: () => _select(item),
+                  onAction: destination == null
+                      ? null
+                      : () => context.push(destination),
                 );
               },
             ),
@@ -123,11 +128,13 @@ class _NotificationCard extends StatelessWidget {
     required this.item,
     required this.isSelected,
     required this.onTap,
+    required this.onAction,
   });
 
   final AppNotification item;
   final bool isSelected;
   final VoidCallback onTap;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -216,6 +223,20 @@ class _NotificationCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 8),
+                      if (isSelected && onAction != null) ...[
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: FilledButton.icon(
+                            onPressed: onAction,
+                            icon: const Icon(
+                              Icons.arrow_forward_rounded,
+                              size: 16,
+                            ),
+                            label: const Text('Open update'),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
                       Row(
                         children: [
                           Container(

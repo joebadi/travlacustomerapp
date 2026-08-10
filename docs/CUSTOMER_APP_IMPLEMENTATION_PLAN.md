@@ -141,7 +141,7 @@ Items may be progressively enabled, but disabled placeholders must clearly say
 | Register a new vehicle | ✅ | 🧪 | Four-stage flow, uploads, handover and server quote. |
 | Vehicle workspace | ✅ | 🧪 | Overview, audit-aware editing, gallery, document vault, service ordering/history and tracker-source management are coded. |
 | Transactions/wallet funding | 🟡 | 🧪 | Native balance, credit/debit ledger, filters, virtual account and verified Paystack top-up are coded; receipts, pagination and hybrid service shortfall remain. |
-| Vehicle-paper renewal | ⬜ | — | Backend/web complete; mobile not started. |
+| Vehicle-paper renewal | 🟡 | 🧪 | Native eligibility, multi-paper quote, wallet checkout, order history, processing/delivery progress, OTP and cancellation are coded; hybrid card continuation remains. |
 | Driver's-licence renewal | ⬜ | — | Backend/web complete; mobile not started. |
 | Ownership transfer | 🟡 | 🧪 | Managed/offline creation, records, detail timeline, consent, evidence, correction resubmission and permitted cancellation are coded; hybrid wallet top-up remains. |
 | Marketplace | 🟡 | 🧪 | Seller activation, owned-vehicle picker, eligibility-aware listing creation and seller listing summary are coded; browse, offers, wanted and settlement remain. |
@@ -248,7 +248,7 @@ immediate paths to the highest-value actions.
 - [x] Mark one notification read.
 - [x] Mark all notifications read.
 - [x] Pull-to-refresh notifications.
-- [ ] Map supported `action_url` values to native destination routes.
+- [x] Map supported `action_url` values to native destination routes.
 - [ ] Notification preferences page for email, SMS, WhatsApp and document reminders.
 - [ ] Paginated/infinite notification history beyond the first 50 items.
 - [ ] FCM/APNs device registration and push delivery.
@@ -300,10 +300,10 @@ immediate paths to the highest-value actions.
 - [x] Swipeable vehicle image gallery viewing.
 - [x] Vehicle image upload/removal with six-image and 5 MB-per-file limits.
 - [ ] Vehicle image reordering (requires a persistent backend ordering contract).
-- [x] Renewable Documents section.
-- [x] Other Documents section.
+- [x] Premium document-vault dashboard with current/attention/other-file readiness totals.
+- [x] Flat mobile document cards for renewable papers and other records with direct viewing and secure-file state.
 - [x] Document detail and version history with signed file opening.
-- [x] Add-document sheet with issue date and locked one-year expiry preview.
+- [x] Guided three-stage add-document sheet with issue date, locked one-year expiry preview, animated file states and anchored save action.
 - [x] Server-owned expiry submission: mobile never sends an expiry date.
 - [x] Auto-renew toggle for renewable documents.
 - [x] Confirmed document removal and workspace refresh.
@@ -311,8 +311,8 @@ immediate paths to the highest-value actions.
 - [x] Keep VIN immutable and auto-resolve/lock category from canonical make/model.
 - [x] Other Services catalogue, requirements, service-city/delivery form and order history.
 - [x] Fixed-fee wallet submission, quoted-order payment and pending-order cancellation.
-- [ ] Sell-on-marketplace entry point and eligibility explanation.
-- [ ] Ownership-transfer entry point.
+- [x] Sell-on-marketplace entry point and eligibility explanation.
+- [x] Ownership-transfer entry point.
 - [x] Tracking tab with latest fix, trail summary and external map opening.
 - [x] Hardware/API tracker creation, activation, key rotation and removal.
 - [ ] Background phone-as-tracker streaming (native location/offline phase).
@@ -343,17 +343,18 @@ reconstructs commission or payment amounts independently.
 
 #### Vehicle-paper renewals
 
-- [ ] Renewal eligibility and missing-document explanations.
-- [ ] Select one or several eligible renewable documents.
-- [ ] Quote all document prices and a single applicable delivery fee.
-- [ ] Pickup/door-to-door selection and covered-city validation.
-- [ ] Wallet/hybrid payment.
-- [ ] Renewal order and grouped document progress.
-- [ ] Agent-processing timeline.
-- [ ] Rider delivery live progress and map when out for delivery.
-- [ ] Handover OTP display/instructions.
-- [ ] Completed document automatically visible in the vehicle vault.
-- [ ] Cancel/refund behavior where the backend permits it.
+- [x] Renewal eligibility and missing-document explanations.
+- [x] Select one or several eligible renewable documents.
+- [x] Quote all document prices and a single applicable delivery fee.
+- [x] Pickup/door-to-door selection and covered-city validation.
+- [ ] Hybrid wallet/card payment continuation after a wallet shortfall.
+- [x] Wallet payment with explicit shortfall route to Transactions.
+- [x] Renewal order and grouped document progress.
+- [x] Agent-processing timeline.
+- [x] Rider delivery live progress and external live-location map when out for delivery.
+- [x] Handover OTP display/instructions.
+- [x] Completed document automatically visible in the vehicle vault through the shared backend record.
+- [x] Cancel/refund behavior where the backend permits it.
 
 #### Driver’s licence
 

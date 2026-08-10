@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:travla_customer_app/features/vehicles/data/vehicle_detail_repository.dart';
 import 'package:travla_customer_app/features/vehicles/domain/vehicle_detail.dart';
+import 'package:travla_customer_app/features/vehicles/presentation/add_vehicle_document_sheet.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/vehicle_detail_screen.dart';
 
 void main() {
@@ -149,12 +150,72 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Vehicle document vault'), findsOneWidget);
+    expect(find.text('DOCUMENT VAULT'), findsOneWidget);
+    expect(find.text('Your vehicle papers, organised.'), findsOneWidget);
+    expect(find.text('Up to date'), findsOneWidget);
+    expect(find.text('Attention'), findsOneWidget);
     expect(find.text('Renewable papers'), findsOneWidget);
     expect(find.text('Other documents'), findsOneWidget);
     expect(find.text('Add renewable paper'), findsOneWidget);
     expect(find.text('Add other document'), findsOneWidget);
+    expect(find.text('Renew eligible papers'), findsOneWidget);
     expect(find.text('Vehicle Licence'), findsOneWidget);
     expect(find.text('Proof of Ownership'), findsOneWidget);
+  });
+
+  testWidgets('add document sheet reveals guided details and upload stages', (
+    tester,
+  ) async {
+    final types = [
+      const AvailableDocumentType(
+        type: 'VEHICLE_LICENCE',
+        name: 'Vehicle Licence',
+        description: 'Annual vehicle licence issued for this vehicle.',
+        category: 'RENEWABLE',
+        requiresUpload: true,
+        alreadyAdded: false,
+      ),
+    ];
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          availableDocumentTypesProvider(
+            'vehicle-1',
+          ).overrideWith((ref) async => types),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: AddVehicleDocumentSheet(
+              vehicleId: 'vehicle-1',
+              filter: DocumentTypeFilter.renewable,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Add renewable paper'), findsOneWidget);
+    expect(find.text('Choose the paper'), findsOneWidget);
+    expect(find.text('Details'), findsOneWidget);
+    expect(find.text('File'), findsOneWidget);
+
+    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Vehicle Licence').last);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Record the details'), findsOneWidget);
+    await tester.drag(find.byType(ListView).last, const Offset(0, -520));
+    await tester.pumpAndSettle();
+    expect(find.text('Attach the secure copy'), findsOneWidget);
+    expect(
+      find.text('Always exactly one calendar year after issue.'),
+      findsOneWidget,
+    );
+    expect(find.text('Save to document vault'), findsOneWidget);
   });
 }

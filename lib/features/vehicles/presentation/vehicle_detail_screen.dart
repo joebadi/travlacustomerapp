@@ -116,6 +116,7 @@ class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
         key: const ValueKey('overview'),
         vehicle: vehicle,
         onOpenDocuments: () => _selectTab(VehicleDetailTab.documents),
+        onRenew: () => context.push('/more/renewals/new?vehicle=${vehicle.id}'),
         onSell: () =>
             context.push('/more/marketplace/list-new?vehicle=${vehicle.id}'),
         onTransfer: () =>
@@ -126,6 +127,7 @@ class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
         vehicle: vehicle,
         mutatingDocuments: _mutatingDocuments,
         onAdd: _addDocument,
+        onRenew: () => context.push('/more/renewals/new?vehicle=${vehicle.id}'),
         onView: (document) => _showDocumentDetails(vehicle, document),
         onAutoRenew: (document, enabled) => _setAutoRenew(document, enabled),
         onDelete: _deleteDocument,
@@ -625,6 +627,7 @@ class _OverviewTab extends StatelessWidget {
   const _OverviewTab({
     required this.vehicle,
     required this.onOpenDocuments,
+    required this.onRenew,
     required this.onSell,
     required this.onTransfer,
     super.key,
@@ -632,6 +635,7 @@ class _OverviewTab extends StatelessWidget {
 
   final VehicleDetail vehicle;
   final VoidCallback onOpenDocuments;
+  final VoidCallback onRenew;
   final VoidCallback onSell;
   final VoidCallback onTransfer;
 
@@ -655,6 +659,51 @@ class _OverviewTab extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _ReadinessCard(vehicle: vehicle, onOpenDocuments: onOpenDocuments),
+          const SizedBox(height: 14),
+          Card(
+            color: AppColors.forest950,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: onRenew,
+              child: const Padding(
+                padding: EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: AppColors.orange,
+                      foregroundColor: Colors.white,
+                      child: Icon(Icons.event_repeat_rounded),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Renew vehicle papers',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          SizedBox(height: 3),
+                          Text(
+                            'Check eligibility, select papers and see the complete quote.',
+                            style: TextStyle(
+                              color: Color(0xFFBBD8CD),
+                              fontSize: 9,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.arrow_forward_rounded, color: AppColors.orange),
+                  ],
+                ),
+              ),
+            ),
+          ),
           const SizedBox(height: 14),
           Card(
             child: InkWell(
@@ -1003,6 +1052,7 @@ class _DocumentsTab extends StatelessWidget {
     required this.vehicle,
     required this.mutatingDocuments,
     required this.onAdd,
+    required this.onRenew,
     required this.onView,
     required this.onAutoRenew,
     required this.onDelete,
@@ -1012,12 +1062,25 @@ class _DocumentsTab extends StatelessWidget {
   final VehicleDetail vehicle;
   final Set<String> mutatingDocuments;
   final ValueChanged<DocumentTypeFilter> onAdd;
+  final VoidCallback onRenew;
   final ValueChanged<VehicleDocument> onView;
   final void Function(VehicleDocument, bool) onAutoRenew;
   final ValueChanged<VehicleDocument> onDelete;
 
   @override
   Widget build(BuildContext context) {
+    final renewable = vehicle.renewableDocuments;
+    final currentCount = renewable
+        .where((document) => document.status == 'VALID')
+        .length;
+    final attentionCount = renewable
+        .where(
+          (document) =>
+              document.status == 'EXPIRED' ||
+              document.status == 'EXPIRING_SOON',
+        )
+        .length;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Column(
@@ -1050,54 +1113,63 @@ class _DocumentsTab extends StatelessWidget {
                 ],
               ),
             ),
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Vehicle document vault',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 3),
-                    const Text(
-                      'Legal papers and permanent records, kept separately.',
-                      style: TextStyle(color: AppColors.muted, fontSize: 10),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          _DocumentVaultHero(
+            currentCount: currentCount,
+            attentionCount: attentionCount,
+            renewableCount: renewable.length,
+            recordCount: vehicle.otherDocuments.length,
           ),
           if (vehicle.hasValidPlateNumber) ...[
-            const SizedBox(height: 14),
-            Column(
-              children: [
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: () => onAdd(DocumentTypeFilter.renewable),
-                    icon: const Icon(Icons.event_repeat_rounded, size: 18),
-                    label: const Text('Add renewable paper'),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: onRenew,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.orange,
+                  foregroundColor: AppColors.white,
+                  minimumSize: const Size.fromHeight(50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(13),
                   ),
                 ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => onAdd(DocumentTypeFilter.other),
-                    icon: const Icon(Icons.post_add_rounded, size: 18),
-                    label: const Text('Add other document'),
+                icon: const Icon(Icons.event_repeat_rounded, size: 19),
+                label: Text(
+                  attentionCount > 0
+                      ? 'Renew $attentionCount paper${attentionCount == 1 ? '' : 's'} needing attention'
+                      : 'Renew eligible papers',
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _VaultActionButton(
+                    icon: Icons.add_circle_outline_rounded,
+                    label: 'Add renewable paper',
+                    helper: 'Tracked by expiry',
+                    onTap: () => onAdd(DocumentTypeFilter.renewable),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _VaultActionButton(
+                    icon: Icons.note_add_outlined,
+                    label: 'Add other document',
+                    helper: 'Permanent record',
+                    onTap: () => onAdd(DocumentTypeFilter.other),
                   ),
                 ),
               ],
             ),
           ],
-          const SizedBox(height: 18),
+          const SizedBox(height: 24),
           _DocumentSection(
             title: 'Renewable papers',
-            description: 'Licence, insurance, permits and roadworthiness.',
+            description: 'Licence, insurance, permits and roadworthiness',
+            icon: Icons.event_available_outlined,
             documents: vehicle.renewableDocuments,
             mutatingDocuments: mutatingDocuments,
             onAdd: vehicle.hasValidPlateNumber
@@ -1110,7 +1182,8 @@ class _DocumentsTab extends StatelessWidget {
           const SizedBox(height: 14),
           _DocumentSection(
             title: 'Other documents',
-            description: 'Proof of ownership and one-time records.',
+            description: 'Ownership and other permanent vehicle records',
+            icon: Icons.folder_copy_outlined,
             documents: vehicle.otherDocuments,
             mutatingDocuments: mutatingDocuments,
             onAdd: vehicle.hasValidPlateNumber
@@ -1126,10 +1199,286 @@ class _DocumentsTab extends StatelessWidget {
   }
 }
 
+class _DocumentVaultHero extends StatelessWidget {
+  const _DocumentVaultHero({
+    required this.currentCount,
+    required this.attentionCount,
+    required this.renewableCount,
+    required this.recordCount,
+  });
+
+  final int currentCount;
+  final int attentionCount;
+  final int renewableCount;
+  final int recordCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final readinessText = renewableCount == 0
+        ? 'Add your first renewable paper to start expiry tracking.'
+        : attentionCount == 0
+        ? 'Every tracked renewable paper is currently road-ready.'
+        : '$attentionCount paper${attentionCount == 1 ? '' : 's'} need${attentionCount == 1 ? 's' : ''} your attention.';
+
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.forest950, AppColors.forest700],
+        ),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -42,
+            top: -50,
+            child: Container(
+              width: 154,
+              height: 154,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: .07),
+                  width: 24,
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: .1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: .12),
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.verified_user_outlined,
+                        color: AppColors.orange,
+                        size: 23,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'DOCUMENT VAULT',
+                            style: TextStyle(
+                              color: Color(0xFF8BD8B9),
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.1,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Your vehicle papers, organised.',
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(
+                                  color: AppColors.white,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            readinessText,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: .68),
+                              fontSize: 10,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 17),
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: .14),
+                    borderRadius: BorderRadius.circular(13),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: .08),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      _VaultMetric(
+                        value: '$currentCount',
+                        label: 'Up to date',
+                        color: const Color(0xFF79D8B1),
+                      ),
+                      _VaultDivider(),
+                      _VaultMetric(
+                        value: '$attentionCount',
+                        label: 'Attention',
+                        color: attentionCount > 0
+                            ? AppColors.orange
+                            : const Color(0xFF79D8B1),
+                      ),
+                      _VaultDivider(),
+                      _VaultMetric(
+                        value: '$recordCount',
+                        label: 'Other files',
+                        color: AppColors.white,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VaultMetric extends StatelessWidget {
+  const _VaultMetric({
+    required this.value,
+    required this.label,
+    required this.color,
+  });
+
+  final String value;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              height: 1,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: .56),
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VaultDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 31,
+      color: Colors.white.withValues(alpha: .12),
+    );
+  }
+}
+
+class _VaultActionButton extends StatelessWidget {
+  const _VaultActionButton({
+    required this.icon,
+    required this.label,
+    required this.helper,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final String helper;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(13),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(13),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(13),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: AppColors.forest50,
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Icon(icon, color: AppColors.forest700, size: 18),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      maxLines: 2,
+                      style: const TextStyle(
+                        color: AppColors.ink,
+                        fontSize: 10,
+                        height: 1.15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      helper,
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 8,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _DocumentSection extends StatelessWidget {
   const _DocumentSection({
     required this.title,
     required this.description,
+    required this.icon,
     required this.documents,
     required this.mutatingDocuments,
     required this.onAdd,
@@ -1140,6 +1489,7 @@ class _DocumentSection extends StatelessWidget {
 
   final String title;
   final String description;
+  final IconData icon;
   final List<VehicleDocument> documents;
   final Set<String> mutatingDocuments;
   final VoidCallback? onAdd;
@@ -1149,92 +1499,145 @@ class _DocumentSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 15, 10, 13),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        description,
-                        style: const TextStyle(
-                          color: AppColors.muted,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.forest50,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Text(
-                    '${documents.length}',
-                    style: const TextStyle(
-                      color: AppColors.forest700,
-                      fontSize: 10,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.forest50,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: AppColors.forest700, size: 18),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w900,
                     ),
                   ),
-                ),
-                if (onAdd != null)
-                  IconButton(
-                    tooltip: 'Add to $title',
-                    onPressed: onAdd,
-                    icon: const Icon(Icons.add_circle_outline_rounded),
-                  ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          if (documents.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
-              child: Column(
-                children: [
-                  const Icon(
-                    Icons.folder_open_outlined,
-                    color: AppColors.muted,
-                    size: 30,
-                  ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 2),
                   Text(
-                    'No ${title.toLowerCase()} added.',
-                    style: const TextStyle(
-                      color: AppColors.muted,
-                      fontSize: 11,
-                    ),
+                    description,
+                    style: const TextStyle(color: AppColors.muted, fontSize: 9),
                   ),
                 ],
               ),
-            )
-          else
-            ...documents.map(
-              (document) => _DocumentTile(
-                document: document,
-                isMutating: mutatingDocuments.contains(document.id),
-                onView: () => onView(document),
-                onAutoRenew: (enabled) => onAutoRenew(document, enabled),
-                onDelete: () => onDelete(document),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+              decoration: BoxDecoration(
+                color: AppColors.forest50,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '${documents.length}',
+                style: const TextStyle(
+                  color: AppColors.forest700,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ),
+            if (onAdd != null) ...[
+              const SizedBox(width: 4),
+              IconButton.filledTonal(
+                tooltip: 'Add to $title',
+                onPressed: onAdd,
+                style: IconButton.styleFrom(
+                  backgroundColor: AppColors.forest50,
+                  foregroundColor: AppColors.forest700,
+                ),
+                icon: const Icon(Icons.add_rounded, size: 20),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 11),
+        if (documents.isEmpty)
+          _EmptyDocumentSection(title: title, onAdd: onAdd)
+        else
+          ...documents.indexed.map(
+            (entry) => Padding(
+              padding: EdgeInsets.only(
+                bottom: entry.$1 == documents.length - 1 ? 0 : 10,
+              ),
+              child: _DocumentTile(
+                document: entry.$2,
+                isMutating: mutatingDocuments.contains(entry.$2.id),
+                onView: () => onView(entry.$2),
+                onAutoRenew: (enabled) => onAutoRenew(entry.$2, enabled),
+                onDelete: () => onDelete(entry.$2),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _EmptyDocumentSection extends StatelessWidget {
+  const _EmptyDocumentSection({required this.title, required this.onAdd});
+
+  final String title;
+  final VoidCallback? onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(18, 22, 18, 20),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: const BoxDecoration(
+              color: AppColors.forest50,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.folder_open_outlined,
+              color: AppColors.forest700,
+            ),
+          ),
+          const SizedBox(height: 9),
+          Text(
+            'No ${title.toLowerCase()} yet',
+            style: const TextStyle(
+              color: AppColors.ink,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Add a document to keep its details and secure copy together.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.muted, fontSize: 9, height: 1.4),
+          ),
+          if (onAdd != null) ...[
+            const SizedBox(height: 9),
+            TextButton.icon(
+              onPressed: onAdd,
+              icon: const Icon(Icons.add_rounded, size: 17),
+              label: const Text('Add document'),
+            ),
+          ],
         ],
       ),
     );
@@ -1260,78 +1663,159 @@ class _DocumentTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final status = _DocumentStatusStyle.from(document.status);
 
-    return Container(
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: AppColors.border)),
-      ),
+    return Material(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(15),
       child: InkWell(
         onTap: isMutating ? null : onView,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 14, 8, 13),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        borderRadius: BorderRadius.circular(15),
+        child: Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
             children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: status.background,
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                child: Icon(
-                  Icons.description_outlined,
-                  color: status.foreground,
-                  size: 20,
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(width: 4, height: 104, color: status.foreground),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(13, 13, 8, 11),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: status.background,
+                              borderRadius: BorderRadius.circular(11),
+                            ),
+                            child: Icon(
+                              document.mimeType?.contains('pdf') == true
+                                  ? Icons.picture_as_pdf_outlined
+                                  : Icons.description_outlined,
+                              color: status.foreground,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 11),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        document.name,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: AppColors.ink,
+                                          fontSize: 12,
+                                          height: 1.2,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: status.background,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        document.statusLabel,
+                                        style: TextStyle(
+                                          color: status.foreground,
+                                          fontSize: 8,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 5),
+                                Text(
+                                  document.documentNumber?.isNotEmpty == true
+                                      ? 'No. ${document.documentNumber}'
+                                      : document.isRenewable
+                                      ? 'Document number not recorded'
+                                      : 'Permanent record on file',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: AppColors.muted,
+                                    fontSize: 9,
+                                  ),
+                                ),
+                                const SizedBox(height: 7),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      document.isRenewable
+                                          ? Icons.schedule_rounded
+                                          : Icons.lock_outline_rounded,
+                                      size: 13,
+                                      color: status.foreground,
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Expanded(
+                                      child: Text(
+                                        document.isRenewable
+                                            ? _expiryText(document)
+                                            : document.hasFile
+                                            ? 'Secure copy attached'
+                                            : 'Details saved without a file',
+                                        style: TextStyle(
+                                          color: document.isRenewable
+                                              ? status.foreground
+                                              : AppColors.muted,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              Container(
+                padding: const EdgeInsets.fromLTRB(13, 8, 8, 8),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFAFCFB),
+                  border: Border(top: BorderSide(color: AppColors.border)),
+                ),
+                child: Row(
                   children: [
-                    Text(
-                      document.name,
-                      style: const TextStyle(
-                        color: AppColors.ink,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      document.documentNumber?.isNotEmpty == true
-                          ? 'No. ${document.documentNumber}'
-                          : document.isRenewable
-                          ? 'No document number'
-                          : 'On file',
-                      style: const TextStyle(
-                        color: AppColors.muted,
-                        fontSize: 10,
-                      ),
-                    ),
                     if (document.isRenewable) ...[
-                      const SizedBox(height: 5),
-                      Text(
-                        _expiryText(document),
-                        style: TextStyle(
-                          color: status.foreground,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 7),
-                      InkWell(
-                        borderRadius: BorderRadius.circular(20),
-                        onTap: isMutating
-                            ? null
-                            : () => onAutoRenew(!document.autoRenew),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 2),
+                      Expanded(
+                        child: InkWell(
+                          onTap: isMutating
+                              ? null
+                              : () => onAutoRenew(!document.autoRenew),
+                          borderRadius: BorderRadius.circular(10),
                           child: Row(
-                            mainAxisSize: MainAxisSize.min,
                             children: [
                               SizedBox(
-                                height: 20,
+                                width: 34,
+                                height: 22,
                                 child: Switch(
                                   value: document.autoRenew,
                                   onChanged: isMutating ? null : onAutoRenew,
@@ -1339,7 +1823,7 @@ class _DocumentTile extends StatelessWidget {
                                       MaterialTapTargetSize.shrinkWrap,
                                 ),
                               ),
-                              const SizedBox(width: 6),
+                              const SizedBox(width: 7),
                               Text(
                                 document.autoRenew
                                     ? 'Auto-renew on'
@@ -1349,59 +1833,56 @@ class _DocumentTile extends StatelessWidget {
                                       ? AppColors.forest700
                                       : AppColors.muted,
                                   fontSize: 9,
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w900,
                                 ),
                               ),
                             ],
                           ),
                         ),
                       ),
+                    ] else
+                      const Spacer(),
+                    if (isMutating)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 12),
+                        child: SizedBox.square(
+                          dimension: 17,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    else ...[
+                      TextButton.icon(
+                        onPressed: onView,
+                        icon: const Icon(Icons.visibility_outlined, size: 16),
+                        label: const Text('View'),
+                      ),
+                      PopupMenuButton<String>(
+                        tooltip: 'Document actions',
+                        onSelected: (action) {
+                          if (action == 'delete') onDelete();
+                        },
+                        itemBuilder: (context) => const [
+                          PopupMenuItem(
+                            value: 'delete',
+                            child: ListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              leading: Icon(
+                                Icons.delete_outline_rounded,
+                                color: AppColors.danger,
+                              ),
+                              title: Text(
+                                'Remove document',
+                                style: TextStyle(color: AppColors.danger),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ],
                 ),
               ),
-              if (isMutating)
-                const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: SizedBox.square(
-                    dimension: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                )
-              else
-                PopupMenuButton<String>(
-                  tooltip: 'Document actions',
-                  onSelected: (action) {
-                    if (action == 'view') onView();
-                    if (action == 'delete') onDelete();
-                  },
-                  itemBuilder: (context) => const [
-                    PopupMenuItem(
-                      value: 'view',
-                      child: ListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        leading: Icon(Icons.visibility_outlined),
-                        title: Text('View details'),
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: ListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        leading: Icon(
-                          Icons.delete_outline_rounded,
-                          color: AppColors.danger,
-                        ),
-                        title: Text(
-                          'Remove document',
-                          style: TextStyle(color: AppColors.danger),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
             ],
           ),
         ),

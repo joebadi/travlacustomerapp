@@ -39,3 +39,30 @@ class NotificationSnapshot {
   final List<AppNotification> items;
   final int unreadCount;
 }
+
+String? nativeNotificationPath(String? actionUrl) {
+  final raw = actionUrl?.trim() ?? '';
+  if (raw.isEmpty) return null;
+  final uri = Uri.tryParse(raw);
+  final path = uri?.path ?? raw;
+  final query = uri?.hasQuery == true ? '?${uri!.query}' : '';
+
+  final renewalOrder = RegExp(r'^/renewals/orders/([^/]+)$').firstMatch(path);
+  if (renewalOrder != null) {
+    return '/more/renewals/orders/${renewalOrder.group(1)}';
+  }
+  if (path == '/renewals') return '/more/renewals';
+
+  final transfer = RegExp(r'^/transfers/([^/]+)$').firstMatch(path);
+  if (transfer != null) return '/more/transfers/${transfer.group(1)}';
+  if (path == '/transfers') return '/more/transfers';
+
+  if (path == '/wallet' || path == '/transactions') {
+    return '/more/transactions';
+  }
+  final vehicle = RegExp(r'^/vehicles/([^/]+)$').firstMatch(path);
+  if (vehicle != null) return '$path$query';
+  if (path == '/vehicles') return '/vehicles';
+  if (path == '/marketplace') return '/more/marketplace';
+  return null;
+}

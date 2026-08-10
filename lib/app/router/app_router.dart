@@ -19,6 +19,9 @@ import 'package:travla_customer_app/features/notifications/presentation/notifica
 import 'package:travla_customer_app/features/onboarding/presentation/onboarding_screen.dart';
 import 'package:travla_customer_app/features/profile/presentation/profile_screen.dart';
 import 'package:travla_customer_app/features/registrations/presentation/new_vehicle_registration_screen.dart';
+import 'package:travla_customer_app/features/renewals/presentation/new_renewal_screen.dart';
+import 'package:travla_customer_app/features/renewals/presentation/renewal_order_screen.dart';
+import 'package:travla_customer_app/features/renewals/presentation/renewals_screen.dart';
 import 'package:travla_customer_app/features/transfers/presentation/new_transfer_screen.dart';
 import 'package:travla_customer_app/features/transfers/presentation/transfer_detail_screen.dart';
 import 'package:travla_customer_app/features/transfers/presentation/transfers_screen.dart';
@@ -176,6 +179,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'profile',
                     builder: (context, state) => const ProfileScreen(),
+                  ),
+                  GoRoute(
+                    path: 'renewals',
+                    builder: (context, state) => const RenewalsScreen(),
+                    routes: [
+                      GoRoute(
+                        path: 'new',
+                        builder: (context, state) => NewRenewalScreen(
+                          vehicleId: state.uri.queryParameters['vehicle'] ?? '',
+                        ),
+                      ),
+                      GoRoute(
+                        path: 'orders/:groupId',
+                        builder: (context, state) => RenewalOrderScreen(
+                          groupId: state.pathParameters['groupId'] ?? '',
+                        ),
+                      ),
+                    ],
                   ),
                   GoRoute(
                     path: 'marketplace',
