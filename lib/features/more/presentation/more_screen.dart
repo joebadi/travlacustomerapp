@@ -94,6 +94,12 @@ class MoreScreen extends ConsumerWidget {
             subtitle: 'Policies, renewals and claim records',
             onTap: () => context.go('/more/insurance'),
           ),
+          _MoreTile(
+            icon: Icons.location_on_outlined,
+            title: 'Vehicle tracking',
+            subtitle: 'Live map and use this phone as a tracker',
+            onTap: () => context.go('/more/tracking'),
+          ),
           const SizedBox(height: 18),
           const _GroupLabel('ACCOUNT'),
           _MoreTile(

@@ -150,7 +150,7 @@ Items may be progressively enabled, but disabled placeholders must clearly say
 | Car Talk forum | ⬜ | — | News is separate and complete; forum remains. |
 | Stolen vehicle registry | ⬜ | — | Report, search, sighting and map workflows remain. |
 | Insurance and claims | 🧪 | — | Insurance: policies, add-with-doc, NIID verify, buy+renew, cert download. Claims: rollout gate, list+timeline, file draft, evidence, submit (fee), messages, disputes+NAICOM. Combined-checkout + geolocation remain. |
-| Vehicle tracking/live map | ⬜ | — | Mobile map and phone-as-tracker flows remain. |
+| Vehicle tracking/live map | 🧪 | — | Live map (flutter_map/OSM) of all vehicles' latest positions + phone-as-tracker (foreground GPS → ingest) are coded. Background streaming + per-vehicle trail-on-map remain. |
 | Support/profile/security | 🟡 | 🧪 | Full profile, avatar, personal/NIN editing, Paystack bank verification and password change are coded; support and legal/preferences pages remain. |
 | Push notifications and deep links | 🧪 | — | FCM wired end-to-end (client register/tap-route + backend HTTP v1 sender from NotificationService); needs on-device QA. iOS needs an APNs key; foreground-Android banner + richer per-screen deep links are follow-ups. |
 | Release hardening/store submission | ⬜ | — | Privacy, signing, QA, telemetry and store assets remain. |

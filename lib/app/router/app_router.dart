@@ -15,6 +15,8 @@ import 'package:travla_customer_app/features/claims/presentation/claim_detail_sc
 import 'package:travla_customer_app/features/claims/presentation/claims_screen.dart';
 import 'package:travla_customer_app/features/claims/presentation/new_claim_screen.dart';
 import 'package:travla_customer_app/features/home/presentation/home_screen.dart';
+import 'package:travla_customer_app/features/tracking/presentation/live_map_screen.dart';
+import 'package:travla_customer_app/features/tracking/presentation/phone_tracker_screen.dart';
 import 'package:travla_customer_app/features/insurance/presentation/add_policy_screen.dart';
 import 'package:travla_customer_app/features/insurance/presentation/buy_insurance_screen.dart';
 import 'package:travla_customer_app/features/insurance/presentation/insurance_screen.dart';
@@ -260,6 +262,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                                 ),
                           ),
                         ],
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: 'tracking',
+                    builder: (context, state) => const LiveMapScreen(),
+                    routes: [
+                      GoRoute(
+                        path: 'phone',
+                        builder: (context, state) => const PhoneTrackerScreen(),
                       ),
                     ],
                   ),
