@@ -58,7 +58,11 @@ class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Vehicle details'),
+        titleSpacing: 0,
+        title: const Padding(
+          padding: EdgeInsets.only(left: 2),
+          child: TravlaLogo(width: 106),
+        ),
         actions: [
           if (vehicle != null)
             IconButton(
@@ -976,11 +980,6 @@ class _DocumentsTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: TravlaLogo(width: 116),
-          ),
-          const SizedBox(height: 18),
           if (!vehicle.hasValidPlateNumber)
             Container(
               margin: const EdgeInsets.only(bottom: 14),

@@ -77,7 +77,6 @@ class _AddVehicleDocumentSheetState
           children: [
             _SheetHeader(
               title: _title,
-              step: _progressStep,
               onClose: _isSubmitting
                   ? null
                   : () => Navigator.of(context).pop(false),
@@ -332,12 +331,6 @@ class _AddVehicleDocumentSheetState
     );
   }
 
-  int get _progressStep {
-    if (_selectedTypeValue == null) return 1;
-    if (_file == null) return 2;
-    return 3;
-  }
-
   String get _title => switch (widget.filter) {
     DocumentTypeFilter.renewable => 'Add renewable paper',
     DocumentTypeFilter.other => 'Add other document',
@@ -434,12 +427,10 @@ class _AddVehicleDocumentSheetState
 class _SheetHeader extends StatelessWidget {
   const _SheetHeader({
     required this.title,
-    required this.step,
     required this.onClose,
   });
 
   final String title;
-  final int step;
   final VoidCallback? onClose;
 
   @override
@@ -542,95 +533,10 @@ class _SheetHeader extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 17),
-                Row(
-                  children: [
-                    _ProgressItem(
-                      number: 1,
-                      label: 'Choose',
-                      currentStep: step,
-                    ),
-                    const SizedBox(width: 8),
-                    _ProgressItem(
-                      number: 2,
-                      label: 'Details',
-                      currentStep: step,
-                    ),
-                    const SizedBox(width: 8),
-                    _ProgressItem(number: 3, label: 'File', currentStep: step),
-                  ],
-                ),
               ],
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ProgressItem extends StatelessWidget {
-  const _ProgressItem({
-    required this.number,
-    required this.label,
-    required this.currentStep,
-  });
-
-  final int number;
-  final String label;
-  final int currentStep;
-
-  @override
-  Widget build(BuildContext context) {
-    final complete = number < currentStep;
-    final active = number == currentStep;
-
-    return Expanded(
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
-        decoration: BoxDecoration(
-          color: active
-              ? AppColors.white
-              : complete
-              ? const Color(0xFF0A7C55)
-              : Colors.white.withValues(alpha: .07),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: active
-                ? AppColors.white
-                : Colors.white.withValues(alpha: .1),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              complete ? Icons.check_rounded : Icons.circle,
-              size: complete ? 13 : 7,
-              color: active
-                  ? AppColors.orange
-                  : complete
-                  ? AppColors.white
-                  : Colors.white.withValues(alpha: .38),
-            ),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                label,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: active
-                      ? AppColors.forest950
-                      : Colors.white.withValues(alpha: complete ? .9 : .5),
-                  fontSize: 8,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
