@@ -37,7 +37,10 @@ class VehicleDetailScreen extends ConsumerStatefulWidget {
 class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
   late VehicleDetailTab _tab;
   final _scrollController = ScrollController();
-  final _tabContentKey = GlobalKey();
+  // A fresh GlobalKey per tab switch — never reused across the differently
+  // shaped subtrees each tab renders, so there is no possibility of stale
+  // element/layout state carrying over between tabs.
+  GlobalKey _tabContentKey = GlobalKey();
   int _imageIndex = 0;
   final Set<String> _mutatingDocuments = {};
 
@@ -147,7 +150,10 @@ class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
 
   void _selectTab(VehicleDetailTab tab) {
     if (_tab == tab) return;
-    setState(() => _tab = tab);
+    setState(() {
+      _tab = tab;
+      _tabContentKey = GlobalKey();
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _tabContentKey.currentContext == null) return;
       Scrollable.ensureVisible(
