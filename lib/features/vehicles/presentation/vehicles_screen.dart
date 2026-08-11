@@ -588,7 +588,7 @@ class _ManageMenu extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             PremiumMenuItem(
               icon: Icons.dashboard_customize_outlined,
               label: 'Open vehicle',
@@ -614,7 +614,7 @@ class _ManageMenu extends StatelessWidget {
               label: 'Transfer ownership',
               onTap: () => goTab('/more/transfers/new?vehicle=$id'),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
           ],
         );
       },

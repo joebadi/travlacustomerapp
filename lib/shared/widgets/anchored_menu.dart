@@ -183,19 +183,19 @@ class PremiumMenuItem extends StatelessWidget {
       hoverColor: AppColors.forest50,
       splashColor: AppColors.forest50,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
         child: Row(
           children: [
             Container(
-              width: 38,
-              height: 38,
+              width: 30,
+              height: 30,
               decoration: BoxDecoration(
                 color: danger ? const Color(0xFFFDECEA) : AppColors.forest50,
-                borderRadius: BorderRadius.circular(11),
+                borderRadius: BorderRadius.circular(9),
               ),
-              child: Icon(icon, size: 19, color: accent),
+              child: Icon(icon, size: 16, color: accent),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 11),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -205,7 +205,7 @@ class PremiumMenuItem extends StatelessWidget {
                     style: TextStyle(
                       color: danger ? AppColors.danger : AppColors.ink,
                       fontWeight: FontWeight.w700,
-                      fontSize: 14,
+                      fontSize: 13.5,
                     ),
                   ),
                   if (subtitle != null)
