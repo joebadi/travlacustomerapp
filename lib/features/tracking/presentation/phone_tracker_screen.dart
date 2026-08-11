@@ -15,7 +15,10 @@ import 'package:travla_customer_app/features/vehicles/domain/garage_snapshot.dar
 /// runs inside a foreground service so it continues while the app is backgrounded
 /// or the screen is off, and reports status back to this screen.
 class PhoneTrackerScreen extends ConsumerStatefulWidget {
-  const PhoneTrackerScreen({super.key});
+  const PhoneTrackerScreen({super.key, this.vehicleId});
+
+  /// Preselects a vehicle when opened from that vehicle's tracking tab.
+  final String? vehicleId;
 
   @override
   ConsumerState<PhoneTrackerScreen> createState() => _PhoneTrackerScreenState();
@@ -39,6 +42,9 @@ class _PhoneTrackerScreenState extends ConsumerState<PhoneTrackerScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.vehicleId != null && widget.vehicleId!.isNotEmpty) {
+      _vehicleId = widget.vehicleId;
+    }
     FlutterForegroundTask.addTaskDataCallback(_onData);
     // Reflect an already-running service (e.g. returning to this screen).
     FlutterForegroundTask.isRunningService.then((running) async {

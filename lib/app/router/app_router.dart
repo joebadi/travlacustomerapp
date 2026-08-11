@@ -354,7 +354,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     routes: [
                       GoRoute(
                         path: 'phone',
-                        builder: (context, state) => const PhoneTrackerScreen(),
+                        builder: (context, state) => PhoneTrackerScreen(
+                          vehicleId: state.uri.queryParameters['vehicle'],
+                        ),
                       ),
                     ],
                   ),

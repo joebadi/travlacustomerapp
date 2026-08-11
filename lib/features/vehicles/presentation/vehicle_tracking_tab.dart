@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
@@ -49,9 +50,16 @@ class VehicleTrackingTab extends ConsumerWidget {
             ],
             _LivePositionCard(vehicle: vehicle, workspace: data),
             const SizedBox(height: 13),
-            if (!data.hasActiveSource)
+            if (!data.hasActiveSource) ...[
+              _StartTrackingCard(
+                onPhone: () =>
+                    context.push('/more/tracking/phone?vehicle=${vehicle.id}'),
+                onDevice: () => _addSource(context, ref),
+              ),
+              const SizedBox(height: 13),
               _TrackerInstallCard(onTap: onOrderTracker, prominent: true),
-            if (!data.hasActiveSource) const SizedBox(height: 13),
+              const SizedBox(height: 13),
+            ],
             Row(
               children: [
                 Expanded(
@@ -471,6 +479,74 @@ class _SourceCard extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// Primary call-to-action for an untracked vehicle: start tracking it with this
+/// phone (free, instant) or connect a GPS device (push key / Traccar IMEI).
+class _StartTrackingCard extends StatelessWidget {
+  const _StartTrackingCard({required this.onPhone, required this.onDevice});
+
+  final VoidCallback onPhone;
+  final VoidCallback onDevice;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.forest950, AppColors.forest700],
+        ),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Start tracking this vehicle',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 15),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            'Use this phone as a live tracker, or connect a GPS device.',
+            style: TextStyle(color: Colors.white.withValues(alpha: .78), fontSize: 11.5, height: 1.4),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: onPhone,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.orange,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(46),
+                  ),
+                  icon: const Icon(Icons.my_location_rounded, size: 18),
+                  label: const Text('Use this phone'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onDevice,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Color(0x55FFFFFF)),
+                    minimumSize: const Size.fromHeight(46),
+                  ),
+                  icon: const Icon(Icons.gps_fixed_rounded, size: 18),
+                  label: const Text('Add device'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _TrackerInstallCard extends StatelessWidget {
