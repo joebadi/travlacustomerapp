@@ -884,21 +884,34 @@ class _DocumentsSummaryCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
-            'Vehicle documents',
-            style: TextStyle(
-              color: AppColors.ink,
-              fontSize: 15,
-              fontWeight: FontWeight.w900,
-            ),
+          // Title and "Add document" share one line — mirrors a compact
+          // toolbar rather than stacking every action beneath the text.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const Expanded(
+                child: Text(
+                  'Vehicle documents',
+                  style: TextStyle(
+                    color: AppColors.ink,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              if (hasValidPlate) ...[
+                const SizedBox(width: 10),
+                _AddDocumentButton(onTap: onAddAny),
+              ],
+            ],
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 4),
           const Text(
             "Manage this vehicle's legal documents and permits, organised by category.",
             style: TextStyle(color: AppColors.muted, fontSize: 11.5, height: 1.4),
           ),
-          const SizedBox(height: 14),
-          if (!hasValidPlate)
+          if (!hasValidPlate) ...[
+            const SizedBox(height: 14),
             Container(
               padding: const EdgeInsets.all(13),
               decoration: BoxDecoration(
@@ -927,32 +940,67 @@ class _DocumentsSummaryCard extends StatelessWidget {
                   ),
                 ],
               ),
-            )
-          else
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                if (expiredCount > 0)
-                  FilledButton.icon(
-                    onPressed: () => context.push(
-                      '/more/renewals/new?vehicle=$vehicleId&preselect=expired',
-                    ),
-                    style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
-                    icon: const Icon(Icons.autorenew_rounded, size: 17),
-                    label: Text(
-                      'Renew $expiredCount expired',
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                OutlinedButton.icon(
-                  onPressed: onAddAny,
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('Add document'),
-                ),
-              ],
             ),
+          ] else if (expiredCount > 0) ...[
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => context.push(
+                  '/more/renewals/new?vehicle=$vehicleId&preselect=expired',
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.danger,
+                  minimumSize: const Size.fromHeight(46),
+                ),
+                icon: const Icon(Icons.autorenew_rounded, size: 17),
+                label: Text(
+                  'Renew $expiredCount expired',
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+/// Compact pill button used beside the "Vehicle documents" title, so the
+/// primary add action sits on the header's own line instead of stacking
+/// below the description.
+class _AddDocumentButton extends StatelessWidget {
+  const _AddDocumentButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.forest50,
+      borderRadius: BorderRadius.circular(30),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(30),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.add_rounded, size: 16, color: AppColors.forest800),
+              SizedBox(width: 4),
+              Text(
+                'Add',
+                style: TextStyle(
+                  color: AppColors.forest800,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1243,20 +1291,24 @@ class _DocumentTile extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Wrap(
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            spacing: 8,
-                            runSpacing: 4,
+                          // Identity block: name + status pill, doc number.
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              Text(
-                                document.name,
-                                style: const TextStyle(
-                                  color: AppColors.ink,
-                                  fontSize: 13,
-                                  height: 1.2,
-                                  fontWeight: FontWeight.w900,
+                              Expanded(
+                                child: Text(
+                                  document.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: AppColors.ink,
+                                    fontSize: 13,
+                                    height: 1.2,
+                                    fontWeight: FontWeight.w900,
+                                  ),
                                 ),
                               ),
+                              const SizedBox(width: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 8,
@@ -1277,7 +1329,7 @@ class _DocumentTile extends StatelessWidget {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 5),
+                          const SizedBox(height: 4),
                           Text(
                             document.documentNumber?.isNotEmpty == true
                                 ? 'No. ${document.documentNumber}'
@@ -1289,15 +1341,23 @@ class _DocumentTile extends StatelessWidget {
                               fontSize: 10.5,
                             ),
                           ),
+                          // A thin rule separates identity from renewal
+                          // status, so the row reads as two clear groups
+                          // instead of one long stack of lines.
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Divider(
+                              height: 1,
+                              color: AppColors.border.withValues(alpha: .7),
+                            ),
+                          ),
                           if (document.isRenewable) ...[
-                            const SizedBox(height: 7),
                             Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
                                 Icon(Icons.schedule_rounded, size: 13, color: status.foreground),
                                 const SizedBox(width: 5),
-                                Flexible(
+                                Expanded(
                                   child: Text(
                                     _expiryText(document),
                                     style: TextStyle(
@@ -1316,7 +1376,7 @@ class _DocumentTile extends StatelessWidget {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 9,
-                                  vertical: 5,
+                                  vertical: 6,
                                 ),
                                 decoration: BoxDecoration(
                                   color: document.autoRenew
@@ -1327,16 +1387,8 @@ class _DocumentTile extends StatelessWidget {
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    SizedBox(
-                                      width: 30,
-                                      height: 18,
-                                      child: Switch(
-                                        value: document.autoRenew,
-                                        onChanged: isMutating ? null : onAutoRenew,
-                                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
+                                    _MiniToggle(value: document.autoRenew),
+                                    const SizedBox(width: 7),
                                     Text(
                                       document.autoRenew ? 'Auto-renew on' : 'Auto-renew off',
                                       style: TextStyle(
@@ -1351,15 +1403,13 @@ class _DocumentTile extends StatelessWidget {
                                 ),
                               ),
                             ),
-                          ] else ...[
-                            const SizedBox(height: 7),
+                          ] else
                             Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
                                 const Icon(Icons.lock_outline_rounded, size: 13, color: AppColors.muted),
                                 const SizedBox(width: 5),
-                                Flexible(
+                                Expanded(
                                   child: Text(
                                     document.hasFile
                                         ? 'Secure copy attached'
@@ -1369,7 +1419,6 @@ class _DocumentTile extends StatelessWidget {
                                 ),
                               ],
                             ),
-                          ],
                         ],
                       ),
                     ),
@@ -1422,6 +1471,40 @@ class _DocumentTile extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A small themed toggle track — purely visual, the enclosing [InkWell]
+/// handles the tap. Replaces the stock [Switch], whose default border ring
+/// and colours don't match the app palette and read as an out-of-place
+/// native control inside a custom pill.
+class _MiniToggle extends StatelessWidget {
+  const _MiniToggle({required this.value});
+
+  final bool value;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      width: 28,
+      height: 16,
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: value ? AppColors.forest600 : AppColors.border,
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: AnimatedAlign(
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOut,
+        alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          width: 12,
+          height: 12,
+          decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
         ),
       ),
     );
