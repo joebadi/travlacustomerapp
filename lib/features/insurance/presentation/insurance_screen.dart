@@ -111,7 +111,7 @@ class _ExpiringSection extends StatelessWidget {
             ),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
-              onTap: () => context.push('/more/insurance/${p.vehicleId}'),
+              onTap: () => context.push('/vehicles/${p.vehicleId}?tab=insurance'),
               child: Padding(
                 padding: const EdgeInsets.all(14),
                 child: Row(
@@ -172,7 +172,7 @@ class _VehicleRow extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        onTap: () => context.push('/more/insurance/${vehicle.id}'),
+        onTap: () => context.push('/vehicles/${vehicle.id}?tab=insurance'),
         leading: Container(
           width: 44,
           height: 44,

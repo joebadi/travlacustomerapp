@@ -33,7 +33,6 @@ import 'package:travla_customer_app/features/insurance/presentation/add_policy_s
 import 'package:travla_customer_app/features/insurance/presentation/buy_insurance_screen.dart';
 import 'package:travla_customer_app/features/insurance/presentation/insurance_screen.dart';
 import 'package:travla_customer_app/features/insurance/presentation/new_insurance_renewal_screen.dart';
-import 'package:travla_customer_app/features/insurance/presentation/vehicle_insurance_screen.dart';
 import 'package:travla_customer_app/features/journeys/presentation/journeys_screen.dart';
 import 'package:travla_customer_app/features/journeys/presentation/record_journey_screen.dart';
 import 'package:travla_customer_app/features/journeys/presentation/journey_detail_screen.dart';
@@ -262,9 +261,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     routes: [
                       GoRoute(
                         path: ':vehicleId',
-                        builder: (context, state) => VehicleInsuranceScreen(
-                          vehicleId: state.pathParameters['vehicleId'] ?? '',
-                        ),
+                        // The per-vehicle insurance workspace now lives ONLY
+                        // in the vehicle detail page's Insurance tab — old
+                        // links (bookmarks, stored notification action_urls)
+                        // redirect there instead of a duplicate standalone page.
+                        redirect: (context, state) =>
+                            '/vehicles/${state.pathParameters['vehicleId'] ?? ''}?tab=insurance',
                         routes: [
                           GoRoute(
                             path: 'add',

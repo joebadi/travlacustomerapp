@@ -9,21 +9,90 @@ import 'package:travla_customer_app/features/insurance/domain/insurance_models.d
 import 'package:travla_customer_app/features/insurance/presentation/insurance_widgets.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/vehicle_quick_actions.dart';
 
-/// The Insurance tab inside the vehicle workspace.
+/// The Insurance tab inside the vehicle workspace — the SINGLE place for a
+/// vehicle's insurance. It is fully self-contained: verification runs inline
+/// (no separate "manage" page), policies can be cancelled or renewed here, and
+/// only genuine forms (add an existing policy, buy new cover, renew a policy)
+/// push to their own screens.
 ///
 /// This tab lives inside the vehicle-detail [ListView], so its ROOT is kept
 /// stable — always `Padding > Column(stretch)` — and only the *children list*
 /// changes between loading / error / data. That avoids swapping a short root
 /// widget for a tall one inside the shared scroll view, which previously caused
 /// the blocks to mis-measure and paint on top of each other.
-class VehicleInsuranceTab extends ConsumerWidget {
+class VehicleInsuranceTab extends ConsumerStatefulWidget {
   const VehicleInsuranceTab({super.key, required this.vehicleId});
 
   final String vehicleId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(vehicleInsuranceProvider(vehicleId));
+  ConsumerState<VehicleInsuranceTab> createState() => _VehicleInsuranceTabState();
+}
+
+class _VehicleInsuranceTabState extends ConsumerState<VehicleInsuranceTab> {
+  bool _checking = false;
+
+  void _snack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _checkNow() async {
+    setState(() => _checking = true);
+    try {
+      await ref.read(insuranceRepositoryProvider).verify(widget.vehicleId);
+      ref.invalidate(vehicleInsuranceProvider(widget.vehicleId));
+      ref.invalidate(expiringPoliciesProvider);
+    } on ApiFailure catch (failure) {
+      _snack(failure.message);
+    } finally {
+      if (mounted) setState(() => _checking = false);
+    }
+  }
+
+  Future<void> _cancel(InsurancePolicy policy) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Cancel this policy?'),
+        content: Text(
+          'This marks ${policy.provider ?? 'the policy'} as cancelled in your '
+          'records. This does not contact the insurer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Keep'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Cancel policy'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await ref.read(insuranceRepositoryProvider).cancelPolicy(policy.id);
+      ref.invalidate(vehicleInsuranceProvider(widget.vehicleId));
+      ref.invalidate(expiringPoliciesProvider);
+    } on ApiFailure catch (failure) {
+      _snack(failure.message);
+    }
+  }
+
+  Future<void> _openDoc(String? url) async {
+    final uri = url == null ? null : Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final async = ref.watch(vehicleInsuranceProvider(widget.vehicleId));
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
@@ -42,29 +111,25 @@ class VehicleInsuranceTab extends ConsumerWidget {
               message: error is ApiFailure
                   ? error.message
                   : 'Insurance could not be loaded.',
-              onRetry: () => ref.invalidate(vehicleInsuranceProvider(vehicleId)),
+              onRetry: () =>
+                  ref.invalidate(vehicleInsuranceProvider(widget.vehicleId)),
             ),
           ],
-          data: (data) => _sections(context, data),
+          data: _sections,
         ),
       ),
     );
   }
 
-  Future<void> _openDoc(BuildContext context, String? url) async {
-    final uri = url == null ? null : Uri.tryParse(url);
-    if (uri == null || !uri.hasScheme) return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
-
   /// The full stack of tab sections, as a flat list of Column children.
-  List<Widget> _sections(BuildContext context, VehicleInsurance data) {
+  List<Widget> _sections(VehicleInsurance data) {
     final hasActive = data.policies.any((p) => p.isActive);
 
     return [
       _VerificationCard(
         verification: data.verification,
-        onCheck: () => context.push('/more/insurance/$vehicleId'),
+        checking: _checking,
+        onCheck: _checkNow,
       ),
       const SizedBox(height: 22),
       _PoliciesHeader(count: data.policies.length),
@@ -75,14 +140,17 @@ class VehicleInsuranceTab extends ConsumerWidget {
         for (final policy in data.policies)
           PolicyCard(
             policy: policy,
-            onViewDocument: () => _openDoc(context, policy.documentUrl),
-            onRenew: () =>
-                context.push('/more/insurance/$vehicleId/renew/${policy.id}'),
+            onCancel: policy.isActive ? () => _cancel(policy) : null,
+            onViewDocument: () => _openDoc(policy.documentUrl),
+            onRenew: () => context.push(
+              '/more/insurance/${widget.vehicleId}/renew/${policy.id}',
+            ),
           ),
       const SizedBox(height: 4),
       if (!hasActive) ...[
         FilledButton.icon(
-          onPressed: () => context.push('/more/insurance/$vehicleId/buy'),
+          onPressed: () =>
+              context.push('/more/insurance/${widget.vehicleId}/buy'),
           style: FilledButton.styleFrom(
             minimumSize: const Size.fromHeight(48),
             backgroundColor: AppColors.forest700,
@@ -92,31 +160,15 @@ class VehicleInsuranceTab extends ConsumerWidget {
         ),
         const SizedBox(height: 10),
       ],
-      Row(
-        children: [
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: () => context.push('/more/insurance/$vehicleId/add'),
-              icon: const Icon(Icons.note_add_outlined, size: 18),
-              label: const Text('Add policy'),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: FilledButton.tonalIcon(
-              onPressed: () => context.push('/more/insurance/$vehicleId'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.forest50,
-                foregroundColor: AppColors.forest800,
-              ),
-              icon: const Icon(Icons.tune_rounded, size: 18),
-              label: const Text('Manage'),
-            ),
-          ),
-        ],
+      OutlinedButton.icon(
+        onPressed: () =>
+            context.push('/more/insurance/${widget.vehicleId}/add'),
+        style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(46)),
+        icon: const Icon(Icons.note_add_outlined, size: 18),
+        label: const Text('Add an existing policy'),
       ),
       const SizedBox(height: 26),
-      VehicleQuickActions(vehicleId: vehicleId),
+      VehicleQuickActions(vehicleId: widget.vehicleId),
     ];
   }
 }
@@ -204,10 +256,16 @@ class _EmptyPolicies extends StatelessWidget {
 }
 
 /// Third-party (NIID) verification status — a white card mirroring the web.
+/// The "Check now" action runs inline; nothing navigates away for this.
 class _VerificationCard extends StatelessWidget {
-  const _VerificationCard({required this.verification, required this.onCheck});
+  const _VerificationCard({
+    required this.verification,
+    required this.checking,
+    required this.onCheck,
+  });
 
   final InsuranceVerification verification;
+  final bool checking;
   final VoidCallback onCheck;
 
   @override
@@ -297,7 +355,7 @@ class _VerificationCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 7),
-                        _NiidTag(),
+                        const _NiidTag(),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -314,18 +372,54 @@ class _VerificationCard extends StatelessWidget {
               ),
             ],
           ),
+          if (verification.errorMessage != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFE9E1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                verification.errorMessage!,
+                style: const TextStyle(color: AppColors.orangeDark, fontSize: 11),
+              ),
+            ),
+          ],
+          if (!verification.hasValidPlate) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.orangeSoft,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Text(
+                'Add a valid plate number to this vehicle to run a third-party check.',
+                style: TextStyle(color: AppColors.orangeDark, fontSize: 11),
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: onCheck,
+              onPressed: (checking || !verification.hasValidPlate) ? null : onCheck,
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.forest700,
                 side: const BorderSide(color: AppColors.border),
                 minimumSize: const Size.fromHeight(42),
               ),
-              icon: const Icon(Icons.travel_explore_rounded, size: 18),
-              label: const Text('Check now'),
+              icon: checking
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.travel_explore_rounded, size: 18),
+              label: Text(checking ? 'Checking…' : 'Check now'),
             ),
           ),
         ],
@@ -346,6 +440,8 @@ class _VerificationCard extends StatelessWidget {
 }
 
 class _NiidTag extends StatelessWidget {
+  const _NiidTag();
+
   @override
   Widget build(BuildContext context) {
     return Container(
