@@ -3,8 +3,9 @@ import 'package:go_router/go_router.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 
 /// Reusable "Quick actions" block for the vehicle workspace — shown at the
-/// bottom of every tab. Each action deep-links to the flow preselected for this
-/// vehicle.
+/// bottom of every tab. Each action is a soft tinted tile with a solid icon
+/// badge, title and description, and deep-links to the flow preselected for
+/// this vehicle.
 class VehicleQuickActions extends StatelessWidget {
   const VehicleQuickActions({super.key, required this.vehicleId});
 
@@ -16,25 +17,33 @@ class VehicleQuickActions extends StatelessWidget {
       _QuickAction(
         icon: Icons.event_repeat_rounded,
         label: 'Renew papers',
-        tone: AppColors.orange,
+        description: 'Registration & docs',
+        badge: AppColors.forest950,
+        background: const Color(0xFFE7F3EC),
         onTap: () => context.push('/more/renewals/new?vehicle=$vehicleId'),
       ),
       _QuickAction(
         icon: Icons.report_gmailerrorred_rounded,
         label: 'Report Accident',
-        tone: AppColors.orangeDark,
+        description: 'File an insurance claim',
+        badge: AppColors.orange,
+        background: const Color(0xFFFBE9DE),
         onTap: () => context.push('/more/claims/new?vehicle=$vehicleId'),
       ),
       _QuickAction(
         icon: Icons.swap_horiz_rounded,
         label: 'Change Ownership',
-        tone: AppColors.forest700,
+        description: 'Transfer this vehicle',
+        badge: const Color(0xFF2F6FEB),
+        background: const Color(0xFFE7EDFB),
         onTap: () => context.push('/more/transfers/new?vehicle=$vehicleId'),
       ),
       _QuickAction(
         icon: Icons.gpp_maybe_outlined,
         label: 'Report Stolen',
-        tone: AppColors.danger,
+        description: 'Alert the registry',
+        badge: AppColors.danger,
+        background: const Color(0xFFFCE7E5),
         onTap: () => context.push('/more/stolen/report?vehicle=$vehicleId'),
       ),
     ];
@@ -48,20 +57,24 @@ class VehicleQuickActions extends StatelessWidget {
             'QUICK ACTIONS',
             style: TextStyle(
               color: AppColors.muted,
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: FontWeight.w900,
-              letterSpacing: 1.1,
+              letterSpacing: 1.2,
             ),
           ),
         ),
-        GridView.count(
-          crossAxisCount: 2,
+        GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 1.55,
-          children: actions.map((a) => _QuickActionBox(action: a)).toList(),
+          itemCount: actions.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            mainAxisExtent: 168,
+          ),
+          itemBuilder: (context, index) =>
+              _QuickActionBox(action: actions[index]),
         ),
       ],
     );
@@ -72,13 +85,17 @@ class _QuickAction {
   const _QuickAction({
     required this.icon,
     required this.label,
-    required this.tone,
+    required this.description,
+    required this.badge,
+    required this.background,
     required this.onTap,
   });
 
   final IconData icon;
   final String label;
-  final Color tone;
+  final String description;
+  final Color badge;
+  final Color background;
   final VoidCallback onTap;
 }
 
@@ -90,59 +107,44 @@ class _QuickActionBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.white,
-      borderRadius: BorderRadius.circular(18),
-      elevation: 0.5,
-      shadowColor: AppColors.forest950.withValues(alpha: .12),
+      color: action.background,
+      borderRadius: BorderRadius.circular(20),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
         onTap: action.onTap,
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppColors.border),
-          ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          action.tone,
-                          Color.lerp(action.tone, Colors.black, .18) ?? action.tone,
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(13),
-                      boxShadow: [
-                        BoxShadow(
-                          color: action.tone.withValues(alpha: .35),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Icon(action.icon, color: Colors.white, size: 22),
-                  ),
-                  Icon(Icons.arrow_outward_rounded, size: 16, color: AppColors.muted.withValues(alpha: .6)),
-                ],
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  color: action.badge,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(action.icon, color: Colors.white, size: 26),
               ),
+              const Spacer(),
               Text(
                 action.label,
                 style: const TextStyle(
                   color: AppColors.ink,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                  height: 1.1,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                action.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.muted,
+                  fontSize: 13,
+                  height: 1.25,
                 ),
               ),
             ],
