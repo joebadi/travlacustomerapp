@@ -1078,113 +1078,125 @@ class _DocumentSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: AppColors.forest50,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: AppColors.forest700, size: 18),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Green header — flush against the documents body below.
+          Container(
+            color: AppColors.forest700,
+            padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: .16),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: Colors.white, size: 18),
+                ),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        description,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: .78),
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: .18),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${documents.length}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    description,
-                    style: const TextStyle(color: AppColors.muted, fontSize: 9),
+                ),
+                if (onAdd != null)
+                  IconButton(
+                    tooltip: 'Add to $title',
+                    onPressed: onAdd,
+                    icon: const Icon(Icons.add_rounded, color: Colors.white, size: 22),
                   ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-              decoration: BoxDecoration(
-                color: AppColors.forest50,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                '${documents.length}',
-                style: const TextStyle(
-                  color: AppColors.forest700,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-            if (onAdd != null) ...[
-              const SizedBox(width: 4),
-              IconButton.filledTonal(
-                tooltip: 'Add to $title',
-                onPressed: onAdd,
-                style: IconButton.styleFrom(
-                  backgroundColor: AppColors.forest50,
-                  foregroundColor: AppColors.forest700,
-                ),
-                icon: const Icon(Icons.add_rounded, size: 20),
-              ),
-            ],
-          ],
-        ),
-        const SizedBox(height: 11),
-        if (documents.isEmpty)
-          _EmptyDocumentSection(title: title, onAdd: onAdd)
-        else
-          ...documents.indexed.map(
-            (entry) => Padding(
-              padding: EdgeInsets.only(
-                bottom: entry.$1 == documents.length - 1 ? 0 : 10,
-              ),
-              child: _DocumentTile(
-                document: entry.$2,
-                isMutating: mutatingDocuments.contains(entry.$2.id),
-                onView: () => onView(entry.$2),
-                onAutoRenew: (enabled) => onAutoRenew(entry.$2, enabled),
-                onDelete: () => onDelete(entry.$2),
-              ),
+              ],
             ),
           ),
-      ],
+          // Documents body — no padding from the header above.
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: documents.isEmpty
+                ? _EmptyDocumentBody(title: title, onAdd: onAdd)
+                : Column(
+                    children: documents.indexed
+                        .map(
+                          (entry) => Padding(
+                            padding: EdgeInsets.only(
+                              bottom: entry.$1 == documents.length - 1 ? 0 : 10,
+                            ),
+                            child: _DocumentTile(
+                              document: entry.$2,
+                              isMutating: mutatingDocuments.contains(entry.$2.id),
+                              onView: () => onView(entry.$2),
+                              onAutoRenew: (enabled) => onAutoRenew(entry.$2, enabled),
+                              onDelete: () => onDelete(entry.$2),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _EmptyDocumentSection extends StatelessWidget {
-  const _EmptyDocumentSection({required this.title, required this.onAdd});
+class _EmptyDocumentBody extends StatelessWidget {
+  const _EmptyDocumentBody({required this.title, required this.onAdd});
 
   final String title;
   final VoidCallback? onAdd;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 22, 18, 20),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: AppColors.border),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
       child: Column(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 48,
+            height: 48,
             decoration: const BoxDecoration(
               color: AppColors.forest50,
               shape: BoxShape.circle,
@@ -1194,26 +1206,26 @@ class _EmptyDocumentSection extends StatelessWidget {
               color: AppColors.forest700,
             ),
           ),
-          const SizedBox(height: 9),
+          const SizedBox(height: 12),
           Text(
             'No ${title.toLowerCase()} yet',
             style: const TextStyle(
               color: AppColors.ink,
-              fontSize: 11,
+              fontSize: 13,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 5),
           const Text(
             'Add a document to keep its details and secure copy together.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.muted, fontSize: 9, height: 1.4),
+            style: TextStyle(color: AppColors.muted, fontSize: 11, height: 1.4),
           ),
           if (onAdd != null) ...[
-            const SizedBox(height: 9),
+            const SizedBox(height: 8),
             TextButton.icon(
               onPressed: onAdd,
-              icon: const Icon(Icons.add_rounded, size: 17),
+              icon: const Icon(Icons.add_rounded, size: 18),
               label: const Text('Add document'),
             ),
           ],
