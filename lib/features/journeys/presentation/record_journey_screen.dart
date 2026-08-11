@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -45,6 +46,15 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
   double _distanceM = 0;
   double? _speed;
 
+  // GPS quality gates — the OS emits jittery fixes even while parked, which
+  // otherwise pile up as fake movement. We reject low-accuracy fixes, ignore
+  // drift smaller than our own uncertainty, and discard impossible teleports.
+  static const double _maxAccuracyM = 30; // drop fixes worse than this
+  static const double _minMoveM = 8; // movement floor below which we hold still
+  static const double _maxSpeedMps = 70; // ~252 km/h — reject glitch jumps
+  LatLng? _lastAccepted;
+  DateTime? _lastAcceptedAt;
+
   @override
   void dispose() {
     _sub?.cancel();
@@ -85,8 +95,13 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
       _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
         if (mounted) setState(() => _elapsed = DateTime.now().difference(_startedAt!).inSeconds);
       });
+      _lastAccepted = null;
+      _lastAcceptedAt = null;
       _sub = Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 5),
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.bestForNavigation,
+          distanceFilter: 4,
+        ),
       ).listen(_onPosition);
       setState(() => _recording = true);
     } on ApiFailure catch (f) {
@@ -99,10 +114,36 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
   }
 
   void _onPosition(Position pos) {
+    // 1) Drop low-quality fixes outright — these are the main source of drift.
+    if (pos.accuracy > 0 && pos.accuracy > _maxAccuracyM) return;
+
     final point = LatLng(pos.latitude, pos.longitude);
-    if (_trail.isNotEmpty) {
-      _distanceM += _distance.as(LengthUnit.Meter, _trail.last, point);
+    final now = DateTime.now();
+
+    if (_lastAccepted != null) {
+      final moved = _distance.as(LengthUnit.Meter, _lastAccepted!, point);
+
+      // 2) Stationary drift: if we haven't moved farther than our own GPS
+      // uncertainty (or the floor), it's noise — refresh speed but don't grow
+      // the trail or distance.
+      final threshold = math.max(
+        _minMoveM,
+        pos.accuracy > 0 ? pos.accuracy : 0,
+      );
+      if (moved < threshold) {
+        if (mounted) setState(() => _speed = pos.speed >= 0 ? 0 : null);
+        return;
+      }
+
+      // 3) Teleport guard: reject physically impossible jumps between fixes.
+      final dt = now.difference(_lastAcceptedAt ?? now).inMilliseconds / 1000.0;
+      if (dt > 0 && moved / dt > _maxSpeedMps) return;
+
+      _distanceM += moved;
     }
+
+    _lastAccepted = point;
+    _lastAcceptedAt = now;
     _trail.add(point);
     _pending.add({
       'latitude': pos.latitude,
@@ -111,7 +152,7 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
       if (pos.speed >= 0) 'speed': pos.speed,
       if (pos.heading >= 0) 'heading': pos.heading,
       if (pos.accuracy >= 0) 'accuracy': pos.accuracy,
-      'recorded_at': DateTime.now().toUtc().toIso8601String(),
+      'recorded_at': now.toUtc().toIso8601String(),
     });
     setState(() => _speed = pos.speed >= 0 ? pos.speed * 3.6 : null);
     _mapController.move(point, _mapController.camera.zoom);
