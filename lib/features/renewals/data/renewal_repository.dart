@@ -58,6 +58,7 @@ class RenewalRepository {
     required String state,
     required String deliveryMethod,
     required String city,
+    List<String> insuranceRenewPolicyIds = const [],
   }) async {
     try {
       final response = await _apiClient.dio.post<Map<String, dynamic>>(
@@ -68,6 +69,8 @@ class RenewalRepository {
           'state': state,
           'delivery_method': deliveryMethod,
           'city': city,
+          if (insuranceRenewPolicyIds.isNotEmpty)
+            'insurance_renew_policy_ids': insuranceRenewPolicyIds,
         },
       );
       return RenewalQuote.fromJson(_dataMap(response.data));
@@ -84,6 +87,7 @@ class RenewalRepository {
     required String state,
     required String address,
     required String notes,
+    List<String> insuranceRenewPolicyIds = const [],
   }) async {
     try {
       final response = await _apiClient.dio.post<Map<String, dynamic>>(
@@ -98,6 +102,8 @@ class RenewalRepository {
           'city': city,
           'state': state,
           'notes': notes.trim().isEmpty ? null : notes.trim(),
+          if (insuranceRenewPolicyIds.isNotEmpty)
+            'insurance_renew_policy_ids': insuranceRenewPolicyIds,
         },
       );
       return RenewalCreated.fromJson(_dataMap(response.data));

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
+import 'package:travla_customer_app/features/insurance/data/insurance_repository.dart';
+import 'package:travla_customer_app/features/insurance/domain/insurance_models.dart';
 import 'package:travla_customer_app/features/renewals/data/renewal_repository.dart';
 import 'package:travla_customer_app/features/renewals/domain/renewal_models.dart';
 import 'package:travla_customer_app/features/vehicles/data/garage_repository.dart';
@@ -22,6 +24,7 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
   final _address = TextEditingController();
   final _notes = TextEditingController();
   final Set<String> _selectedDocuments = {};
+  final Set<String> _selectedInsurancePolicies = {};
 
   late String _vehicleId;
   int _step = 1;
@@ -110,6 +113,7 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
               onTap: () => setState(() {
                 _vehicleId = vehicle.id;
                 _selectedDocuments.clear();
+                _selectedInsurancePolicies.clear();
                 _quote = null;
                 _error = null;
               }),
@@ -189,6 +193,7 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
                       : null,
                 ),
               ),
+            _insuranceSection(),
             const SizedBox(height: 14),
             Row(
               children: [
@@ -214,7 +219,7 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
                     child: Text(
                       _selectedDocuments.isEmpty
                           ? 'Select a paper'
-                          : 'Continue with ${_selectedDocuments.length}',
+                          : 'Continue with ${_selectedDocuments.length + _selectedInsurancePolicies.length}',
                     ),
                   ),
                 ),
@@ -224,6 +229,95 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
         ),
       ),
     );
+  }
+
+  /// Renewable insurance policies for the chosen vehicle, offered as add-ons so
+  /// they ride in the same order under one delivery fee. Only shown when the
+  /// insurance method is agent-fulfilled (`mergeable`) — automated insurance is
+  /// instant and stays a separate action (per-policy Renew button).
+  Widget _insuranceSection() {
+    if (!_insuranceMergeable) return const SizedBox.shrink();
+    final policies = _renewablePolicies();
+    if (policies.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 6),
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 9),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          decoration: BoxDecoration(
+            color: AppColors.forest700,
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.shield_moon_outlined, color: Colors.white, size: 16),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Renew insurance in the same order',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 12.5,
+                  ),
+                ),
+              ),
+              Text(
+                'One delivery fee',
+                style: TextStyle(color: Color(0xFFBBD8CD), fontSize: 10),
+              ),
+            ],
+          ),
+        ),
+        ...policies.map(
+          (policy) => _InsuranceChoice(
+            policy: policy,
+            selected: _selectedInsurancePolicies.contains(policy.id),
+            onChanged: (selected) => setState(() {
+              selected
+                  ? _selectedInsurancePolicies.add(policy.id)
+                  : _selectedInsurancePolicies.remove(policy.id);
+              _quote = null;
+              _error = null;
+            }),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// True when insurance is agent-fulfilled, so a physical certificate can share
+  /// the documents order's single delivery. Defaults to true while the method is
+  /// loading (agent is the common default); the send guards re-check before use.
+  bool get _insuranceMergeable {
+    final automated = ref.watch(insuranceAutomatedProvider).asData?.value;
+    return automated != true;
+  }
+
+  List<InsurancePolicy> _renewablePolicies() {
+    final data = ref.watch(vehicleInsuranceProvider(_vehicleId)).asData?.value;
+    if (data == null) return const [];
+    return data.policies
+        .where((policy) => policy.canRenew)
+        .toList(growable: false);
+  }
+
+  /// Insurance ids to send, guarded so nothing rides along when the method is
+  /// not mergeable (avoids a 422 from the automated-insurance path). Uses
+  /// `ref.read` — invoked from async submit/quote handlers, not during build.
+  List<String> _insuranceIdsToSend() {
+    final automated = ref.read(insuranceAutomatedProvider).asData?.value;
+    if (automated == true) return const [];
+    final data = ref.read(vehicleInsuranceProvider(_vehicleId)).asData?.value;
+    final renewable =
+        data?.policies.where((p) => p.canRenew).map((p) => p.id).toSet() ??
+        const <String>{};
+    return _selectedInsurancePolicies
+        .where(renewable.contains)
+        .toList(growable: false);
   }
 
   Widget _fulfilmentStep(
@@ -546,6 +640,7 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
             state: _state,
             deliveryMethod: _deliveryMethod,
             city: _city,
+            insuranceRenewPolicyIds: _insuranceIdsToSend(),
           );
       if (mounted) setState(() => _quote = quote);
     } on ApiFailure catch (failure) {
@@ -571,10 +666,12 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
             state: _state,
             address: _address.text,
             notes: _notes.text,
+            insuranceRenewPolicyIds: _insuranceIdsToSend(),
           );
       ref.invalidate(renewalOrdersProvider);
       ref.invalidate(garageProvider);
       ref.invalidate(walletWorkspaceProvider);
+      ref.invalidate(vehicleInsuranceProvider(_vehicleId));
       if (!mounted) return;
       if (created.orderGroupId.isEmpty) {
         context.go('/more/renewals');
@@ -991,6 +1088,104 @@ class _DocumentChoice extends StatelessWidget {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _InsuranceChoice extends StatelessWidget {
+  const _InsuranceChoice({
+    required this.policy,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final InsurancePolicy policy;
+  final bool selected;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final days = policy.daysToExpiry;
+    final urgency = policy.isExpired
+        ? (days != null ? '${days.abs()} days expired' : 'Expired')
+        : days == null
+        ? 'Expiry unavailable'
+        : days == 0
+        ? 'Expires today'
+        : '$days days remaining';
+    final title = policy.provider ?? policy.coverageLabel ?? 'Insurance policy';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 9),
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: selected ? AppColors.forest50 : Colors.white,
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(
+          color: selected ? AppColors.forest600 : AppColors.border,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Checkbox(
+            value: selected,
+            onChanged: (value) => onChanged(value == true),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppColors.ink,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    if (policy.coverageLabel != null) ...[
+                      Text(
+                        policy.coverageLabel!,
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const Text(
+                        '  ·  ',
+                        style: TextStyle(color: AppColors.muted, fontSize: 10),
+                      ),
+                    ],
+                    Text(
+                      urgency,
+                      style: TextStyle(
+                        color: (days ?? 1) <= 0
+                            ? AppColors.danger
+                            : AppColors.muted,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          if (policy.isVerified)
+            const Padding(
+              padding: EdgeInsets.only(top: 2),
+              child: Icon(
+                Icons.verified_user_rounded,
+                color: AppColors.forest700,
+                size: 16,
+              ),
+            ),
         ],
       ),
     );

@@ -153,11 +153,9 @@ class _VehicleInsuranceScreenState
                     policy: p,
                     onCancel: () => _cancel(p),
                     onViewDocument: () => _openDocument(p.documentUrl),
-                    onRenew: p.status == 'CANCELLED'
-                        ? null
-                        : () => context.push(
-                            '/more/insurance/${widget.vehicleId}/renew/${p.id}',
-                          ),
+                    onRenew: () => context.push(
+                      '/more/insurance/${widget.vehicleId}/renew/${p.id}',
+                    ),
                   ),
                 ),
             ],

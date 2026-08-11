@@ -316,8 +316,8 @@ class PolicyCard extends StatelessWidget {
                 ],
               ),
             ],
-            if ((onRenew != null || onCancel != null) &&
-                policy.status != 'CANCELLED') ...[
+            if ((onCancel != null && policy.isActive) ||
+                (onRenew != null && policy.canRenew)) ...[
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -331,12 +331,12 @@ class PolicyCard extends StatelessWidget {
                       label: const Text('Cancel'),
                     ),
                   const Spacer(),
-                  if (onRenew != null)
-                    FilledButton.tonalIcon(
+                  if (onRenew != null && policy.canRenew)
+                    FilledButton.icon(
                       onPressed: onRenew,
                       style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.forest50,
-                        foregroundColor: AppColors.forest800,
+                        backgroundColor: AppColors.orange,
+                        foregroundColor: Colors.white,
                       ),
                       icon: const Icon(Icons.autorenew_rounded, size: 18),
                       label: const Text('Renew'),

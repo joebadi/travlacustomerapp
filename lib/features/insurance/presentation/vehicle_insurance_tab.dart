@@ -51,6 +51,9 @@ class VehicleInsuranceTab extends ConsumerWidget {
                 ...data.policies.map((p) => PolicyCard(
                       policy: p,
                       onViewDocument: () => _openDoc(context, p.documentUrl),
+                      onRenew: () => context.push(
+                        '/more/insurance/$vehicleId/renew/${p.id}',
+                      ),
                     )),
               const SizedBox(height: 6),
               if (!hasActive)

@@ -75,6 +75,15 @@ class InsurancePolicy {
 
   bool get isActive => status == 'ACTIVE' && !isExpired;
 
+  /// Mirrors the backend eligibility (RenewalEligibilityService::checkInsurance):
+  /// renewable when not cancelled/pending and either already expired or within
+  /// 30 days of expiry. Applies to NIID-found policies too.
+  bool get canRenew {
+    if (status == 'CANCELLED' || isPending) return false;
+    if (isExpired) return true;
+    return daysToExpiry != null && daysToExpiry! <= 30;
+  }
+
   factory InsurancePolicy.fromJson(Map<String, dynamic> json) {
     final vehicle = json['vehicle'];
     final vehicleJson = vehicle is Map ? vehicle : const {};
