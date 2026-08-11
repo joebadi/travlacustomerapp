@@ -508,8 +508,6 @@ class _VehicleCard extends StatelessWidget {
                 children: [
                   _PlateChip(plate: vehicle.plateNumber),
                   const Spacer(),
-                  _Readiness(vehicle: vehicle),
-                  const SizedBox(width: 10),
                   _ManageMenu(vehicle: vehicle),
                 ],
               ),
@@ -560,70 +558,6 @@ class _PlateChip extends StatelessWidget {
   }
 }
 
-class _Readiness extends StatelessWidget {
-  const _Readiness({required this.vehicle});
-
-  final VehicleSummary vehicle;
-
-  @override
-  Widget build(BuildContext context) {
-    if (vehicle.documentsCount == 0) {
-      return const Text(
-        'No papers',
-        style: TextStyle(
-          color: AppColors.muted,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-        ),
-      );
-    }
-    if (vehicle.expiredDocumentsCount > 0) {
-      return _Pill(
-        color: AppColors.danger,
-        text: '${vehicle.expiredDocumentsCount} expired',
-      );
-    }
-    if (vehicle.expiringSoonCount > 0) {
-      return _Pill(
-        color: AppColors.orangeDark,
-        text: '${vehicle.expiringSoonCount} expiring',
-      );
-    }
-    return _Pill(
-      color: AppColors.forest700,
-      text: '${vehicle.documentsCount} valid',
-      icon: Icons.check_circle_rounded,
-    );
-  }
-}
-
-class _Pill extends StatelessWidget {
-  const _Pill({required this.color, required this.text, this.icon});
-
-  final Color color;
-  final String text;
-  final IconData? icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon ?? Icons.circle, size: icon == null ? 8 : 15, color: color),
-        const SizedBox(width: 5),
-        Text(
-          text,
-          style: TextStyle(
-            color: color,
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 /// Per-vehicle action menu — a premium dropdown anchored to the card's "Manage"
 /// pill (open, papers, renew, sell, transfer), mirroring the web vehicle actions.
 class _ManageMenu extends StatelessWidget {
@@ -634,10 +568,9 @@ class _ManageMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final id = vehicle.id;
-    final plate = vehicle.plateNumber;
 
     return AnchoredMenu(
-      width: 262,
+      width: 230,
       triggerBuilder: (context, isOpen, toggle) =>
           _ManageButton(onTap: toggle, open: isOpen),
       menuBuilder: (context, close) {
@@ -655,38 +588,6 @@ class _ManageMenu extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 11),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    vehicle.displayName.isEmpty ? 'Vehicle' : vehicle.displayName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.ink,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 14.5,
-                    ),
-                  ),
-                  if (plate?.isNotEmpty == true)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Text(
-                        plate!.toUpperCase(),
-                        style: const TextStyle(
-                          color: AppColors.muted,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const MenuDivider(),
             const SizedBox(height: 6),
             PremiumMenuItem(
               icon: Icons.dashboard_customize_outlined,
