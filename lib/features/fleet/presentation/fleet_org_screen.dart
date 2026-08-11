@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/fleet/data/fleet_repository.dart';
@@ -49,7 +50,23 @@ class FleetOrgScreen extends ConsumerWidget {
               _Label('Members (${detail.members.length})'),
               ...detail.members.map((m) => _MemberRow(member: m)),
               const SizedBox(height: 18),
-              _Label('Vehicles (${detail.vehicles.length})'),
+              Row(
+                children: [
+                  Expanded(
+                    child: _Label('Vehicles (${detail.vehicles.length})'),
+                  ),
+                  TextButton.icon(
+                    onPressed: () =>
+                        context.push('/more/fleet/$organisationId/enrol'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.forest700,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    icon: const Icon(Icons.add_rounded, size: 18),
+                    label: const Text('Enrol'),
+                  ),
+                ],
+              ),
               if (detail.vehicles.isEmpty)
                 const _Empty('No vehicles assigned to your scope yet.')
               else

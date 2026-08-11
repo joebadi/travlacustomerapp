@@ -27,6 +27,8 @@ import 'package:travla_customer_app/features/forum/presentation/new_thread_scree
 import 'package:travla_customer_app/features/fleet/presentation/fleet_screen.dart';
 import 'package:travla_customer_app/features/fleet/presentation/create_org_screen.dart';
 import 'package:travla_customer_app/features/fleet/presentation/fleet_org_screen.dart';
+import 'package:travla_customer_app/features/fleet/presentation/enrolment_requests_screen.dart';
+import 'package:travla_customer_app/features/fleet/presentation/request_enrolment_screen.dart';
 import 'package:travla_customer_app/features/insurance/presentation/add_policy_screen.dart';
 import 'package:travla_customer_app/features/insurance/presentation/buy_insurance_screen.dart';
 import 'package:travla_customer_app/features/insurance/presentation/insurance_screen.dart';
@@ -300,11 +302,28 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                         path: 'new',
                         builder: (context, state) => const CreateOrgScreen(),
                       ),
+                      // Owner consent inbox (deep-linked from enrolment
+                      // notifications). Must precede ':orgId' so it is not
+                      // captured as an organisation id.
+                      GoRoute(
+                        path: 'requests',
+                        builder: (context, state) =>
+                            const EnrolmentRequestsScreen(),
+                      ),
                       GoRoute(
                         path: ':orgId',
                         builder: (context, state) => FleetOrgScreen(
                           organisationId: state.pathParameters['orgId'] ?? '',
                         ),
+                        routes: [
+                          GoRoute(
+                            path: 'enrol',
+                            builder: (context, state) => RequestEnrolmentScreen(
+                              organisationId:
+                                  state.pathParameters['orgId'] ?? '',
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

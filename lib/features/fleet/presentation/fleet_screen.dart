@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
+import 'package:travla_customer_app/features/fleet/data/enrolment_repository.dart';
 import 'package:travla_customer_app/features/fleet/data/fleet_repository.dart';
 import 'package:travla_customer_app/features/fleet/domain/fleet_models.dart';
 
@@ -12,6 +13,8 @@ class FleetScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final home = ref.watch(fleetHomeProvider);
+    final pendingCount =
+        ref.watch(pendingEnrolmentsProvider).asData?.value.length ?? 0;
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
@@ -43,6 +46,8 @@ class FleetScreen extends ConsumerWidget {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
             children: [
+              _EnrolmentInboxTile(pendingCount: pendingCount),
+              const SizedBox(height: 16),
               if (data.invites.isNotEmpty) ...[
                 const _Label('Invitations'),
                 ...data.invites.map((i) => _InviteCard(invite: i)),
@@ -53,6 +58,94 @@ class FleetScreen extends ConsumerWidget {
                 const _Empty()
               else
                 ...data.organisations.map((o) => _OrgCard(org: o)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Owner-side entry into the enrolment consent inbox, with a pending badge.
+class _EnrolmentInboxTile extends StatelessWidget {
+  const _EnrolmentInboxTile({required this.pendingCount});
+
+  final int pendingCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => context.push('/more/fleet/requests'),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppColors.forest50,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.mark_email_unread_outlined,
+                  color: AppColors.forest700,
+                  size: 21,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Fleet requests',
+                      style: TextStyle(
+                        color: AppColors.ink,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14.5,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Approve or decline companies adding your vehicles',
+                      style: TextStyle(color: AppColors.muted, fontSize: 11.5),
+                    ),
+                  ],
+                ),
+              ),
+              if (pendingCount > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.orange,
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Text(
+                    '$pendingCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                )
+              else
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.muted,
+                ),
             ],
           ),
         ),
