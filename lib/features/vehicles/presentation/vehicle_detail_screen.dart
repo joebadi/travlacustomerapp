@@ -1351,7 +1351,10 @@ class _DocumentTile extends StatelessWidget {
                               color: AppColors.border.withValues(alpha: .7),
                             ),
                           ),
-                          if (document.isRenewable) ...[
+                          if (document.isRenewable)
+                            // Expiry and the auto-renew toggle share one
+                            // line: the fact and the control that acts on it
+                            // belong together, not stacked apart.
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
@@ -1360,6 +1363,8 @@ class _DocumentTile extends StatelessWidget {
                                 Expanded(
                                   child: Text(
                                     _expiryText(document),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
                                       color: status.foreground,
                                       fontSize: 10.5,
@@ -1367,43 +1372,45 @@ class _DocumentTile extends StatelessWidget {
                                     ),
                                   ),
                                 ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            InkWell(
-                              onTap: isMutating ? null : () => onAutoRenew(!document.autoRenew),
-                              borderRadius: BorderRadius.circular(30),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 9,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: document.autoRenew
-                                      ? AppColors.forest50
-                                      : AppColors.canvas,
+                                const SizedBox(width: 8),
+                                InkWell(
+                                  onTap: isMutating
+                                      ? null
+                                      : () => onAutoRenew(!document.autoRenew),
                                   borderRadius: BorderRadius.circular(30),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    _MiniToggle(value: document.autoRenew),
-                                    const SizedBox(width: 7),
-                                    Text(
-                                      document.autoRenew ? 'Auto-renew on' : 'Auto-renew off',
-                                      style: TextStyle(
-                                        color: document.autoRenew
-                                            ? AppColors.forest700
-                                            : AppColors.muted,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w800,
-                                      ),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 6,
                                     ),
-                                  ],
+                                    decoration: BoxDecoration(
+                                      color: document.autoRenew
+                                          ? AppColors.forest50
+                                          : AppColors.canvas,
+                                      borderRadius: BorderRadius.circular(30),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        _MiniToggle(value: document.autoRenew),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Auto-renew',
+                                          style: TextStyle(
+                                            color: document.autoRenew
+                                                ? AppColors.forest700
+                                                : AppColors.muted,
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
-                          ] else
+                              ],
+                            )
+                          else
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
@@ -1426,7 +1433,7 @@ class _DocumentTile extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.fromLTRB(13, 8, 8, 8),
+                padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
                 decoration: const BoxDecoration(
                   color: Color(0xFFFAFCFB),
                   border: Border(top: BorderSide(color: AppColors.border)),
@@ -1441,30 +1448,35 @@ class _DocumentTile extends StatelessWidget {
                           ),
                         ),
                       )
-                    : Wrap(
-                        alignment: WrapAlignment.end,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        spacing: 4,
+                    // Renew sits left (the action that matters most on an
+                    // expired paper); View + Delete are grouped right.
+                    : Row(
                         children: [
                           if (document.isExpired)
-                            TextButton.icon(
-                              onPressed: () => context.push(
+                            _TileActionChip(
+                              icon: Icons.autorenew_rounded,
+                              label: 'Renew',
+                              foreground: AppColors.danger,
+                              background: const Color(0xFFFFE3E1),
+                              onTap: () => context.push(
                                 '/more/renewals/new?vehicle=$vehicleId&preselect=expired',
                               ),
-                              style: TextButton.styleFrom(foregroundColor: AppColors.danger),
-                              icon: const Icon(Icons.autorenew_rounded, size: 16),
-                              label: const Text('Renew'),
                             ),
-                          TextButton.icon(
-                            onPressed: onView,
-                            icon: const Icon(Icons.visibility_outlined, size: 16),
-                            label: const Text('View'),
+                          const Spacer(),
+                          _TileActionChip(
+                            icon: Icons.visibility_outlined,
+                            label: 'View',
+                            foreground: AppColors.forest700,
+                            background: AppColors.forest50,
+                            onTap: onView,
                           ),
-                          IconButton(
+                          const SizedBox(width: 8),
+                          _TileIconAction(
+                            icon: Icons.delete_outline_rounded,
                             tooltip: 'Remove document',
-                            onPressed: onDelete,
-                            icon: const Icon(Icons.delete_outline_rounded, size: 19),
-                            color: AppColors.danger,
+                            foreground: AppColors.danger,
+                            background: const Color(0xFFFFE3E1),
+                            onTap: onDelete,
                           ),
                         ],
                       ),
@@ -1505,6 +1517,93 @@ class _MiniToggle extends StatelessWidget {
           width: 12,
           height: 12,
           decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+        ),
+      ),
+    );
+  }
+}
+
+/// A tonal icon+label pill used in the document tile's footer — Renew and
+/// View share this shape so the row reads as a set of deliberate actions
+/// rather than a row of bare TextButtons.
+class _TileActionChip extends StatelessWidget {
+  const _TileActionChip({
+    required this.icon,
+    required this.label,
+    required this.foreground,
+    required this.background,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color foreground;
+  final Color background;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: background,
+      borderRadius: BorderRadius.circular(30),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(30),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 15, color: foreground),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: TextStyle(
+                  color: foreground,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A tonal icon-only button (a small tinted circle) for the document tile's
+/// delete action — matches [_TileActionChip]'s tonal treatment instead of a
+/// bare [IconButton].
+class _TileIconAction extends StatelessWidget {
+  const _TileIconAction({
+    required this.icon,
+    required this.tooltip,
+    required this.foreground,
+    required this.background,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final Color foreground;
+  final Color background;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: background,
+      shape: const CircleBorder(),
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: Tooltip(
+          message: tooltip,
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Icon(icon, size: 17, color: foreground),
+          ),
         ),
       ),
     );

@@ -29,7 +29,6 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authControllerProvider).user;
-    final wallet = user?.wallet;
     final garage = ref.watch(garageProvider);
     final renewals = ref.watch(renewalOrdersProvider);
     final licenses = ref.watch(driversLicensesProvider);
@@ -58,11 +57,7 @@ class HomeScreen extends ConsumerWidget {
         child: CustomScrollView(
           slivers: [
             SliverToBoxAdapter(
-              child: _Hero(
-                firstName: user?.firstName,
-                walletCurrency: wallet?.currency ?? 'NGN',
-                walletBalance: wallet?.balanceNaira ?? '0.00',
-              ),
+              child: _Hero(firstName: user?.firstName),
             ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
@@ -150,9 +145,6 @@ class HomeScreen extends ConsumerWidget {
                     snapshot: notifications.asData?.value,
                     isLoading: notifications.isLoading,
                   ),
-
-                  const SizedBox(height: 22),
-                  const _FleetCta(),
                 ],
               ),
             ),
@@ -166,15 +158,9 @@ class HomeScreen extends ConsumerWidget {
 /* --------------------------------- Hero ---------------------------------- */
 
 class _Hero extends StatelessWidget {
-  const _Hero({
-    required this.firstName,
-    required this.walletCurrency,
-    required this.walletBalance,
-  });
+  const _Hero({required this.firstName});
 
   final String? firstName;
-  final String walletCurrency;
-  final String walletBalance;
 
   @override
   Widget build(BuildContext context) {
@@ -218,91 +204,107 @@ class _Hero extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 18),
+          const _HeroFleetCta(),
+        ],
+      ),
+    );
+  }
+}
+
+/// Premium fleet cross-sell that replaces the old renew/add buttons + wallet
+/// card in the hero — a warm, gold-tinted glass card on the dark gradient so
+/// it reads as a promotional CTA rather than another data widget.
+class _HeroFleetCta extends StatelessWidget {
+  const _HeroFleetCta();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.orange.withValues(alpha: .22),
+            Colors.white.withValues(alpha: .06),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.orange.withValues(alpha: .35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () => context.go('/more/renewals/new'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: AppColors.forest950,
-                    minimumSize: const Size.fromHeight(44),
-                  ),
-                  icon: const Icon(Icons.description_outlined, size: 18),
-                  label: const Text(
-                    'Renew a document',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.orange,
+                  borderRadius: BorderRadius.circular(13),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.orange.withValues(alpha: .4),
+                      blurRadius: 12,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.corporate_fare_rounded,
+                  color: Colors.white,
+                  size: 22,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 13),
               Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => context.go('/vehicles/add-existing'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: BorderSide(color: Colors.white.withValues(alpha: .4)),
-                    minimumSize: const Size.fromHeight(44),
-                  ),
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text(
-                    'Add a vehicle',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Manage vehicles as a fleet',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Create or join a company account for drivers, fuel, '
+                      'regions, and team access — built for businesses.',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: .75),
+                        fontSize: 11.5,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: .09),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withValues(alpha: .13)),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Wallet balance',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: .65),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '$walletCurrency $walletBalance',
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(color: AppColors.white),
-                      ),
-                    ],
-                  ),
-                ),
-                InkWell(
-                  borderRadius: BorderRadius.circular(22),
-                  onTap: () => context.go('/more/transactions'),
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: const BoxDecoration(
-                      color: AppColors.orange,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.account_balance_wallet_outlined,
-                      color: AppColors.white,
-                    ),
-                  ),
-                ),
-              ],
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () => context.push('/more/fleet'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.orange,
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(42),
+              ),
+              icon: const Icon(Icons.arrow_forward_rounded, size: 17),
+              label: const Text(
+                'Explore Fleet',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ),
         ],
@@ -1458,72 +1460,6 @@ class _UpdateRow extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/* --------------------------------- Fleet CTA -------------------------------- */
-
-class _FleetCta extends StatelessWidget {
-  const _FleetCta();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: AppColors.canvas,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.directions_car_filled_outlined,
-              color: AppColors.muted,
-              size: 21,
-            ),
-          ),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Managing vehicles for a business?',
-                  style: TextStyle(
-                    color: AppColors.ink,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 13.5,
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  'Create or join a fleet to manage vehicles, drivers, fuel, '
-                  'regions, and team access.',
-                  style: TextStyle(color: AppColors.muted, fontSize: 11, height: 1.35),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          OutlinedButton(
-            onPressed: () => context.push('/more/fleet'),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: AppColors.border),
-              foregroundColor: AppColors.ink,
-            ),
-            child: const Text('Explore Fleet'),
           ),
         ],
       ),
