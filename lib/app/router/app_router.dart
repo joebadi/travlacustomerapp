@@ -33,6 +33,8 @@ import 'package:travla_customer_app/features/insurance/presentation/insurance_sc
 import 'package:travla_customer_app/features/insurance/presentation/new_insurance_renewal_screen.dart';
 import 'package:travla_customer_app/features/insurance/presentation/vehicle_insurance_screen.dart';
 import 'package:travla_customer_app/features/journeys/presentation/journeys_screen.dart';
+import 'package:travla_customer_app/features/journeys/presentation/record_journey_screen.dart';
+import 'package:travla_customer_app/features/journeys/presentation/journey_detail_screen.dart';
 import 'package:travla_customer_app/features/marketplace/presentation/marketplace_screen.dart';
 import 'package:travla_customer_app/features/marketplace/presentation/new_listing_screen.dart';
 import 'package:travla_customer_app/features/more/presentation/more_screen.dart';
@@ -170,6 +172,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/journeys',
                 builder: (context, state) => const JourneysScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'record',
+                    builder: (context, state) => const RecordJourneyScreen(),
+                  ),
+                  GoRoute(
+                    path: ':journeyId',
+                    builder: (context, state) => JourneyDetailScreen(
+                      journeyId: state.pathParameters['journeyId'] ?? '',
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

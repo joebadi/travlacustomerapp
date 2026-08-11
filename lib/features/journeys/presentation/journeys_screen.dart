@@ -1,98 +1,165 @@
 import 'package:flutter/material.dart';
-import 'package:travla_customer_app/shared/widgets/travla_app_bar.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
-import 'package:travla_customer_app/shared/widgets/section_heading.dart';
+import 'package:travla_customer_app/core/network/api_failure.dart';
+import 'package:travla_customer_app/features/journeys/data/journey_repository.dart';
+import 'package:travla_customer_app/features/journeys/domain/journey_models.dart';
+import 'package:travla_customer_app/shared/widgets/travla_app_bar.dart';
 
-class JourneysScreen extends StatelessWidget {
+class JourneysScreen extends ConsumerWidget {
   const JourneysScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final journeys = ref.watch(journeysProvider);
+
     return Scaffold(
+      backgroundColor: AppColors.canvas,
       appBar: const TravlaAppBar(),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 8, 18, 32),
-        children: [
-          const SectionHeading(
-            title: 'Move with a dependable trail',
-            description:
-                'Record routes, follow saved trails and receive useful road intelligence.',
-          ),
-          const SizedBox(height: 22),
-          Container(
-            height: 230,
-            padding: const EdgeInsets.all(22),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppColors.forest950, AppColors.forest700],
-              ),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Stack(
-              children: [
-                Positioned(
-                  right: -16,
-                  bottom: -28,
-                  child: Icon(
-                    Icons.route_rounded,
-                    size: 180,
-                    color: Colors.white.withValues(alpha: .07),
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: const BoxDecoration(
-                        color: AppColors.orange,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.navigation_outlined,
-                        color: AppColors.white,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      'Journey engine foundation',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.titleLarge?.copyWith(color: AppColors.white),
-                    ),
-                    const SizedBox(height: 7),
-                    Text(
-                      'Map, background location and offline trail storage will be enabled after the device spike.',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: .68),
-                        height: 1.45,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          const Row(
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: AppColors.orange,
+        onPressed: () => context.push('/journeys/record'),
+        icon: const Icon(Icons.fiber_manual_record_rounded),
+        label: const Text('Record'),
+      ),
+      body: RefreshIndicator(
+        color: AppColors.forest700,
+        onRefresh: () async {
+          ref.invalidate(journeysProvider);
+          await ref.read(journeysProvider.future).catchError((_) => <Journey>[]);
+        },
+        child: journeys.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => ListView(
+            padding: const EdgeInsets.fromLTRB(18, 40, 18, 18),
             children: [
-              Expanded(
-                child: _JourneyCapability(
-                  icon: Icons.bookmark_border_rounded,
-                  label: 'Saved trails',
-                ),
+              Center(child: Text(error is ApiFailure ? error.message : 'Your journeys could not be loaded.', textAlign: TextAlign.center)),
+            ],
+          ),
+          data: (list) => ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(2, 4, 2, 14),
+                child: Text('Your journeys',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
               ),
-              SizedBox(width: 10),
-              Expanded(
-                child: _JourneyCapability(
-                  icon: Icons.report_gmailerrorred_outlined,
-                  label: 'Road reports',
-                ),
+              if (list.isEmpty)
+                const _Empty()
+              else
+                ...list.map((j) => _JourneyCard(journey: j)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _JourneyCard extends StatelessWidget {
+  const _JourneyCard({required this.journey});
+
+  final Journey journey;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => context.push('/journeys/${journey.id}'),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(color: AppColors.forest50, borderRadius: BorderRadius.circular(12)),
+                    child: const Icon(Icons.route_rounded, color: AppColors.forest700),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(journey.title,
+                            maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
+                        const SizedBox(height: 2),
+                        Text(
+                          [
+                            if (journey.transportModeLabel != null) journey.transportModeLabel!,
+                            _fmt(journey.recordedAt ?? journey.createdAt),
+                          ].join(' · '),
+                          style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  _stat(Icons.straighten_rounded, '${journey.distanceKm.toStringAsFixed(1)} km'),
+                  const SizedBox(width: 16),
+                  _stat(Icons.timer_outlined, journey.durationLabel),
+                  const SizedBox(width: 16),
+                  _stat(Icons.place_outlined, '${journey.pointCount} pts'),
+                ],
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _stat(IconData icon, String text) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: AppColors.muted),
+          const SizedBox(width: 5),
+          Text(text, style: const TextStyle(color: AppColors.ink, fontSize: 12.5, fontWeight: FontWeight.w700)),
+        ],
+      );
+}
+
+class _Empty extends StatelessWidget {
+  const _Empty();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+      decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(22), border: Border.all(color: AppColors.border)),
+      child: Column(
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: const BoxDecoration(color: AppColors.forest100, shape: BoxShape.circle),
+            child: const Icon(Icons.route_rounded, size: 34, color: AppColors.forest700),
+          ),
+          const SizedBox(height: 18),
+          Text('Record your first journey', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          const Text(
+            'Tap Record to capture a GPS trail. Save it, replay it on the map, and flag road conditions along the way.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.muted, height: 1.5),
           ),
         ],
       ),
@@ -100,30 +167,10 @@ class JourneysScreen extends StatelessWidget {
   }
 }
 
-class _JourneyCapability extends StatelessWidget {
-  const _JourneyCapability({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Icon(icon, color: AppColors.forest700),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+String _fmt(String? iso) {
+  if (iso == null || iso.isEmpty) return '';
+  final d = DateTime.tryParse(iso);
+  if (d == null) return '';
+  const m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return '${d.day} ${m[d.month - 1]} ${d.year}';
 }

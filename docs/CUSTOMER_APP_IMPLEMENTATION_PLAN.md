@@ -146,7 +146,7 @@ Items may be progressively enabled, but disabled placeholders must clearly say
 | Ownership transfer | 🟡 | 🧪 | Managed/offline creation, records, detail timeline, consent, evidence, correction resubmission and permitted cancellation are coded; hybrid wallet top-up remains. |
 | Marketplace | 🟡 | 🧪 | Seller activation, owned-vehicle picker, eligibility-aware listing creation and seller listing summary are coded; browse, offers, wanted and settlement remain. |
 | Fleet | 🟡 | — | Individual/fleet mode toggle (persisted) + fleet home (companies, invites accept, create company) + org overview (dashboard KPIs, members, vehicles). Deep management (invite member, assign vehicle/driver, fuel funding, cards, regions/drivers CRUD) still to build. (`lib/features/fleet/`) |
-| Journeys | 🟡 | — | Navigation placeholder; native GPS client is the main remaining work. |
+| Journeys | 🧪 | — | Journeys list, record (live map + GPS stream + batched point upload + distance/duration/speed), replay detail (trail polyline + stats + delete), and community road-report submission during recording. (`lib/features/journeys/`) |
 | Car Talk forum | 🧪 | — | Category filter + sort + thread list, thread detail with replies/like/delete, reply composer, new-thread create. (`lib/features/forum/`) |
 | Stolen vehicle registry | 🧪 | — | Report a theft, my-reports, report detail with owner actions (recover/close) + sightings (verify/dismiss), public plate check, and report-a-sighting (with photos). (`lib/features/stolen/`) |
 | Insurance and claims | 🧪 | — | Insurance: policies, add-with-doc, NIID verify, buy+renew, cert download. Claims: rollout gate, list+timeline, file draft, evidence, submit (fee), messages, disputes+NAICOM. Combined-checkout + geolocation remain. |
