@@ -119,12 +119,13 @@ class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
       VehicleDetailTab.overview => _OverviewTab(
         key: const ValueKey('overview'),
         vehicle: vehicle,
-        onOpenDocuments: () => _selectTab(VehicleDetailTab.documents),
         onRenew: () => context.push('/more/renewals/new?vehicle=${vehicle.id}'),
-        onSell: () =>
-            context.push('/more/marketplace/list-new?vehicle=${vehicle.id}'),
+        onReportAccident: () =>
+            context.push('/more/claims/new?vehicle=${vehicle.id}'),
         onTransfer: () =>
             context.push('/more/transfers/new?vehicle=${vehicle.id}'),
+        onReportStolen: () =>
+            context.push('/more/stolen/report?vehicle=${vehicle.id}'),
       ),
       VehicleDetailTab.documents => _DocumentsTab(
         key: const ValueKey('documents'),
@@ -670,18 +671,18 @@ class _DetailTabButton extends StatelessWidget {
 class _OverviewTab extends StatelessWidget {
   const _OverviewTab({
     required this.vehicle,
-    required this.onOpenDocuments,
     required this.onRenew,
-    required this.onSell,
+    required this.onReportAccident,
     required this.onTransfer,
+    required this.onReportStolen,
     super.key,
   });
 
   final VehicleDetail vehicle;
-  final VoidCallback onOpenDocuments;
   final VoidCallback onRenew;
-  final VoidCallback onSell;
+  final VoidCallback onReportAccident;
   final VoidCallback onTransfer;
+  final VoidCallback onReportStolen;
 
   @override
   Widget build(BuildContext context) {
@@ -726,199 +727,111 @@ class _OverviewTab extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 14),
-          Card(
-            color: AppColors.forest950,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: onRenew,
-              child: const Padding(
-                padding: EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: AppColors.orange,
-                      foregroundColor: Colors.white,
-                      child: Icon(Icons.event_repeat_rounded),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Renew vehicle papers',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          SizedBox(height: 3),
-                          Text(
-                            'Check eligibility, select papers and see the complete quote.',
-                            style: TextStyle(
-                              color: Color(0xFFBBD8CD),
-                              fontSize: 9,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(Icons.arrow_forward_rounded, color: AppColors.orange),
-                  ],
-                ),
+          const SizedBox(height: 22),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(2, 0, 2, 12),
+            child: Text(
+              'QUICK ACTIONS',
+              style: TextStyle(
+                color: AppColors.muted,
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.1,
               ),
             ),
           ),
-          const SizedBox(height: 14),
-          Card(
-            child: InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: onSell,
-              child: const Padding(
-                padding: EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: AppColors.orangeSoft,
-                      foregroundColor: AppColors.orangeDark,
-                      child: Icon(Icons.sell_outlined),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Sell on Travla Marketplace',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          SizedBox(height: 3),
-                          Text(
-                            'Check transfer readiness and create a verified listing.',
-                            style: TextStyle(
-                              color: AppColors.muted,
-                              fontSize: 9,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(
-                      Icons.arrow_forward_rounded,
-                      color: AppColors.orangeDark,
-                    ),
-                  ],
-                ),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.45,
+            children: [
+              _QuickActionBox(
+                icon: Icons.event_repeat_rounded,
+                label: 'Renew papers',
+                tone: AppColors.orange,
+                onTap: onRenew,
               ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          Card(
-            child: InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: onTransfer,
-              child: const Padding(
-                padding: EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: AppColors.forest100,
-                      foregroundColor: AppColors.forest700,
-                      child: Icon(Icons.swap_horiz_rounded),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Transfer vehicle ownership',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          SizedBox(height: 3),
-                          Text(
-                            'Preselect this vehicle and check legal readiness.',
-                            style: TextStyle(
-                              color: AppColors.muted,
-                              fontSize: 9,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(
-                      Icons.arrow_forward_rounded,
-                      color: AppColors.forest700,
-                    ),
-                  ],
-                ),
+              _QuickActionBox(
+                icon: Icons.report_gmailerrorred_rounded,
+                label: 'Report Accident',
+                tone: AppColors.orangeDark,
+                onTap: onReportAccident,
               ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          Card(
-            color: AppColors.forest950,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: onOpenDocuments,
-              child: Padding(
-                padding: const EdgeInsets.all(17),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: .1),
-                        borderRadius: BorderRadius.circular(13),
-                      ),
-                      child: const Icon(
-                        Icons.folder_copy_outlined,
-                        color: AppColors.orange,
-                      ),
-                    ),
-                    const SizedBox(width: 13),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Open document vault',
-                            style: TextStyle(
-                              color: AppColors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          SizedBox(height: 3),
-                          Text(
-                            'Review renewable papers and permanent records.',
-                            style: TextStyle(
-                              color: Color(0xAFFFFFFF),
-                              fontSize: 10,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(
-                      Icons.arrow_forward_rounded,
-                      color: AppColors.white,
-                    ),
-                  ],
-                ),
+              _QuickActionBox(
+                icon: Icons.swap_horiz_rounded,
+                label: 'Change Ownership',
+                tone: AppColors.forest700,
+                onTap: onTransfer,
               ),
-            ),
+              _QuickActionBox(
+                icon: Icons.gpp_maybe_outlined,
+                label: 'Report Stolen',
+                tone: AppColors.danger,
+                onTap: onReportStolen,
+              ),
+            ],
           ),
+          const SizedBox(height: 16),
         ],
+      ),
+    );
+  }
+}
+
+class _QuickActionBox extends StatelessWidget {
+  const _QuickActionBox({
+    required this.icon,
+    required this.label,
+    required this.tone,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color tone;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: tone.withValues(alpha: .12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: tone, size: 22),
+              ),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: AppColors.ink,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
