@@ -226,6 +226,12 @@ class PolicyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tone = _tone(policy);
+    final title = policy.provider?.isNotEmpty == true
+        ? policy.provider!
+        : (policy.sourceLabel?.isNotEmpty == true
+              ? policy.sourceLabel!
+              : 'Insurance policy');
+    final expiry = _expiryText(policy);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -240,85 +246,131 @@ class PolicyCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Header: source badge + title + policy number.
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    policy.provider?.isNotEmpty == true
-                        ? policy.provider!
-                        : 'Insurance policy',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.ink,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 15,
-                    ),
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: tone.bg,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    policy.isVerified
+                        ? Icons.verified_user_rounded
+                        : Icons.shield_outlined,
+                    color: tone.fg,
+                    size: 21,
                   ),
                 ),
-                const SizedBox(width: 8),
-                _Chip(label: policy.statusLabel, tone: tone),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.ink,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        policy.policyNumber?.isNotEmpty == true
+                            ? 'Policy no. ${policy.policyNumber}'
+                            : 'No policy number on record',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 3),
-            Text(
-              policy.coverageLabel ?? 'Cover',
-              style: const TextStyle(color: AppColors.muted, fontSize: 12),
+            const SizedBox(height: 12),
+            // Badges: status + coverage + verified/source.
+            Wrap(
+              spacing: 7,
+              runSpacing: 7,
+              children: [
+                _Chip(label: policy.statusLabel, tone: tone),
+                if (policy.coverageLabel != null)
+                  _Chip(
+                    label: policy.coverageLabel!,
+                    tone: const _Tone(Color(0xFF2F6FEB), Color(0xFFE7EDFB)),
+                  ),
+                if (policy.isVerified)
+                  const _Chip(
+                    label: 'Verified',
+                    tone: _Tone(AppColors.forest700, Color(0xFFDDF2E8)),
+                  )
+                else if (policy.sourceLabel != null)
+                  _Chip(
+                    label: policy.sourceLabel!,
+                    tone: const _Tone(AppColors.muted, Color(0xFFEDF0EF)),
+                  ),
+              ],
             ),
-            const SizedBox(height: 14),
-            _Line(
-              label: 'Policy number',
-              value: policy.policyNumber?.isNotEmpty == true
-                  ? policy.policyNumber!
-                  : '—',
-            ),
+            const Divider(height: 24),
+            // Details — shown in full, matching the web (premium/excess even at ₦0).
+            _Line(label: 'Premium', value: '₦${policy.premiumNaira}'),
+            _Line(label: 'Excess', value: '₦${policy.excessNaira}'),
             _Line(label: 'Cover period', value: _period(policy)),
-            if (policy.premiumNaira != '0.00')
-              _Line(label: 'Premium', value: '₦${policy.premiumNaira}'),
-            if (policy.excessNaira != '0.00')
-              _Line(label: 'Excess', value: '₦${policy.excessNaira}'),
-            if (policy.sourceLabel != null || policy.hasDocument) ...[
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  if (policy.isVerified)
-                    const _Tag(
-                      icon: Icons.verified_rounded,
-                      label: 'Verified',
-                      color: AppColors.forest700,
-                    )
-                  else if (policy.sourceLabel != null)
-                    _Tag(
-                      icon: Icons.edit_note_rounded,
-                      label: policy.sourceLabel!,
-                      color: AppColors.muted,
-                    ),
-                  if (policy.hasDocument &&
-                      onViewDocument != null &&
-                      policy.documentUrl != null)
-                    InkWell(
-                      onTap: onViewDocument,
-                      borderRadius: BorderRadius.circular(8),
-                      child: const _Tag(
-                        icon: Icons.open_in_new_rounded,
-                        label: 'View certificate',
-                        color: AppColors.forest700,
+            if (expiry != null) ...[
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 11,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: tone.bg,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.schedule_rounded, size: 14, color: tone.fg),
+                    const SizedBox(width: 6),
+                    Text(
+                      expiry,
+                      style: TextStyle(
+                        color: tone.fg,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
                       ),
-                    )
-                  else if (policy.hasDocument)
-                    const _Tag(
-                      icon: Icons.attach_file_rounded,
-                      label: 'Certificate attached',
-                      color: AppColors.forest700,
                     ),
-                ],
+                  ],
+                ),
+              ),
+            ],
+            if (policy.hasDocument &&
+                onViewDocument != null &&
+                policy.documentUrl != null) ...[
+              const SizedBox(height: 12),
+              InkWell(
+                onTap: onViewDocument,
+                borderRadius: BorderRadius.circular(8),
+                child: const _Tag(
+                  icon: Icons.open_in_new_rounded,
+                  label: 'View certificate',
+                  color: AppColors.forest700,
+                ),
               ),
             ],
             if ((onCancel != null && policy.isActive) ||
                 (onRenew != null && policy.canRenew)) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   if (onCancel != null && policy.isActive)
@@ -326,6 +378,7 @@ class PolicyCard extends StatelessWidget {
                       onPressed: onCancel,
                       style: TextButton.styleFrom(
                         foregroundColor: AppColors.danger,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
                       ),
                       icon: const Icon(Icons.cancel_outlined, size: 18),
                       label: const Text('Cancel'),
@@ -348,6 +401,19 @@ class PolicyCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Human expiry line mirroring the web ("Expires in 20 days"). Null for
+  /// cancelled policies or when the expiry date is unknown.
+  static String? _expiryText(InsurancePolicy p) {
+    if (p.status == 'CANCELLED') return null;
+    final days = p.daysToExpiry;
+    if (p.isExpired) {
+      return days != null ? 'Expired ${days.abs()} days ago' : 'Expired';
+    }
+    if (days == null) return null;
+    if (days == 0) return 'Expires today';
+    return 'Expires in $days day${days == 1 ? '' : 's'}';
   }
 
   static String _period(InsurancePolicy p) {

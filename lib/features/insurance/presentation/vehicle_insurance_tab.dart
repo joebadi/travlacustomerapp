@@ -44,7 +44,58 @@ class VehicleInsuranceTab extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _VerificationChip(verification: data.verification),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Insurance policies',
+                          style: TextStyle(
+                            color: AppColors.ink,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Cover we found for this vehicle, plus any you add. Expiry is tracked and reminders are sent.',
+                          style: TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 11.5,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (data.policies.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.forest50,
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      child: Text(
+                        '${data.policies.length}',
+                        style: const TextStyle(
+                          color: AppColors.forest800,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 12),
               if (data.policies.isEmpty)
                 _empty()
               else
