@@ -7,6 +7,7 @@ import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/insurance/data/insurance_repository.dart';
 import 'package:travla_customer_app/features/insurance/domain/insurance_models.dart';
 import 'package:travla_customer_app/features/insurance/presentation/insurance_widgets.dart';
+import 'package:travla_customer_app/features/vehicles/presentation/vehicle_quick_actions.dart';
 
 /// The Insurance tab inside the vehicle workspace — shows this vehicle's NIID
 /// verification status and saved policies, with links into the full insurance
@@ -89,6 +90,8 @@ class VehicleInsuranceTab extends ConsumerWidget {
                   ),
                 ],
               ),
+              const SizedBox(height: 22),
+              VehicleQuickActions(vehicleId: vehicleId),
             ],
           );
         },

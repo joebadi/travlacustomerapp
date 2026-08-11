@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/vehicles/data/garage_repository.dart';
@@ -12,6 +11,7 @@ import 'package:travla_customer_app/features/vehicles/presentation/add_vehicle_d
 import 'package:travla_customer_app/features/vehicles/presentation/edit_vehicle_sheet.dart';
 import 'package:travla_customer_app/features/insurance/data/insurance_repository.dart';
 import 'package:travla_customer_app/features/insurance/presentation/vehicle_insurance_tab.dart';
+import 'package:travla_customer_app/features/vehicles/presentation/vehicle_quick_actions.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/vehicle_services_tab.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/vehicle_tracking_tab.dart';
 import 'package:travla_customer_app/shared/widgets/travla_logo.dart';
@@ -119,13 +119,6 @@ class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
       VehicleDetailTab.overview => _OverviewTab(
         key: const ValueKey('overview'),
         vehicle: vehicle,
-        onRenew: () => context.push('/more/renewals/new?vehicle=${vehicle.id}'),
-        onReportAccident: () =>
-            context.push('/more/claims/new?vehicle=${vehicle.id}'),
-        onTransfer: () =>
-            context.push('/more/transfers/new?vehicle=${vehicle.id}'),
-        onReportStolen: () =>
-            context.push('/more/stolen/report?vehicle=${vehicle.id}'),
       ),
       VehicleDetailTab.documents => _DocumentsTab(
         key: const ValueKey('documents'),
@@ -671,18 +664,10 @@ class _DetailTabButton extends StatelessWidget {
 class _OverviewTab extends StatelessWidget {
   const _OverviewTab({
     required this.vehicle,
-    required this.onRenew,
-    required this.onReportAccident,
-    required this.onTransfer,
-    required this.onReportStolen,
     super.key,
   });
 
   final VehicleDetail vehicle;
-  final VoidCallback onRenew;
-  final VoidCallback onReportAccident;
-  final VoidCallback onTransfer;
-  final VoidCallback onReportStolen;
 
   @override
   Widget build(BuildContext context) {
@@ -728,110 +713,9 @@ class _OverviewTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 22),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(2, 0, 2, 12),
-            child: Text(
-              'QUICK ACTIONS',
-              style: TextStyle(
-                color: AppColors.muted,
-                fontSize: 10,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.1,
-              ),
-            ),
-          ),
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.45,
-            children: [
-              _QuickActionBox(
-                icon: Icons.event_repeat_rounded,
-                label: 'Renew papers',
-                tone: AppColors.orange,
-                onTap: onRenew,
-              ),
-              _QuickActionBox(
-                icon: Icons.report_gmailerrorred_rounded,
-                label: 'Report Accident',
-                tone: AppColors.orangeDark,
-                onTap: onReportAccident,
-              ),
-              _QuickActionBox(
-                icon: Icons.swap_horiz_rounded,
-                label: 'Change Ownership',
-                tone: AppColors.forest700,
-                onTap: onTransfer,
-              ),
-              _QuickActionBox(
-                icon: Icons.gpp_maybe_outlined,
-                label: 'Report Stolen',
-                tone: AppColors.danger,
-                onTap: onReportStolen,
-              ),
-            ],
-          ),
+          VehicleQuickActions(vehicleId: vehicle.id),
           const SizedBox(height: 16),
         ],
-      ),
-    );
-  }
-}
-
-class _QuickActionBox extends StatelessWidget {
-  const _QuickActionBox({
-    required this.icon,
-    required this.label,
-    required this.tone,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color tone;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.white,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: tone.withValues(alpha: .12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: tone, size: 22),
-              ),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: AppColors.ink,
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -960,6 +844,9 @@ class _DocumentsTab extends StatelessWidget {
             onAutoRenew: onAutoRenew,
             onDelete: onDelete,
           ),
+          const SizedBox(height: 24),
+          VehicleQuickActions(vehicleId: vehicle.id),
+          const SizedBox(height: 24),
         ],
       ),
     );

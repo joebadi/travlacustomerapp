@@ -5,6 +5,7 @@ import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/vehicles/data/vehicle_service_repository.dart';
 import 'package:travla_customer_app/features/vehicles/domain/vehicle_detail.dart';
 import 'package:travla_customer_app/features/vehicles/domain/vehicle_service.dart';
+import 'package:travla_customer_app/features/vehicles/presentation/vehicle_quick_actions.dart';
 
 class VehicleServicesTab extends ConsumerWidget {
   const VehicleServicesTab({required this.vehicle, super.key});
@@ -90,6 +91,9 @@ class VehicleServicesTab extends ConsumerWidget {
                   ),
                 ),
               ),
+            const SizedBox(height: 22),
+            VehicleQuickActions(vehicleId: vehicle.id),
+            const SizedBox(height: 24),
           ],
         ),
       ),
