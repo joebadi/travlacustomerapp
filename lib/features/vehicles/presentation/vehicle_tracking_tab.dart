@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/vehicles/data/vehicle_tracking_repository.dart';
@@ -41,6 +43,10 @@ class VehicleTrackingTab extends ConsumerWidget {
         data: (data) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (data.latest?.hasPosition == true || data.trail.isNotEmpty) ...[
+              _TrackingMiniMap(workspace: data),
+              const SizedBox(height: 13),
+            ],
             _LivePositionCard(vehicle: vehicle, workspace: data),
             const SizedBox(height: 13),
             if (!data.hasActiveSource)
@@ -185,6 +191,74 @@ class VehicleTrackingTab extends ConsumerWidget {
       success: 'Tracking source removed.',
     );
     ref.invalidate(vehicleTrackingWorkspaceProvider(vehicle.id));
+  }
+}
+
+/// In-app map of the vehicle's latest position and recent trail — so the
+/// Tracking tab reflects the live tracking for this vehicle without leaving the app.
+class _TrackingMiniMap extends StatelessWidget {
+  const _TrackingMiniMap({required this.workspace});
+
+  final VehicleTrackingWorkspace workspace;
+
+  @override
+  Widget build(BuildContext context) {
+    final trail = workspace.trail
+        .map((p) => LatLng(p.latitude, p.longitude))
+        .toList(growable: false);
+    final latest = workspace.latest;
+    final latestPoint = latest?.hasPosition == true
+        ? LatLng(latest!.lastLatitude!, latest.lastLongitude!)
+        : (trail.isNotEmpty ? trail.last : null);
+    if (latestPoint == null) return const SizedBox.shrink();
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: SizedBox(
+        height: 200,
+        child: FlutterMap(
+          options: MapOptions(
+            initialCenter: latestPoint,
+            initialZoom: 15,
+            interactionOptions: const InteractionOptions(
+              flags: InteractiveFlag.pinchZoom | InteractiveFlag.drag,
+            ),
+          ),
+          children: [
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'ng.com.travla.customer',
+            ),
+            if (trail.length >= 2)
+              PolylineLayer(
+                polylines: [
+                  Polyline(points: trail, strokeWidth: 4, color: AppColors.orange),
+                ],
+              ),
+            MarkerLayer(
+              markers: [
+                Marker(
+                  point: latestPoint,
+                  width: 40,
+                  height: 40,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.forest700,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 3),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withValues(alpha: .3), blurRadius: 6, offset: const Offset(0, 2)),
+                      ],
+                    ),
+                    child: const Icon(Icons.directions_car_filled_rounded, color: Colors.white, size: 18),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

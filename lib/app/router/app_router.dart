@@ -157,10 +157,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     path: ':vehicleId',
                     builder: (context, state) => VehicleDetailScreen(
                       vehicleId: state.pathParameters['vehicleId'] ?? '',
-                      initialTab:
-                          state.uri.queryParameters['tab'] == 'documents'
-                          ? VehicleDetailTab.documents
-                          : VehicleDetailTab.overview,
+                      initialTab: switch (state.uri.queryParameters['tab']) {
+                        'documents' => VehicleDetailTab.documents,
+                        'insurance' => VehicleDetailTab.insurance,
+                        'tracking' => VehicleDetailTab.tracking,
+                        'services' => VehicleDetailTab.services,
+                        _ => VehicleDetailTab.overview,
+                      },
                     ),
                   ),
                 ],

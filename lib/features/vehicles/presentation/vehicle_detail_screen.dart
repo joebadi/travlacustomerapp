@@ -10,12 +10,14 @@ import 'package:travla_customer_app/features/vehicles/data/vehicle_tracking_repo
 import 'package:travla_customer_app/features/vehicles/domain/vehicle_detail.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/add_vehicle_document_sheet.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/edit_vehicle_sheet.dart';
+import 'package:travla_customer_app/features/insurance/data/insurance_repository.dart';
+import 'package:travla_customer_app/features/insurance/presentation/vehicle_insurance_tab.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/vehicle_services_tab.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/vehicle_tracking_tab.dart';
 import 'package:travla_customer_app/shared/widgets/travla_logo.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-enum VehicleDetailTab { overview, documents, tracking, services }
+enum VehicleDetailTab { overview, documents, insurance, tracking, services }
 
 class VehicleDetailScreen extends ConsumerStatefulWidget {
   const VehicleDetailScreen({
@@ -133,6 +135,10 @@ class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
         onAutoRenew: (document, enabled) => _setAutoRenew(document, enabled),
         onDelete: _deleteDocument,
       ),
+      VehicleDetailTab.insurance => VehicleInsuranceTab(
+        key: const ValueKey('insurance'),
+        vehicleId: vehicle.id,
+      ),
       VehicleDetailTab.tracking => VehicleTrackingTab(
         key: const ValueKey('tracking'),
         vehicle: vehicle,
@@ -164,6 +170,7 @@ class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
     ref.invalidate(availableDocumentTypesProvider(widget.vehicleId));
     ref.invalidate(vehicleServiceWorkspaceProvider(widget.vehicleId));
     ref.invalidate(vehicleTrackingWorkspaceProvider(widget.vehicleId));
+    ref.invalidate(vehicleInsuranceProvider(widget.vehicleId));
     await ref.read(vehicleDetailProvider(widget.vehicleId).future);
   }
 
@@ -554,6 +561,12 @@ class _DetailTabSelector extends StatelessWidget {
             badge: documentCount,
             selected: selected == VehicleDetailTab.documents,
             onTap: () => onChanged(VehicleDetailTab.documents),
+          ),
+          _DetailTabButton(
+            label: 'Insurance',
+            icon: Icons.shield_outlined,
+            selected: selected == VehicleDetailTab.insurance,
+            onTap: () => onChanged(VehicleDetailTab.insurance),
           ),
           _DetailTabButton(
             label: 'Tracking',
