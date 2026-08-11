@@ -9,22 +9,17 @@ import 'package:travla_customer_app/features/insurance/domain/insurance_models.d
 import 'package:travla_customer_app/features/insurance/presentation/insurance_widgets.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/vehicle_quick_actions.dart';
 
-/// The Insurance tab inside the vehicle workspace — mirrors the web layout:
-/// a verification status card, a labelled "Insurance policies" section with the
-/// saved/found policies, and add/buy/manage actions.
+/// The Insurance tab inside the vehicle workspace.
 ///
-/// Every block is a full-width child stacked in a single [Column]; there is no
-/// overlapping/stacked layout here.
+/// This tab lives inside the vehicle-detail [ListView], so its ROOT is kept
+/// stable — always `Padding > Column(stretch)` — and only the *children list*
+/// changes between loading / error / data. That avoids swapping a short root
+/// widget for a tall one inside the shared scroll view, which previously caused
+/// the blocks to mis-measure and paint on top of each other.
 class VehicleInsuranceTab extends ConsumerWidget {
   const VehicleInsuranceTab({super.key, required this.vehicleId});
 
   final String vehicleId;
-
-  Future<void> _openDoc(BuildContext context, String? url) async {
-    final uri = url == null ? null : Uri.tryParse(url);
-    if (uri == null || !uri.hasScheme) return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -32,117 +27,103 @@ class VehicleInsuranceTab extends ConsumerWidget {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-      child: async.when(
-        loading: () => const Padding(
-          padding: EdgeInsets.all(40),
-          child: Center(child: CircularProgressIndicator()),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: async.when(
+          loading: () => const [
+            SizedBox(
+              height: 220,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          ],
+          error: (error, _) => [
+            InsuranceErrorState(
+              message: error is ApiFailure
+                  ? error.message
+                  : 'Insurance could not be loaded.',
+              onRetry: () => ref.invalidate(vehicleInsuranceProvider(vehicleId)),
+            ),
+          ],
+          data: (data) => _sections(context, data),
         ),
-        error: (error, _) => InsuranceErrorState(
-          message: error is ApiFailure
-              ? error.message
-              : 'Insurance could not be loaded.',
-          onRetry: () => ref.invalidate(vehicleInsuranceProvider(vehicleId)),
-        ),
-        data: (data) => _content(context, data),
       ),
     );
   }
 
-  Widget _content(BuildContext context, VehicleInsurance data) {
-    final hasActive = data.policies.any((p) => p.isActive);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 1. Verification status card.
-        _VerificationCard(
-          verification: data.verification,
-          onManage: () => context.push('/more/insurance/$vehicleId'),
-        ),
-
-        // 2. "Insurance policies" section label.
-        const SizedBox(height: 20),
-        _SectionHeader(count: data.policies.length),
-        const SizedBox(height: 12),
-
-        // 3. The policies (or an empty state).
-        if (data.policies.isEmpty)
-          _empty()
-        else
-          for (final policy in data.policies)
-            PolicyCard(
-              policy: policy,
-              onViewDocument: () => _openDoc(context, policy.documentUrl),
-              onRenew: () =>
-                  context.push('/more/insurance/$vehicleId/renew/${policy.id}'),
-            ),
-
-        // 4. Actions.
-        const SizedBox(height: 4),
-        if (!hasActive)
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: () => context.push('/more/insurance/$vehicleId/buy'),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
-                backgroundColor: AppColors.forest700,
-              ),
-              icon: const Icon(Icons.add_moderator_outlined),
-              label: const Text('Buy insurance'),
-            ),
-          ),
-        const SizedBox(height: 9),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () => context.push('/more/insurance/$vehicleId/add'),
-                icon: const Icon(Icons.note_add_outlined, size: 18),
-                label: const Text('Add policy'),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: FilledButton.tonalIcon(
-                onPressed: () => context.push('/more/insurance/$vehicleId'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.forest50,
-                  foregroundColor: AppColors.forest800,
-                ),
-                icon: const Icon(Icons.tune_rounded, size: 18),
-                label: const Text('Manage'),
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 24),
-        VehicleQuickActions(vehicleId: vehicleId),
-      ],
-    );
+  Future<void> _openDoc(BuildContext context, String? url) async {
+    final uri = url == null ? null : Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
-  Widget _empty() => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.symmetric(vertical: 26, horizontal: 18),
-    margin: const EdgeInsets.only(bottom: 8),
-    decoration: BoxDecoration(
-      color: AppColors.white,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: AppColors.border),
-    ),
-    child: const Text(
-      'No insurance recorded for this vehicle yet. Buy cover or add an existing policy below.',
-      textAlign: TextAlign.center,
-      style: TextStyle(color: AppColors.muted, height: 1.5),
-    ),
-  );
+  /// The full stack of tab sections, as a flat list of Column children.
+  List<Widget> _sections(BuildContext context, VehicleInsurance data) {
+    final hasActive = data.policies.any((p) => p.isActive);
+
+    return [
+      _VerificationCard(
+        verification: data.verification,
+        onCheck: () => context.push('/more/insurance/$vehicleId'),
+      ),
+      const SizedBox(height: 22),
+      _PoliciesHeader(count: data.policies.length),
+      const SizedBox(height: 12),
+      if (data.policies.isEmpty)
+        const _EmptyPolicies()
+      else
+        for (final policy in data.policies)
+          PolicyCard(
+            policy: policy,
+            onViewDocument: () => _openDoc(context, policy.documentUrl),
+            onRenew: () =>
+                context.push('/more/insurance/$vehicleId/renew/${policy.id}'),
+          ),
+      const SizedBox(height: 4),
+      if (!hasActive) ...[
+        FilledButton.icon(
+          onPressed: () => context.push('/more/insurance/$vehicleId/buy'),
+          style: FilledButton.styleFrom(
+            minimumSize: const Size.fromHeight(48),
+            backgroundColor: AppColors.forest700,
+          ),
+          icon: const Icon(Icons.add_moderator_outlined),
+          label: const Text('Buy insurance for this vehicle'),
+        ),
+        const SizedBox(height: 10),
+      ],
+      Row(
+        children: [
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: () => context.push('/more/insurance/$vehicleId/add'),
+              icon: const Icon(Icons.note_add_outlined, size: 18),
+              label: const Text('Add policy'),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: FilledButton.tonalIcon(
+              onPressed: () => context.push('/more/insurance/$vehicleId'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.forest50,
+                foregroundColor: AppColors.forest800,
+              ),
+              icon: const Icon(Icons.tune_rounded, size: 18),
+              label: const Text('Manage'),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 26),
+      VehicleQuickActions(vehicleId: vehicleId),
+    ];
+  }
 }
 
-/// Section title row for the policies list.
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.count});
+/// Section title + count + helper line for the policies list.
+class _PoliciesHeader extends StatelessWidget {
+  const _PoliciesHeader({required this.count});
 
   final int count;
 
@@ -150,6 +131,7 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Row(
           children: [
@@ -157,7 +139,7 @@ class _SectionHeader extends StatelessWidget {
               'Insurance policies',
               style: TextStyle(
                 color: AppColors.ink,
-                fontSize: 15,
+                fontSize: 16,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -181,23 +163,52 @@ class _SectionHeader extends StatelessWidget {
             ],
           ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 5),
         const Text(
           'Cover we found for this vehicle, plus any you add. Expiry is tracked and reminders are sent.',
-          style: TextStyle(color: AppColors.muted, fontSize: 11.5, height: 1.35),
+          style: TextStyle(color: AppColors.muted, fontSize: 12, height: 1.4),
         ),
       ],
     );
   }
 }
 
-/// The third-party (NIID) verification status, presented as a white card that
-/// mirrors the web's first insurance row.
+/// Empty state when the vehicle has no saved policies.
+class _EmptyPolicies extends StatelessWidget {
+  const _EmptyPolicies();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 18),
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: const Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.shield_outlined, size: 34, color: AppColors.muted),
+          SizedBox(height: 10),
+          Text(
+            'No insurance recorded for this vehicle yet.\nBuy cover or add an existing policy below.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.muted, height: 1.5),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Third-party (NIID) verification status — a white card mirroring the web.
 class _VerificationCard extends StatelessWidget {
-  const _VerificationCard({required this.verification, required this.onManage});
+  const _VerificationCard({required this.verification, required this.onCheck});
 
   final InsuranceVerification verification;
-  final VoidCallback onManage;
+  final VoidCallback onCheck;
 
   @override
   Widget build(BuildContext context) {
@@ -243,88 +254,78 @@ class _VerificationCard extends StatelessWidget {
         : 'This vehicle has not been checked at the source yet.';
 
     return Container(
-      width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Icon(icon, color: fg, size: 22),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: bg,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(icon, color: fg, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Flexible(
-                      child: Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: fg,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 14,
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: fg,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 14.5,
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 7),
+                        _NiidTag(),
+                      ],
                     ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.canvas,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Text(
-                        'NIID',
-                        style: TextStyle(
-                          color: AppColors.muted,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: .5,
-                        ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 11,
+                        height: 1.35,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  subtitle,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: AppColors.muted, fontSize: 11),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SizedBox(width: 6),
-          TextButton(
-            onPressed: onManage,
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.forest700,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              minimumSize: const Size(0, 36),
-            ),
-            child: const Text(
-              'Check now',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: onCheck,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.forest700,
+                side: const BorderSide(color: AppColors.border),
+                minimumSize: const Size.fromHeight(42),
+              ),
+              icon: const Icon(Icons.travel_explore_rounded, size: 18),
+              label: const Text('Check now'),
             ),
           ),
         ],
@@ -341,5 +342,27 @@ class _VerificationCard extends StatelessWidget {
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+}
+
+class _NiidTag extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.canvas,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: const Text(
+        'NIID',
+        style: TextStyle(
+          color: AppColors.muted,
+          fontSize: 9,
+          fontWeight: FontWeight.w900,
+          letterSpacing: .5,
+        ),
+      ),
+    );
   }
 }
