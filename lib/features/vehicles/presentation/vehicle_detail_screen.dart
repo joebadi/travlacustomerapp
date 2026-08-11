@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/vehicles/data/garage_repository.dart';
@@ -771,6 +772,10 @@ class _SpecRow extends StatelessWidget {
   }
 }
 
+/// Documents tab — mirrors the web's `DocumentsTab`: a summary header with a
+/// direct "Renew N expired" action, then Renewable / Other document sections.
+/// Rebuilt with an intrinsic, unclamped tile layout so nothing can overflow
+/// regardless of text length or system font scale.
 class _DocumentsTab extends StatelessWidget {
   const _DocumentsTab({
     required this.vehicle,
@@ -791,69 +796,185 @@ class _DocumentsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final expiredCount = vehicle.renewableDocuments
+        .where((d) => d.isExpired)
+        .length;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          if (!vehicle.hasValidPlateNumber)
-            Container(
-              margin: const EdgeInsets.only(bottom: 14),
-              padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(
-                color: AppColors.orangeSoft,
-                borderRadius: BorderRadius.circular(13),
-                border: Border.all(color: const Color(0xFFFFC9B7)),
-              ),
-              child: const Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.info_outline_rounded, color: AppColors.orangeDark),
-                  SizedBox(width: 11),
-                  Expanded(
-                    child: Text(
-                      'Document management is unavailable because this vehicle has no permanent plate or is marked with a dealer/temporary plate. If the permanent plate is already available, tap Edit vehicle at the top-right, update the plate, then return here.',
-                      style: TextStyle(
-                        color: AppColors.orangeDark,
-                        fontSize: 11,
-                        height: 1.45,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          _DocumentSection(
-            title: 'Renewable papers',
-            description: 'Licence, insurance, permits and roadworthiness',
-            icon: Icons.event_available_outlined,
-            documents: vehicle.renewableDocuments,
-            mutatingDocuments: mutatingDocuments,
-            onAdd: vehicle.hasValidPlateNumber
-                ? () => onAdd(DocumentTypeFilter.renewable)
-                : null,
-            onView: onView,
-            onAutoRenew: onAutoRenew,
-            onDelete: onDelete,
+          _DocumentsSummaryCard(
+            vehicleId: vehicle.id,
+            hasValidPlate: vehicle.hasValidPlateNumber,
+            expiredCount: expiredCount,
+            onAddAny: () => onAdd(DocumentTypeFilter.renewable),
           ),
           const SizedBox(height: 14),
-          _DocumentSection(
-            title: 'Other documents',
-            description: 'Ownership and other permanent vehicle records',
-            icon: Icons.folder_copy_outlined,
-            documents: vehicle.otherDocuments,
-            mutatingDocuments: mutatingDocuments,
-            onAdd: vehicle.hasValidPlateNumber
-                ? () => onAdd(DocumentTypeFilter.other)
-                : null,
-            onView: onView,
-            onAutoRenew: onAutoRenew,
-            onDelete: onDelete,
-          ),
+          if (vehicle.documents.isEmpty)
+            const _EmptyAllDocuments()
+          else ...[
+            _DocumentSection(
+              title: 'Renewable papers',
+              description: 'Licence, insurance, permits and roadworthiness',
+              icon: Icons.event_available_outlined,
+              documents: vehicle.renewableDocuments,
+              mutatingDocuments: mutatingDocuments,
+              vehicleId: vehicle.id,
+              onAdd: vehicle.hasValidPlateNumber
+                  ? () => onAdd(DocumentTypeFilter.renewable)
+                  : null,
+              onView: onView,
+              onAutoRenew: onAutoRenew,
+              onDelete: onDelete,
+            ),
+            const SizedBox(height: 14),
+            _DocumentSection(
+              title: 'Other documents',
+              description: 'Ownership and other permanent vehicle records',
+              icon: Icons.folder_copy_outlined,
+              documents: vehicle.otherDocuments,
+              mutatingDocuments: mutatingDocuments,
+              vehicleId: vehicle.id,
+              onAdd: vehicle.hasValidPlateNumber
+                  ? () => onAdd(DocumentTypeFilter.other)
+                  : null,
+              onView: onView,
+              onAutoRenew: onAutoRenew,
+              onDelete: onDelete,
+            ),
+          ],
           const SizedBox(height: 24),
           VehicleQuickActions(vehicleId: vehicle.id),
           const SizedBox(height: 24),
         ],
+      ),
+    );
+  }
+}
+
+/// The header card: title/description, a direct "Renew N expired" action when
+/// something has lapsed, and "Add document" — mirrors the web's top toolbar.
+class _DocumentsSummaryCard extends StatelessWidget {
+  const _DocumentsSummaryCard({
+    required this.vehicleId,
+    required this.hasValidPlate,
+    required this.expiredCount,
+    required this.onAddAny,
+  });
+
+  final String vehicleId;
+  final bool hasValidPlate;
+  final int expiredCount;
+  final VoidCallback onAddAny;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Vehicle documents',
+            style: TextStyle(
+              color: AppColors.ink,
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 3),
+          const Text(
+            "Manage this vehicle's legal documents and permits, organised by category.",
+            style: TextStyle(color: AppColors.muted, fontSize: 11.5, height: 1.4),
+          ),
+          const SizedBox(height: 14),
+          if (!hasValidPlate)
+            Container(
+              padding: const EdgeInsets.all(13),
+              decoration: BoxDecoration(
+                color: AppColors.orangeSoft,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFFC9B7)),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Document upload unavailable',
+                    style: TextStyle(
+                      color: AppColors.orangeDark,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    "This vehicle's plate number is a dealer or temporary plate and "
+                    'does not qualify for document management. Update the plate '
+                    'from Edit vehicle above once the permanent one is available.',
+                    style: TextStyle(color: AppColors.orangeDark, fontSize: 11, height: 1.4),
+                  ),
+                ],
+              ),
+            )
+          else
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                if (expiredCount > 0)
+                  FilledButton.icon(
+                    onPressed: () => context.push(
+                      '/more/renewals/new?vehicle=$vehicleId&preselect=expired',
+                    ),
+                    style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+                    icon: const Icon(Icons.autorenew_rounded, size: 17),
+                    label: Text(
+                      'Renew $expiredCount expired',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                OutlinedButton.icon(
+                  onPressed: onAddAny,
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Add document'),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyAllDocuments extends StatelessWidget {
+  const _EmptyAllDocuments();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 18),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border, style: BorderStyle.solid),
+      ),
+      child: const Text(
+        'No documents found for this vehicle.',
+        textAlign: TextAlign.center,
+        style: TextStyle(color: AppColors.muted, fontSize: 12.5),
       ),
     );
   }
@@ -866,6 +987,7 @@ class _DocumentSection extends StatelessWidget {
     required this.icon,
     required this.documents,
     required this.mutatingDocuments,
+    required this.vehicleId,
     required this.onAdd,
     required this.onView,
     required this.onAutoRenew,
@@ -877,6 +999,7 @@ class _DocumentSection extends StatelessWidget {
   final IconData icon;
   final List<VehicleDocument> documents;
   final Set<String> mutatingDocuments;
+  final String vehicleId;
   final VoidCallback? onAdd;
   final ValueChanged<VehicleDocument> onView;
   final void Function(VehicleDocument, bool) onAutoRenew;
@@ -893,12 +1016,14 @@ class _DocumentSection extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           // Green header — flush against the documents body below.
           Container(
             color: AppColors.forest700,
             padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Container(
                   width: 36,
@@ -913,9 +1038,12 @@ class _DocumentSection extends StatelessWidget {
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w900,
@@ -925,6 +1053,8 @@ class _DocumentSection extends StatelessWidget {
                       const SizedBox(height: 1),
                       Text(
                         description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: .78),
                           fontSize: 10,
@@ -964,6 +1094,7 @@ class _DocumentSection extends StatelessWidget {
             child: documents.isEmpty
                 ? _EmptyDocumentBody(title: title, onAdd: onAdd)
                 : Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: documents.indexed
                         .map(
                           (entry) => Padding(
@@ -972,6 +1103,7 @@ class _DocumentSection extends StatelessWidget {
                             ),
                             child: _DocumentTile(
                               document: entry.$2,
+                              vehicleId: vehicleId,
                               isMutating: mutatingDocuments.contains(entry.$2.id),
                               onView: () => onView(entry.$2),
                               onAutoRenew: (enabled) => onAutoRenew(entry.$2, enabled),
@@ -999,6 +1131,7 @@ class _EmptyDocumentBody extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             width: 48,
@@ -1041,9 +1174,13 @@ class _EmptyDocumentBody extends StatelessWidget {
   }
 }
 
+/// A single document row. The accent colour lives on the tile's own left
+/// border (not a separately-sized stripe widget), so it always matches the
+/// tile's real height exactly — no more height-mismatch artifacts.
 class _DocumentTile extends StatelessWidget {
   const _DocumentTile({
     required this.document,
+    required this.vehicleId,
     required this.isMutating,
     required this.onView,
     required this.onAutoRenew,
@@ -1051,6 +1188,7 @@ class _DocumentTile extends StatelessWidget {
   });
 
   final VehicleDocument document;
+  final String vehicleId;
   final bool isMutating;
   final VoidCallback onView;
   final ValueChanged<bool> onAutoRenew;
@@ -1073,125 +1211,170 @@ class _DocumentTile extends StatelessWidget {
             border: Border.all(color: AppColors.border),
           ),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(width: 4, height: 104, color: status.foreground),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(13, 13, 8, 11),
-                      child: Row(
+              Container(
+                decoration: BoxDecoration(
+                  border: Border(left: BorderSide(color: status.foreground, width: 4)),
+                ),
+                padding: const EdgeInsets.fromLTRB(11, 13, 12, 13),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: status.background,
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                      child: Icon(
+                        document.mimeType?.contains('pdf') == true
+                            ? Icons.picture_as_pdf_outlined
+                            : Icons.description_outlined,
+                        color: status.foreground,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 11),
+                    Expanded(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: status.background,
-                              borderRadius: BorderRadius.circular(11),
-                            ),
-                            child: Icon(
-                              document.mimeType?.contains('pdf') == true
-                                  ? Icons.picture_as_pdf_outlined
-                                  : Icons.description_outlined,
-                              color: status.foreground,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 11),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        document.name,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          color: AppColors.ink,
-                                          fontSize: 12,
-                                          height: 1.2,
-                                          fontWeight: FontWeight.w900,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: status.background,
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: Text(
-                                        document.statusLabel,
-                                        style: TextStyle(
-                                          color: status.foreground,
-                                          fontSize: 8,
-                                          fontWeight: FontWeight.w900,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                          Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 8,
+                            runSpacing: 4,
+                            children: [
+                              Text(
+                                document.name,
+                                style: const TextStyle(
+                                  color: AppColors.ink,
+                                  fontSize: 13,
+                                  height: 1.2,
+                                  fontWeight: FontWeight.w900,
                                 ),
-                                const SizedBox(height: 5),
-                                Text(
-                                  document.documentNumber?.isNotEmpty == true
-                                      ? 'No. ${document.documentNumber}'
-                                      : document.isRenewable
-                                      ? 'Document number not recorded'
-                                      : 'Permanent record on file',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: AppColors.muted,
-                                    fontSize: 9,
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: status.background,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  document.statusLabel,
+                                  style: TextStyle(
+                                    color: status.foreground,
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w900,
                                   ),
                                 ),
-                                const SizedBox(height: 7),
-                                Row(
-                                  children: [
-                                    Icon(
-                                      document.isRenewable
-                                          ? Icons.schedule_rounded
-                                          : Icons.lock_outline_rounded,
-                                      size: 13,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            document.documentNumber?.isNotEmpty == true
+                                ? 'No. ${document.documentNumber}'
+                                : document.isRenewable
+                                ? 'Document number not recorded'
+                                : 'Permanent record on file',
+                            style: const TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 10.5,
+                            ),
+                          ),
+                          if (document.isRenewable) ...[
+                            const SizedBox(height: 7),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.schedule_rounded, size: 13, color: status.foreground),
+                                const SizedBox(width: 5),
+                                Flexible(
+                                  child: Text(
+                                    _expiryText(document),
+                                    style: TextStyle(
                                       color: status.foreground,
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w800,
                                     ),
-                                    const SizedBox(width: 5),
-                                    Expanded(
-                                      child: Text(
-                                        document.isRenewable
-                                            ? _expiryText(document)
-                                            : document.hasFile
-                                            ? 'Secure copy attached'
-                                            : 'Details saved without a file',
-                                        style: TextStyle(
-                                          color: document.isRenewable
-                                              ? status.foreground
-                                              : AppColors.muted,
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                                  ),
                                 ),
                               ],
                             ),
-                          ),
+                            const SizedBox(height: 8),
+                            InkWell(
+                              onTap: isMutating ? null : () => onAutoRenew(!document.autoRenew),
+                              borderRadius: BorderRadius.circular(30),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 9,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: document.autoRenew
+                                      ? AppColors.forest50
+                                      : AppColors.canvas,
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    SizedBox(
+                                      width: 30,
+                                      height: 18,
+                                      child: Switch(
+                                        value: document.autoRenew,
+                                        onChanged: isMutating ? null : onAutoRenew,
+                                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      document.autoRenew ? 'Auto-renew on' : 'Auto-renew off',
+                                      style: TextStyle(
+                                        color: document.autoRenew
+                                            ? AppColors.forest700
+                                            : AppColors.muted,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ] else ...[
+                            const SizedBox(height: 7),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.lock_outline_rounded, size: 13, color: AppColors.muted),
+                                const SizedBox(width: 5),
+                                Flexible(
+                                  child: Text(
+                                    document.hasFile
+                                        ? 'Secure copy attached'
+                                        : 'Details saved without a file',
+                                    style: const TextStyle(color: AppColors.muted, fontSize: 10.5),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               Container(
                 padding: const EdgeInsets.fromLTRB(13, 8, 8, 8),
@@ -1199,86 +1382,43 @@ class _DocumentTile extends StatelessWidget {
                   color: Color(0xFFFAFCFB),
                   border: Border(top: BorderSide(color: AppColors.border)),
                 ),
-                child: Row(
-                  children: [
-                    if (document.isRenewable) ...[
-                      Expanded(
-                        child: InkWell(
-                          onTap: isMutating
-                              ? null
-                              : () => onAutoRenew(!document.autoRenew),
-                          borderRadius: BorderRadius.circular(10),
-                          child: Row(
-                            children: [
-                              SizedBox(
-                                width: 34,
-                                height: 22,
-                                child: Switch(
-                                  value: document.autoRenew,
-                                  onChanged: isMutating ? null : onAutoRenew,
-                                  materialTapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                ),
-                              ),
-                              const SizedBox(width: 7),
-                              Text(
-                                document.autoRenew
-                                    ? 'Auto-renew on'
-                                    : 'Auto-renew off',
-                                style: TextStyle(
-                                  color: document.autoRenew
-                                      ? AppColors.forest700
-                                      : AppColors.muted,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ],
+                child: isMutating
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 4),
+                        child: Center(
+                          child: SizedBox.square(
+                            dimension: 17,
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           ),
                         ),
-                      ),
-                    ] else
-                      const Spacer(),
-                    if (isMutating)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 12),
-                        child: SizedBox.square(
-                          dimension: 17,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
                       )
-                    else ...[
-                      TextButton.icon(
-                        onPressed: onView,
-                        icon: const Icon(Icons.visibility_outlined, size: 16),
-                        label: const Text('View'),
-                      ),
-                      PopupMenuButton<String>(
-                        tooltip: 'Document actions',
-                        onSelected: (action) {
-                          if (action == 'delete') onDelete();
-                        },
-                        itemBuilder: (context) => const [
-                          PopupMenuItem(
-                            value: 'delete',
-                            child: ListTile(
-                              dense: true,
-                              contentPadding: EdgeInsets.zero,
-                              leading: Icon(
-                                Icons.delete_outline_rounded,
-                                color: AppColors.danger,
+                    : Wrap(
+                        alignment: WrapAlignment.end,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 4,
+                        children: [
+                          if (document.isExpired)
+                            TextButton.icon(
+                              onPressed: () => context.push(
+                                '/more/renewals/new?vehicle=$vehicleId&preselect=expired',
                               ),
-                              title: Text(
-                                'Remove document',
-                                style: TextStyle(color: AppColors.danger),
-                              ),
+                              style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+                              icon: const Icon(Icons.autorenew_rounded, size: 16),
+                              label: const Text('Renew'),
                             ),
+                          TextButton.icon(
+                            onPressed: onView,
+                            icon: const Icon(Icons.visibility_outlined, size: 16),
+                            label: const Text('View'),
+                          ),
+                          IconButton(
+                            tooltip: 'Remove document',
+                            onPressed: onDelete,
+                            icon: const Icon(Icons.delete_outline_rounded, size: 19),
+                            color: AppColors.danger,
                           ),
                         ],
                       ),
-                    ],
-                  ],
-                ),
               ),
             ],
           ),

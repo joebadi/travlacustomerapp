@@ -118,14 +118,8 @@ class HomeScreen extends ConsumerWidget {
                     description: 'Shortcuts to the services people use most.',
                   ),
                   const SizedBox(height: 14),
-                  GridView.count(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 10,
-                    crossAxisSpacing: 10,
-                    childAspectRatio: 1.65,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: [
+                  _QuickAccessGrid(
+                    items: [
                       _QuickAccess(
                         icon: Icons.add_circle_outline_rounded,
                         label: 'Add a vehicle',
@@ -235,7 +229,11 @@ class _Hero extends StatelessWidget {
                     minimumSize: const Size.fromHeight(44),
                   ),
                   icon: const Icon(Icons.description_outlined, size: 18),
-                  label: const Text('Renew a document'),
+                  label: const Text(
+                    'Renew a document',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
               const SizedBox(width: 10),
@@ -248,7 +246,11 @@ class _Hero extends StatelessWidget {
                     minimumSize: const Size.fromHeight(44),
                   ),
                   icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('Add a vehicle'),
+                  label: const Text(
+                    'Add a vehicle',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
             ],
@@ -361,14 +363,33 @@ class _StatGrid extends StatelessWidget {
       ),
     ];
 
-    return GridView.count(
-      crossAxisCount: 2,
-      mainAxisSpacing: 10,
-      crossAxisSpacing: 10,
-      childAspectRatio: 1.45,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      children: tiles,
+    // A hand-rolled 2-column grid (IntrinsicHeight rows, no fixed aspect
+    // ratio) rather than GridView.count — GridView forces every cell into an
+    // exact height derived from childAspectRatio, and that height doesn't
+    // grow with the system font-scale setting, so long captions or a larger
+    // accessibility text size can overflow it. Letting each tile size to its
+    // own content makes that class of overflow impossible.
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < tiles.length; i += 2) ...[
+          if (i > 0) const SizedBox(height: 10),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: tiles[i]),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: i + 1 < tiles.length
+                      ? tiles[i + 1]
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -401,6 +422,7 @@ class _StatTile extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             width: 34,
@@ -411,7 +433,7 @@ class _StatTile extends StatelessWidget {
             ),
             child: Icon(icon, color: iconColor, size: 18),
           ),
-          const Spacer(),
+          const SizedBox(height: 14),
           Text(
             value,
             style: const TextStyle(
@@ -449,17 +471,48 @@ class _StatTile extends StatelessWidget {
 
 /// A donut chart of the fleet's document readiness (valid/expiring/expired)
 /// alongside a compact bar comparing the four dashboard counts — the
-/// "infographic" layer that makes the numbers legible at a glance.
-class _ReadinessSection extends StatelessWidget {
+/// "infographic" layer that makes the numbers legible at a glance. A chip
+/// filter lets the reader narrow the donut from "all vehicles" down to one.
+class _ReadinessSection extends StatefulWidget {
   const _ReadinessSection({required this.snapshot});
 
   final GarageSnapshot snapshot;
 
   @override
+  State<_ReadinessSection> createState() => _ReadinessSectionState();
+}
+
+class _ReadinessSectionState extends State<_ReadinessSection> {
+  String? _selectedVehicleId;
+
+  @override
   Widget build(BuildContext context) {
-    final valid = snapshot.validCount;
-    final expiring = snapshot.expiringCount;
-    final expired = snapshot.expiredCount;
+    final vehicles = widget.snapshot.vehicles;
+    final selected = _selectedVehicleId == null
+        ? null
+        : vehicles.where((v) => v.id == _selectedVehicleId).firstOrNull;
+    // Reset the filter if the selected vehicle disappeared (e.g. removed).
+    if (_selectedVehicleId != null && selected == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _selectedVehicleId = null);
+      });
+    }
+
+    final int valid;
+    final int expiring;
+    final int expired;
+    if (selected != null) {
+      expired = selected.expiredDocumentsCount;
+      expiring = selected.expiringSoonCount;
+      valid = (selected.documentsCount - expired - expiring).clamp(
+        0,
+        selected.documentsCount,
+      );
+    } else {
+      valid = widget.snapshot.validCount;
+      expiring = widget.snapshot.expiringCount;
+      expired = widget.snapshot.expiredCount;
+    }
     final total = valid + expiring + expired;
 
     return Container(
@@ -471,6 +524,7 @@ class _ReadinessSection extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           const Text(
             'Vehicle readiness',
@@ -482,9 +536,21 @@ class _ReadinessSection extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            '${snapshot.vehicles.length} vehicle${snapshot.vehicles.length == 1 ? '' : 's'} monitored',
+            selected != null
+                ? selected.displayName.isEmpty
+                      ? 'Selected vehicle'
+                      : selected.displayName
+                : '${vehicles.length} vehicle${vehicles.length == 1 ? '' : 's'} monitored',
             style: const TextStyle(color: AppColors.muted, fontSize: 11.5),
           ),
+          if (vehicles.length > 1) ...[
+            const SizedBox(height: 12),
+            _VehicleFilterRow(
+              vehicles: vehicles,
+              selectedId: _selectedVehicleId,
+              onSelect: (id) => setState(() => _selectedVehicleId = id),
+            ),
+          ],
           const SizedBox(height: 16),
           if (total == 0)
             const Padding(
@@ -585,6 +651,89 @@ class _ReadinessSection extends StatelessWidget {
               ],
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Horizontally scrollable "All vehicles" + per-vehicle chip filter for the
+/// readiness donut. Lives inside a fixed-height SingleChildScrollView, so it
+/// never competes with the Column above it for vertical space.
+class _VehicleFilterRow extends StatelessWidget {
+  const _VehicleFilterRow({
+    required this.vehicles,
+    required this.selectedId,
+    required this.onSelect,
+  });
+
+  final List<VehicleSummary> vehicles;
+  final String? selectedId;
+  final ValueChanged<String?> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 30,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: vehicles.length + 1,
+        separatorBuilder: (context, _) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return _FilterChip(
+              label: 'All vehicles',
+              selected: selectedId == null,
+              onTap: () => onSelect(null),
+            );
+          }
+          final vehicle = vehicles[index - 1];
+          return _FilterChip(
+            label: vehicle.displayName.isEmpty
+                ? (vehicle.plateNumber ?? 'Vehicle')
+                : vehicle.displayName,
+            selected: selectedId == vehicle.id,
+            onTap: () => onSelect(vehicle.id),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? AppColors.forest700 : AppColors.canvas,
+      borderRadius: BorderRadius.circular(30),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(30),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
+          child: Center(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: selected ? Colors.white : AppColors.ink,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -1492,6 +1641,41 @@ class _HomeTransferAlert extends StatelessWidget {
   }
 }
 
+/// A 2-column grid of [_QuickAccess] tiles sized to their own content via
+/// [IntrinsicHeight] — see the note on [_StatGrid] for why this replaces a
+/// fixed-aspect-ratio GridView.
+class _QuickAccessGrid extends StatelessWidget {
+  const _QuickAccessGrid({required this.items});
+
+  final List<_QuickAccess> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < items.length; i += 2) ...[
+          if (i > 0) const SizedBox(height: 10),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: items[i]),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: i + 1 < items.length
+                      ? items[i + 1]
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class _QuickAccess extends StatelessWidget {
   const _QuickAccess({
     required this.icon,
@@ -1518,6 +1702,8 @@ class _QuickAccess extends StatelessWidget {
               Expanded(
                 child: Text(
                   label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),

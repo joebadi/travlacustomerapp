@@ -229,6 +229,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                         path: 'new',
                         builder: (context, state) => NewRenewalScreen(
                           vehicleId: state.uri.queryParameters['vehicle'] ?? '',
+                          preselectExpired:
+                              state.uri.queryParameters['preselect'] ==
+                              'expired',
                         ),
                       ),
                       GoRoute(

@@ -12,9 +12,18 @@ import 'package:travla_customer_app/features/vehicles/domain/garage_snapshot.dar
 import 'package:travla_customer_app/features/wallet/data/wallet_repository.dart';
 
 class NewRenewalScreen extends ConsumerStatefulWidget {
-  const NewRenewalScreen({this.vehicleId = '', super.key});
+  const NewRenewalScreen({
+    this.vehicleId = '',
+    this.preselectExpired = false,
+    super.key,
+  });
 
   final String vehicleId;
+
+  /// When true (deep-linked from the Documents tab's "Renew N expired"
+  /// action), every already-expired eligible paper is auto-checked once the
+  /// renewable-documents list loads — mirrors the web's `preselect=expired`.
+  final bool preselectExpired;
 
   @override
   ConsumerState<NewRenewalScreen> createState() => _NewRenewalScreenState();
@@ -27,6 +36,7 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
   final Set<String> _selectedInsurancePolicies = {};
 
   late String _vehicleId;
+  bool _preselectApplied = false;
   int _step = 1;
   String _deliveryMethod = 'DELIVERY';
   String _city = '';
@@ -164,7 +174,9 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
             : 'Renewal eligibility could not be checked.',
         onRetry: () => ref.invalidate(renewableDocumentsProvider(_vehicleId)),
       ),
-      data: (items) => _StageCard(
+      data: (items) {
+        _applyExpiredPreselect(items);
+        return _StageCard(
         key: const ValueKey('documents'),
         eyebrow: 'STEP 2',
         title: 'Select papers to renew',
@@ -227,8 +239,31 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
             ),
           ],
         ),
-      ),
+      );
+      },
     );
+  }
+
+  /// Auto-checks already-expired eligible papers once, when this screen was
+  /// opened via a "Renew N expired" deep link. Guarded by [_preselectApplied]
+  /// so it only runs once and never fights the user's own selections.
+  void _applyExpiredPreselect(List<RenewableDocumentOption> items) {
+    if (!widget.preselectExpired || _preselectApplied) return;
+    final expiredIds = items
+        .where((item) => item.eligible && (item.daysToExpiry ?? 1) < 0)
+        .map((item) => item.id)
+        .toSet();
+    if (expiredIds.isEmpty) {
+      _preselectApplied = true;
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() {
+        _selectedDocuments.addAll(expiredIds);
+        _preselectApplied = true;
+      });
+    });
   }
 
   /// Renewable insurance policies for the chosen vehicle, offered as add-ons so
