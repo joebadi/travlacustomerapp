@@ -145,7 +145,7 @@ Items may be progressively enabled, but disabled placeholders must clearly say
 | Driver's-licence renewal | 🧪 | — | Licence list, add-licence (with document upload), eligibility-gated renewal with delivery/city/wallet quote and order handoff are coded. Hybrid card top-up remains. |
 | Ownership transfer | 🟡 | 🧪 | Managed/offline creation, records, detail timeline, consent, evidence, correction resubmission and permitted cancellation are coded; hybrid wallet top-up remains. |
 | Marketplace | 🟡 | 🧪 | Seller activation, owned-vehicle picker, eligibility-aware listing creation and seller listing summary are coded; browse, offers, wanted and settlement remain. |
-| Fleet | ⬜ | — | Backend/web complete; native mobile module pending. |
+| Fleet | 🟡 | — | Individual/fleet mode toggle (persisted) + fleet home (companies, invites accept, create company) + org overview (dashboard KPIs, members, vehicles). Deep management (invite member, assign vehicle/driver, fuel funding, cards, regions/drivers CRUD) still to build. (`lib/features/fleet/`) |
 | Journeys | 🟡 | — | Navigation placeholder; native GPS client is the main remaining work. |
 | Car Talk forum | 🧪 | — | Category filter + sort + thread list, thread detail with replies/like/delete, reply composer, new-thread create. (`lib/features/forum/`) |
 | Stolen vehicle registry | 🧪 | — | Report a theft, my-reports, report detail with owner actions (recover/close) + sightings (verify/dismiss), public plate check, and report-a-sighting (with photos). (`lib/features/stolen/`) |

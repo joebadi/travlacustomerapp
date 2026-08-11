@@ -24,6 +24,9 @@ import 'package:travla_customer_app/features/stolen/presentation/report_sighting
 import 'package:travla_customer_app/features/forum/presentation/forum_screen.dart';
 import 'package:travla_customer_app/features/forum/presentation/forum_thread_screen.dart';
 import 'package:travla_customer_app/features/forum/presentation/new_thread_screen.dart';
+import 'package:travla_customer_app/features/fleet/presentation/fleet_screen.dart';
+import 'package:travla_customer_app/features/fleet/presentation/create_org_screen.dart';
+import 'package:travla_customer_app/features/fleet/presentation/fleet_org_screen.dart';
 import 'package:travla_customer_app/features/insurance/presentation/add_policy_screen.dart';
 import 'package:travla_customer_app/features/insurance/presentation/buy_insurance_screen.dart';
 import 'package:travla_customer_app/features/insurance/presentation/insurance_screen.dart';
@@ -269,6 +272,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                                 ),
                           ),
                         ],
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: 'fleet',
+                    builder: (context, state) => const FleetScreen(),
+                    routes: [
+                      GoRoute(
+                        path: 'new',
+                        builder: (context, state) => const CreateOrgScreen(),
+                      ),
+                      GoRoute(
+                        path: ':orgId',
+                        builder: (context, state) => FleetOrgScreen(
+                          organisationId: state.pathParameters['orgId'] ?? '',
+                        ),
                       ),
                     ],
                   ),

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/auth/auth_controller.dart';
+import 'package:travla_customer_app/features/fleet/data/fleet_mode.dart';
 
 class MoreScreen extends ConsumerWidget {
   const MoreScreen({super.key});
@@ -12,6 +13,7 @@ class MoreScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authControllerProvider);
     final user = auth.user;
+    final fleetMode = ref.watch(fleetModeProvider);
 
     return Scaffold(
       appBar: const TravlaAppBar(),
@@ -62,6 +64,39 @@ class MoreScreen extends ConsumerWidget {
               ),
             ),
           ),
+          const SizedBox(height: 20),
+          Card(
+            child: SwitchListTile(
+              value: fleetMode,
+              activeThumbColor: AppColors.forest700,
+              onChanged: (v) => ref.read(fleetModeProvider.notifier).set(v),
+              secondary: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: fleetMode ? AppColors.forest700 : AppColors.forest50,
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: Icon(Icons.corporate_fare_rounded,
+                    color: fleetMode ? Colors.white : AppColors.forest700, size: 20),
+              ),
+              title: Text(fleetMode ? 'Fleet mode' : 'Individual mode',
+                  style: const TextStyle(fontWeight: FontWeight.w800)),
+              subtitle: Text(
+                fleetMode ? 'Manage your fleet companies' : 'Switch on to manage a fleet company',
+                style: const TextStyle(fontSize: 11.5),
+              ),
+            ),
+          ),
+          if (fleetMode) ...[
+            const SizedBox(height: 8),
+            _MoreTile(
+              icon: Icons.groups_2_outlined,
+              title: 'Fleet organisations',
+              subtitle: 'Companies, members, vehicles and fuel',
+              onTap: () => context.go('/more/fleet'),
+            ),
+          ],
           const SizedBox(height: 24),
           const _GroupLabel('SERVICES & RECORDS'),
           _MoreTile(
