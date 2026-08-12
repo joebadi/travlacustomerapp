@@ -110,6 +110,8 @@ class HomeScreen extends ConsumerWidget {
                     snapshot: notifications.asData?.value,
                     isLoading: notifications.isLoading,
                   ),
+                  const SizedBox(height: 22),
+                  const _FleetCtaBanner(),
                 ],
               ),
             ),
@@ -166,110 +168,6 @@ class _Hero extends StatelessWidget {
             'through to pickup or delivery.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: Colors.white.withValues(alpha: .68),
-            ),
-          ),
-          const SizedBox(height: 18),
-          const _HeroFleetCta(),
-        ],
-      ),
-    );
-  }
-}
-
-/// Premium fleet cross-sell that replaces the old renew/add buttons + wallet
-/// card in the hero — a warm, gold-tinted glass card on the dark gradient so
-/// it reads as a promotional CTA rather than another data widget.
-class _HeroFleetCta extends StatelessWidget {
-  const _HeroFleetCta();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.orange.withValues(alpha: .22),
-            Colors.white.withValues(alpha: .06),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.orange.withValues(alpha: .35)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.orange,
-                  borderRadius: BorderRadius.circular(13),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.orange.withValues(alpha: .4),
-                      blurRadius: 12,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.corporate_fare_rounded,
-                  color: Colors.white,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      'Manage vehicles as a fleet',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Create or join a company account for drivers, fuel, '
-                      'regions, and team access — built for businesses.',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: .75),
-                        fontSize: 11.5,
-                        height: 1.4,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: () => context.push('/more/fleet'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.orange,
-                foregroundColor: Colors.white,
-                minimumSize: const Size.fromHeight(42),
-              ),
-              icon: const Icon(Icons.arrow_forward_rounded, size: 17),
-              label: const Text(
-                'Explore Fleet',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
             ),
           ),
         ],
@@ -1446,3 +1344,116 @@ class _HomeTransferAlert extends StatelessWidget {
   }
 }
 
+
+/* ----------------------------- Fleet CTA banner ---------------------------- */
+
+/// Closing cross-sell at the very bottom of the dashboard — a dark, premium
+/// banner with a large decorative watermark icon, distinct from the white
+/// data cards above it so it reads as a deliberate final pitch rather than
+/// another section.
+class _FleetCtaBanner extends StatelessWidget {
+  const _FleetCtaBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.forest950, AppColors.forest700],
+        ),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Stack(
+        children: [
+          // Oversized watermark icon bleeding off the corner for visual depth.
+          Positioned(
+            right: -22,
+            top: -22,
+            child: Icon(
+              Icons.corporate_fare_rounded,
+              size: 140,
+              color: Colors.white.withValues(alpha: .06),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.orange.withValues(alpha: .18),
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(
+                      color: AppColors.orange.withValues(alpha: .4),
+                    ),
+                  ),
+                  child: const Text(
+                    'FOR BUSINESSES',
+                    style: TextStyle(
+                      color: AppColors.orange,
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Running more than one vehicle?',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
+                    height: 1.15,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Bring your fleet onto one dashboard — drivers, fuel, '
+                  'regions, live tracking, and team access, all in one place.',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: .72),
+                    fontSize: 12.5,
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () => context.push('/more/fleet'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: AppColors.forest950,
+                      minimumSize: const Size.fromHeight(46),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                    icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                    label: const Text(
+                      'Explore Fleet',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
