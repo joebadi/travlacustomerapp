@@ -29,7 +29,8 @@ import 'package:travla_customer_app/features/fleet/presentation/create_org_scree
 import 'package:travla_customer_app/features/fleet/presentation/fleet_org_screen.dart';
 import 'package:travla_customer_app/features/fleet/presentation/enrolment_requests_screen.dart';
 import 'package:travla_customer_app/features/fleet/presentation/request_enrolment_screen.dart';
-import 'package:travla_customer_app/features/insurance/presentation/add_policy_screen.dart';
+import 'package:travla_customer_app/features/insurance/domain/insurance_models.dart';
+import 'package:travla_customer_app/features/insurance/presentation/policy_form_screen.dart';
 import 'package:travla_customer_app/features/insurance/presentation/buy_insurance_screen.dart';
 import 'package:travla_customer_app/features/insurance/presentation/insurance_screen.dart';
 import 'package:travla_customer_app/features/insurance/presentation/new_insurance_renewal_screen.dart';
@@ -268,14 +269,38 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                         // in the vehicle detail page's Insurance tab — old
                         // links (bookmarks, stored notification action_urls)
                         // redirect there instead of a duplicate standalone page.
-                        redirect: (context, state) =>
-                            '/vehicles/${state.pathParameters['vehicleId'] ?? ''}?tab=insurance',
+                        //
+                        // IMPORTANT: a GoRoute's redirect also runs for every
+                        // child route match (go_router walks the whole matched
+                        // stack), so without the matchedLocation guard below
+                        // this redirect silently swallowed navigation to
+                        // add/buy/renew too — they'd bounce straight back to
+                        // the tab instead of opening their screen.
+                        redirect: (context, state) {
+                          if (state.matchedLocation != state.uri.path) {
+                            return null;
+                          }
+                          return '/vehicles/${state.pathParameters['vehicleId'] ?? ''}?tab=insurance';
+                        },
                         routes: [
                           GoRoute(
                             path: 'add',
-                            builder: (context, state) => AddPolicyScreen(
+                            builder: (context, state) => PolicyFormScreen(
                               vehicleId:
                                   state.pathParameters['vehicleId'] ?? '',
+                            ),
+                          ),
+                          GoRoute(
+                            // The policy is passed via `extra` since this is
+                            // always reached in-app from an already-loaded
+                            // policy list — no need to re-fetch by id.
+                            path: 'edit/:policyId',
+                            builder: (context, state) => PolicyFormScreen(
+                              vehicleId:
+                                  state.pathParameters['vehicleId'] ?? '',
+                              policy: state.extra is InsurancePolicy
+                                  ? state.extra as InsurancePolicy
+                                  : null,
                             ),
                           ),
                           GoRoute(

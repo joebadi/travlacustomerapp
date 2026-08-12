@@ -108,9 +108,45 @@ class InsuranceRepository {
     }
   }
 
-  Future<void> cancelPolicy(String policyId) async {
+  /// Edits a saved policy — including NIID-verified ones — and optionally
+  /// attaches/replaces its certificate. Sent as POST with `_method=PATCH`
+  /// (Laravel method-spoofing): PHP does not populate uploaded files for a
+  /// genuine multipart PATCH request, only POST, so a real PATCH verb would
+  /// silently drop the document. Mirrors the web's useUpdatePolicy exactly.
+  Future<InsurancePolicy> updatePolicy({
+    required String policyId,
+    String? insuranceCompanyId,
+    String? provider,
+    String? policyNumber,
+    String? coverageType,
+    String? startDate,
+    String? endDate,
+    int? premiumKobo,
+    int? excessKobo,
+    PlatformFile? document,
+  }) async {
     try {
-      await _apiClient.dio.post('/insurance/policies/$policyId/cancel');
+      final form = FormData.fromMap({
+        '_method': 'PATCH',
+        'insurance_company_id': ?insuranceCompanyId,
+        if (provider != null) 'provider': provider.trim(),
+        if (policyNumber != null) 'policy_number': policyNumber.trim(),
+        'coverage_type': ?coverageType,
+        'start_date': ?startDate,
+        'end_date': ?endDate,
+        'premium_kobo': ?premiumKobo,
+        'excess_kobo': ?excessKobo,
+        if (document?.path != null)
+          'document': await MultipartFile.fromFile(
+            document!.path!,
+            filename: document.name,
+          ),
+      });
+      final response = await _apiClient.dio.post<Map<String, dynamic>>(
+        '/insurance/policies/$policyId',
+        data: form,
+      );
+      return InsurancePolicy.fromJson(_dataMap(response.data));
     } on DioException catch (exception) {
       throw ApiFailure.fromDio(exception);
     }

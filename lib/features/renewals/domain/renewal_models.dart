@@ -90,6 +90,9 @@ class RenewalQuote {
     required this.items,
     required this.documentsKobo,
     required this.documentsNaira,
+    required this.insuranceItems,
+    required this.insuranceKobo,
+    required this.insuranceNaira,
     required this.deliveryFeeKobo,
     required this.deliveryFeeNaira,
     required this.totalKobo,
@@ -104,6 +107,9 @@ class RenewalQuote {
   final List<RenewalQuoteItem> items;
   final int documentsKobo;
   final String documentsNaira;
+  final List<RenewalInsuranceQuoteItem> insuranceItems;
+  final int insuranceKobo;
+  final String insuranceNaira;
   final int deliveryFeeKobo;
   final String deliveryFeeNaira;
   final int totalKobo;
@@ -114,11 +120,13 @@ class RenewalQuote {
   final int shortfallKobo;
   final String shortfallNaira;
 
-  bool get allEligible =>
-      items.isNotEmpty && items.every((item) => item.eligible);
+  /// Total line count across documents and insurance — used for the order
+  /// summary count and to tell an empty quote apart from a priced one.
+  int get itemCount => items.length + insuranceItems.length;
 
   factory RenewalQuote.fromJson(Map<String, dynamic> json) {
     final rawItems = json['items'];
+    final rawInsuranceItems = json['insurance_items'];
     return RenewalQuote(
       items: rawItems is List
           ? rawItems
@@ -129,6 +137,15 @@ class RenewalQuote {
           : const [],
       documentsKobo: _int(json['documents_kobo']),
       documentsNaira: json['documents_naira']?.toString() ?? '0.00',
+      insuranceItems: rawInsuranceItems is List
+          ? rawInsuranceItems
+                .map(_map)
+                .whereType<Map<String, dynamic>>()
+                .map(RenewalInsuranceQuoteItem.fromJson)
+                .toList(growable: false)
+          : const [],
+      insuranceKobo: _int(json['insurance_kobo']),
+      insuranceNaira: json['insurance_naira']?.toString() ?? '0.00',
       deliveryFeeKobo: _int(json['delivery_fee_kobo']),
       deliveryFeeNaira: json['delivery_fee_naira']?.toString() ?? '0.00',
       totalKobo: _int(json['total_kobo']),
@@ -138,6 +155,39 @@ class RenewalQuote {
       sufficientBalance: json['sufficient_balance'] == true,
       shortfallKobo: _int(json['shortfall_kobo']),
       shortfallNaira: json['shortfall_naira']?.toString() ?? '0.00',
+    );
+  }
+}
+
+/// An insurance line item riding in a papers order (agent method only) — a
+/// policy renewal or a new-policy buy, priced off the admin's configured
+/// Motor Insurance rate. Distinct from [RenewalQuoteItem] because the backend
+/// keys it by policy/coverage rather than a document type.
+class RenewalInsuranceQuoteItem {
+  const RenewalInsuranceQuoteItem({
+    required this.kind,
+    required this.label,
+    required this.eligible,
+    required this.reason,
+    required this.priceKobo,
+    required this.priceNaira,
+  });
+
+  final String kind; // 'renew' or 'buy'
+  final String label;
+  final bool eligible;
+  final String? reason;
+  final int priceKobo;
+  final String priceNaira;
+
+  factory RenewalInsuranceQuoteItem.fromJson(Map<String, dynamic> json) {
+    return RenewalInsuranceQuoteItem(
+      kind: json['kind']?.toString() ?? 'renew',
+      label: json['label']?.toString() ?? 'Insurance',
+      eligible: json['eligible'] == true,
+      reason: json['reason']?.toString(),
+      priceKobo: _int(json['price_kobo']),
+      priceNaira: json['price_naira']?.toString() ?? '0.00',
     );
   }
 }

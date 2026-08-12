@@ -10,10 +10,10 @@ import 'package:travla_customer_app/features/insurance/presentation/insurance_wi
 import 'package:travla_customer_app/features/vehicles/presentation/vehicle_quick_actions.dart';
 
 /// The Insurance tab inside the vehicle workspace — the SINGLE place for a
-/// vehicle's insurance (verification, saved policies, add/buy/renew/cancel).
-/// Rebuilt from scratch as one unified card (banner + list + actions) rather
-/// than several stacked cards, so the whole tab is a single, simply-laid-out
-/// block with no independent siblings that could ever visually collide.
+/// vehicle's insurance (verification, saved policies, add/buy/edit/renew).
+/// One unified card (banner + list + actions) rather than several stacked
+/// cards, so the whole tab is a single, simply-laid-out block with no
+/// independent siblings that could ever visually collide.
 class VehicleInsuranceTab extends ConsumerStatefulWidget {
   const VehicleInsuranceTab({super.key, required this.vehicleId});
 
@@ -44,38 +44,6 @@ class _VehicleInsuranceTabState extends ConsumerState<VehicleInsuranceTab> {
       _snack(failure.message);
     } finally {
       if (mounted) setState(() => _checking = false);
-    }
-  }
-
-  Future<void> _cancel(InsurancePolicy policy) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Cancel this policy?'),
-        content: Text(
-          'This marks ${policy.provider ?? 'the policy'} as cancelled in your '
-          'records. This does not contact the insurer.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Keep'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Cancel policy'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    try {
-      await ref.read(insuranceRepositoryProvider).cancelPolicy(policy.id);
-      ref.invalidate(vehicleInsuranceProvider(widget.vehicleId));
-      ref.invalidate(expiringPoliciesProvider);
-    } on ApiFailure catch (failure) {
-      _snack(failure.message);
     }
   }
 
@@ -120,8 +88,11 @@ class _VehicleInsuranceTabState extends ConsumerState<VehicleInsuranceTab> {
           policies: data.policies,
           checking: _checking,
           onCheckNow: _checkNow,
-          onCancelPolicy: _cancel,
           onViewDocument: _openDoc,
+          onEditPolicy: (policy) => context.push(
+            '/more/insurance/${widget.vehicleId}/edit/${policy.id}',
+            extra: policy,
+          ),
           onRenewPolicy: (policy) => context.push(
             '/more/insurance/${widget.vehicleId}/renew/${policy.id}',
           ),
@@ -163,8 +134,8 @@ class _InsuranceCard extends StatelessWidget {
     required this.policies,
     required this.checking,
     required this.onCheckNow,
-    required this.onCancelPolicy,
     required this.onViewDocument,
+    required this.onEditPolicy,
     required this.onRenewPolicy,
   });
 
@@ -172,8 +143,8 @@ class _InsuranceCard extends StatelessWidget {
   final List<InsurancePolicy> policies;
   final bool checking;
   final VoidCallback onCheckNow;
-  final ValueChanged<InsurancePolicy> onCancelPolicy;
   final ValueChanged<String?> onViewDocument;
+  final ValueChanged<InsurancePolicy> onEditPolicy;
   final ValueChanged<InsurancePolicy> onRenewPolicy;
 
   @override
@@ -247,10 +218,8 @@ class _InsuranceCard extends StatelessWidget {
                     if (i > 0) const Divider(height: 22),
                     _PolicyRow(
                       policy: policies[i],
-                      onCancel: policies[i].isActive
-                          ? () => onCancelPolicy(policies[i])
-                          : null,
                       onViewDocument: () => onViewDocument(policies[i].documentUrl),
+                      onEdit: () => onEditPolicy(policies[i]),
                       onRenew: policies[i].canRenew
                           ? () => onRenewPolicy(policies[i])
                           : null,
@@ -435,20 +404,21 @@ class _VerificationBanner extends StatelessWidget {
 class _PolicyRow extends StatelessWidget {
   const _PolicyRow({
     required this.policy,
-    required this.onCancel,
     required this.onViewDocument,
+    required this.onEdit,
     required this.onRenew,
   });
 
   final InsurancePolicy policy;
-  final VoidCallback? onCancel;
   final VoidCallback onViewDocument;
+  final VoidCallback onEdit;
   final VoidCallback? onRenew;
 
   @override
   Widget build(BuildContext context) {
     final tone = switch (policy.status) {
       'CANCELLED' => const (AppColors.muted, Color(0xFFEDF0EF)),
+      _ when policy.isPending => const (AppColors.orangeDark, Color(0xFFFFE9E1)),
       _ when policy.isExpired => const (AppColors.danger, Color(0xFFFFE3E1)),
       _ when (policy.daysToExpiry ?? 999) <= 30 => const (
         AppColors.orangeDark,
@@ -464,6 +434,8 @@ class _PolicyRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
+        // Header: name + status, then coverage/source chips underneath so
+        // the row groups cleanly instead of one crowded line.
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -479,6 +451,7 @@ class _PolicyRow extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
@@ -496,25 +469,64 @@ class _PolicyRow extends StatelessWidget {
             ),
           ],
         ),
-        if (policy.coverageLabel != null) ...[
-          const SizedBox(height: 2),
-          Text(
-            policy.coverageLabel!,
-            style: const TextStyle(color: AppColors.muted, fontSize: 11.5),
+        if (policy.coverageLabel != null || !policy.isPending) ...[
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              if (policy.coverageLabel != null)
+                _miniTag(policy.coverageLabel!, AppColors.muted, AppColors.canvas),
+              if (!policy.isPending)
+                policy.isVerified
+                    ? _miniTag('Verified', AppColors.forest700, const Color(0xFFDDF2E8))
+                    : _miniTag('Manual entry', AppColors.muted, AppColors.canvas),
+            ],
           ),
         ],
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 14,
-          runSpacing: 4,
-          children: [
-            _detail('Policy no.', policy.policyNumber ?? '—'),
-            _detail('Premium', '₦${policy.premiumNaira}'),
-            _detail('Excess', '₦${policy.excessNaira}'),
-            _detail('Cover', _period(policy)),
-          ],
-        ),
-        if (policy.hasDocument || onCancel != null || onRenew != null) ...[
+        const SizedBox(height: 10),
+        if (policy.isPending)
+          Container(
+            padding: const EdgeInsets.all(11),
+            decoration: BoxDecoration(
+              color: AppColors.canvas,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Text(
+              'An agent is procuring this policy — the certificate and dates '
+              'appear here once it is issued.',
+              style: TextStyle(color: AppColors.muted, fontSize: 11.5, height: 1.4),
+            ),
+          )
+        else ...[
+          // Details laid out as an even 2-column grid inside a light panel —
+          // reads as one arranged block instead of loosely wrapped facts.
+          Container(
+            padding: const EdgeInsets.all(11),
+            decoration: BoxDecoration(
+              color: AppColors.canvas,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: _detail('Policy no.', policy.policyNumber ?? '—')),
+                    Expanded(child: _detail('Cover period', _period(policy))),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: _detail('Premium', '₦${policy.premiumNaira}')),
+                    Expanded(child: _detail('Excess', '₦${policy.excessNaira}')),
+                  ],
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
@@ -533,18 +545,17 @@ class _PolicyRow extends StatelessWidget {
                   icon: const Icon(Icons.open_in_new_rounded, size: 14),
                   label: const Text('Certificate', style: TextStyle(fontSize: 11.5)),
                 ),
-              if (onCancel != null)
-                TextButton.icon(
-                  onPressed: onCancel,
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.danger,
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  icon: const Icon(Icons.cancel_outlined, size: 14),
-                  label: const Text('Cancel', style: TextStyle(fontSize: 11.5)),
+              TextButton.icon(
+                onPressed: onEdit,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.ink,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
+                icon: const Icon(Icons.edit_outlined, size: 14),
+                label: const Text('Edit', style: TextStyle(fontSize: 11.5)),
+              ),
               const Spacer(),
               if (onRenew != null)
                 FilledButton.icon(
@@ -557,12 +568,23 @@ class _PolicyRow extends StatelessWidget {
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   icon: const Icon(Icons.autorenew_rounded, size: 14),
-                  label: const Text('Renew', style: TextStyle(fontSize: 11.5)),
+                  label: const Text('Renew Policy', style: TextStyle(fontSize: 11.5)),
                 ),
             ],
           ),
         ],
       ],
+    );
+  }
+
+  Widget _miniTag(String label, Color fg, Color bg) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(30)),
+      child: Text(
+        label,
+        style: TextStyle(color: fg, fontSize: 10, fontWeight: FontWeight.w800),
+      ),
     );
   }
 
@@ -572,6 +594,7 @@ class _PolicyRow extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 9.5)),
+        const SizedBox(height: 1),
         Text(
           value,
           style: const TextStyle(

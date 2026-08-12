@@ -222,14 +222,20 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
                 Expanded(
                   flex: 2,
                   child: FilledButton(
-                    onPressed: _selectedDocuments.isEmpty
+                    // Insurance-only selections must also unlock Continue —
+                    // this used to check documents alone while the label
+                    // below already counted both.
+                    onPressed:
+                        _selectedDocuments.isEmpty &&
+                            _selectedInsurancePolicies.isEmpty
                         ? null
                         : () => setState(() {
                             _step = 3;
                             _error = null;
                           }),
                     child: Text(
-                      _selectedDocuments.isEmpty
+                      _selectedDocuments.isEmpty &&
+                              _selectedInsurancePolicies.isEmpty
                           ? 'Select a paper'
                           : 'Continue with ${_selectedDocuments.length + _selectedInsurancePolicies.length}',
                     ),
@@ -538,7 +544,7 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                '${vehicle?.displayName ?? 'Vehicle'} · ${quote.items.length} paper${quote.items.length == 1 ? '' : 's'}',
+                '${vehicle?.displayName ?? 'Vehicle'} · ${quote.itemCount} item${quote.itemCount == 1 ? '' : 's'}',
                 style: const TextStyle(color: Color(0xFFBBD8CD), fontSize: 10),
               ),
             ],
@@ -548,6 +554,13 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
         ...quote.items.map(
           (item) => _PriceLine(
             label: item.name,
+            value: '₦${_money(item.priceNaira)}',
+            error: item.eligible ? null : item.reason,
+          ),
+        ),
+        ...quote.insuranceItems.map(
+          (item) => _PriceLine(
+            label: item.label,
             value: '₦${_money(item.priceNaira)}',
             error: item.eligible ? null : item.reason,
           ),
@@ -614,7 +627,11 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
             const SizedBox(width: 10),
             Expanded(
               flex: 2,
-              child: quote.sufficientBalance && quote.allEligible
+              // Gate purely on wallet balance, matching the web wizard — the
+              // selection step already only lets eligible items be checked,
+              // so by the quote step everything picked was eligible; the
+              // backend re-validates on submit regardless.
+              child: quote.sufficientBalance
                   ? FilledButton.icon(
                       onPressed: _submitting ? null : _submit,
                       style: FilledButton.styleFrom(
@@ -636,15 +653,9 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
                       ),
                     )
                   : FilledButton.icon(
-                      onPressed: quote.sufficientBalance
-                          ? null
-                          : _fundShortfall,
+                      onPressed: _fundShortfall,
                       icon: const Icon(Icons.add_card_rounded),
-                      label: Text(
-                        quote.sufficientBalance
-                            ? 'Resolve eligibility'
-                            : 'Fund ₦${_money(quote.shortfallNaira)}',
-                      ),
+                      label: Text('Fund ₦${_money(quote.shortfallNaira)}'),
                     ),
             ),
           ],

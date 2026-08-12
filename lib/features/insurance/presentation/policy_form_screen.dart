@@ -8,16 +8,23 @@ import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/insurance/data/insurance_repository.dart';
 import 'package:travla_customer_app/features/insurance/domain/insurance_models.dart';
 
-class AddPolicyScreen extends ConsumerStatefulWidget {
-  const AddPolicyScreen({super.key, required this.vehicleId});
+/// Add a policy, or edit one already on file — including a NIID-verified
+/// policy the auto-check found, which can still be corrected and given a
+/// certificate. Dual-purpose so the two flows share one well-tested form
+/// instead of drifting apart, mirroring the web's single PolicyModal.
+class PolicyFormScreen extends ConsumerStatefulWidget {
+  const PolicyFormScreen({super.key, required this.vehicleId, this.policy});
 
   final String vehicleId;
 
+  /// Null in create mode; the existing policy when editing.
+  final InsurancePolicy? policy;
+
   @override
-  ConsumerState<AddPolicyScreen> createState() => _AddPolicyScreenState();
+  ConsumerState<PolicyFormScreen> createState() => _PolicyFormScreenState();
 }
 
-class _AddPolicyScreenState extends ConsumerState<AddPolicyScreen> {
+class _PolicyFormScreenState extends ConsumerState<PolicyFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _providerCtrl = TextEditingController();
   final _policyNumberCtrl = TextEditingController();
@@ -32,7 +39,24 @@ class _AddPolicyScreenState extends ConsumerState<AddPolicyScreen> {
   DateTime? _endDate;
   PlatformFile? _document;
   bool _submitting = false;
+  bool _prefilled = false;
   String? _error;
+
+  bool get _editing => widget.policy != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final policy = widget.policy;
+    if (policy != null) {
+      _policyNumberCtrl.text = policy.policyNumber ?? '';
+      _coverageType = policy.coverageType;
+      _startDate = DateTime.tryParse(policy.startDate ?? '');
+      _endDate = DateTime.tryParse(policy.endDate ?? '');
+      if (policy.premiumNaira != '0.00') _premiumCtrl.text = policy.premiumNaira;
+      if (policy.excessNaira != '0.00') _excessCtrl.text = policy.excessNaira;
+    }
+  }
 
   @override
   void dispose() {
@@ -41,6 +65,29 @@ class _AddPolicyScreenState extends ConsumerState<AddPolicyScreen> {
     _premiumCtrl.dispose();
     _excessCtrl.dispose();
     super.dispose();
+  }
+
+  /// One-shot: once insurers load, match the policy's provider name to a
+  /// known insurer so the dropdown pre-selects instead of defaulting to
+  /// "Other" for every editable policy, including NIID-found ones.
+  void _prefillInsurer(List<InsuranceCompany> insurers) {
+    if (_prefilled || !_editing || insurers.isEmpty) return;
+    _prefilled = true;
+    final providerName = widget.policy?.provider?.trim() ?? '';
+    final match = insurers
+        .where((c) => c.name.toLowerCase() == providerName.toLowerCase())
+        .firstOrNull;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() {
+        if (match != null) {
+          _insurerId = match.id;
+        } else if (providerName.isNotEmpty) {
+          _insurerId = _otherInsurer;
+          _providerCtrl.text = providerName;
+        }
+      });
+    });
   }
 
   bool get _isOther => _insurerId == _otherInsurer;
@@ -106,24 +153,41 @@ class _AddPolicyScreenState extends ConsumerState<AddPolicyScreen> {
 
     setState(() => _submitting = true);
     try {
-      await ref.read(insuranceRepositoryProvider).addPolicy(
-            vehicleId: widget.vehicleId,
-            insuranceCompanyId: companyId,
-            provider: provider,
-            policyNumber: _policyNumberCtrl.text,
-            coverageType: _coverageType!,
-            startDate: _ymd(_startDate!),
-            endDate: _ymd(_endDate!),
-            premiumKobo: _kobo(_premiumCtrl.text),
-            excessKobo: _kobo(_excessCtrl.text),
-            document: _document,
-          );
+      if (_editing) {
+        await ref.read(insuranceRepositoryProvider).updatePolicy(
+              policyId: widget.policy!.id,
+              insuranceCompanyId: companyId,
+              provider: provider,
+              policyNumber: _policyNumberCtrl.text,
+              coverageType: _coverageType!,
+              startDate: _ymd(_startDate!),
+              endDate: _ymd(_endDate!),
+              premiumKobo: _kobo(_premiumCtrl.text),
+              excessKobo: _kobo(_excessCtrl.text),
+              document: _document,
+            );
+      } else {
+        await ref.read(insuranceRepositoryProvider).addPolicy(
+              vehicleId: widget.vehicleId,
+              insuranceCompanyId: companyId,
+              provider: provider,
+              policyNumber: _policyNumberCtrl.text,
+              coverageType: _coverageType!,
+              startDate: _ymd(_startDate!),
+              endDate: _ymd(_endDate!),
+              premiumKobo: _kobo(_premiumCtrl.text),
+              excessKobo: _kobo(_excessCtrl.text),
+              document: _document,
+            );
+      }
       ref.invalidate(vehicleInsuranceProvider(widget.vehicleId));
       ref.invalidate(expiringPoliciesProvider);
       if (!mounted) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('Policy added.')));
+        ..showSnackBar(
+          SnackBar(content: Text(_editing ? 'Policy updated.' : 'Policy added.')),
+        );
       context.pop();
     } on ApiFailure catch (failure) {
       if (mounted) setState(() => _error = failure.message);
@@ -136,10 +200,11 @@ class _AddPolicyScreenState extends ConsumerState<AddPolicyScreen> {
   Widget build(BuildContext context) {
     final insurersAsync = ref.watch(insurersProvider);
     final insurers = insurersAsync.value ?? const <InsuranceCompany>[];
+    _prefillInsurer(insurers);
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
-      appBar: AppBar(title: const Text('Add insurance policy')),
+      appBar: AppBar(title: Text(_editing ? 'Edit insurance policy' : 'Add insurance policy')),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -259,6 +324,7 @@ class _AddPolicyScreenState extends ConsumerState<AddPolicyScreen> {
             const SizedBox(height: 14),
             _DocumentPicker(
               file: _document,
+              hasExisting: widget.policy?.hasDocument ?? false,
               onPick: _pickDocument,
               onClear: () => setState(() => _document = null),
             ),
@@ -277,7 +343,7 @@ class _AddPolicyScreenState extends ConsumerState<AddPolicyScreen> {
                         color: Colors.white,
                       ),
                     )
-                  : const Text('Save policy'),
+                  : Text(_editing ? 'Save changes' : 'Save policy'),
             ),
           ],
         ),
@@ -320,16 +386,29 @@ class _DateTile extends StatelessWidget {
 class _DocumentPicker extends StatelessWidget {
   const _DocumentPicker({
     required this.file,
+    required this.hasExisting,
     required this.onPick,
     required this.onClear,
   });
 
   final PlatformFile? file;
+  final bool hasExisting;
   final VoidCallback onPick;
   final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
+    final title = file != null
+        ? file!.name
+        : hasExisting
+        ? 'Certificate on file'
+        : 'Certificate (optional)';
+    final subtitle = file != null
+        ? 'PDF, JPG or PNG · up to 8MB'
+        : hasExisting
+        ? 'Attach a new file to replace it'
+        : 'PDF, JPG or PNG · up to 8MB';
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -346,21 +425,21 @@ class _DocumentPicker extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  file == null ? 'Certificate (optional)' : file!.name,
+                  title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 2),
-                const Text(
-                  'PDF, JPG or PNG · up to 8MB',
-                  style: TextStyle(color: AppColors.muted, fontSize: 11),
-                ),
+                Text(subtitle, style: const TextStyle(color: AppColors.muted, fontSize: 11)),
               ],
             ),
           ),
           file == null
-              ? TextButton(onPressed: onPick, child: const Text('Attach'))
+              ? TextButton(
+                  onPressed: onPick,
+                  child: Text(hasExisting ? 'Replace' : 'Attach'),
+                )
               : IconButton(
                   onPressed: onClear,
                   icon: const Icon(Icons.close_rounded),
