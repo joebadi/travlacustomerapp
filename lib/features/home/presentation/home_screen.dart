@@ -470,25 +470,35 @@ class _ReadinessSectionState extends State<_ReadinessSection> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (vehicles.isNotEmpty) ...[
-                  _VehicleFilterRow(
-                    vehicles: vehicles,
-                    selectedId: _selectedVehicleId,
-                    onSelect: (id) => setState(() => _selectedVehicleId = id),
-                  ),
-                  const SizedBox(height: 8),
-                  InkWell(
-                    onTap: () => context.go('/vehicles'),
-                    borderRadius: BorderRadius.circular(8),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 2),
-                      child: Text(
-                        'Manage vehicles →',
-                        style: TextStyle(
-                          color: AppColors.forest700,
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w800,
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _VehicleFilterDropdown(
+                          vehicles: vehicles,
+                          selectedId: _selectedVehicleId,
+                          onSelect: (id) =>
+                              setState(() => _selectedVehicleId = id),
                         ),
-                      ),
+                        const SizedBox(height: 6),
+                        InkWell(
+                          onTap: () => context.go('/vehicles'),
+                          borderRadius: BorderRadius.circular(8),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 2),
+                            child: Text(
+                              'Manage vehicles →',
+                              style: TextStyle(
+                                color: AppColors.forest700,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -600,11 +610,10 @@ class _ReadinessSectionState extends State<_ReadinessSection> {
   }
 }
 
-/// Horizontally scrollable "All vehicles" + per-vehicle chip filter for the
-/// readiness donut. Lives inside a fixed-height SingleChildScrollView, so it
-/// never competes with the Column above it for vertical space.
-class _VehicleFilterRow extends StatelessWidget {
-  const _VehicleFilterRow({
+/// A compact, right-aligned "All vehicles" + per-vehicle dropdown filter for
+/// the readiness donut — replaces the earlier horizontal chip row.
+class _VehicleFilterDropdown extends StatelessWidget {
+  const _VehicleFilterDropdown({
     required this.vehicles,
     required this.selectedId,
     required this.onSelect,
@@ -616,67 +625,44 @@ class _VehicleFilterRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 30,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: vehicles.length + 1,
-        separatorBuilder: (context, _) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          if (index == 0) {
-            return _FilterChip(
-              label: 'All vehicles',
-              selected: selectedId == null,
-              onTap: () => onSelect(null),
-            );
-          }
-          final vehicle = vehicles[index - 1];
-          return _FilterChip(
-            label: vehicle.displayName.isEmpty
-                ? (vehicle.plateNumber ?? 'Vehicle')
-                : vehicle.displayName,
-            selected: selectedId == vehicle.id,
-            onTap: () => onSelect(vehicle.id),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: selected ? AppColors.forest700 : AppColors.canvas,
-      borderRadius: BorderRadius.circular(30),
-      child: InkWell(
-        onTap: onTap,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.canvas,
         borderRadius: BorderRadius.circular(30),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
-          child: Center(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: selected ? Colors.white : AppColors.ink,
-                fontSize: 11.5,
-                fontWeight: FontWeight.w800,
+        border: Border.all(color: AppColors.border),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String?>(
+          value: selectedId,
+          isDense: true,
+          alignment: Alignment.centerRight,
+          icon: const Icon(
+            Icons.keyboard_arrow_down_rounded,
+            size: 18,
+            color: AppColors.muted,
+          ),
+          style: const TextStyle(
+            color: AppColors.ink,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
+          items: [
+            const DropdownMenuItem(value: null, child: Text('All vehicles')),
+            ...vehicles.map(
+              (vehicle) => DropdownMenuItem(
+                value: vehicle.id,
+                child: Text(
+                  vehicle.displayName.isEmpty
+                      ? (vehicle.plateNumber ?? 'Vehicle')
+                      : vehicle.displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ),
-          ),
+          ],
+          onChanged: onSelect,
         ),
       ),
     );
