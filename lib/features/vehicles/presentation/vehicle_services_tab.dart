@@ -32,12 +32,6 @@ class VehicleServicesTab extends ConsumerWidget {
         data: (data) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _ServicesHero(
-              vehicle: vehicle,
-              serviceCount: data.catalogue.length,
-              activeOrders: data.activeOrders,
-            ),
-            const SizedBox(height: 20),
             const _Heading(
               eyebrow: 'AVAILABLE NOW',
               title: 'Choose a service',
@@ -423,101 +417,6 @@ class _OrderServiceSheetState extends ConsumerState<_OrderServiceSheet> {
       if (mounted) setState(() => _saving = false);
     }
   }
-}
-
-class _ServicesHero extends StatelessWidget {
-  const _ServicesHero({
-    required this.vehicle,
-    required this.serviceCount,
-    required this.activeOrders,
-  });
-  final VehicleDetail vehicle;
-  final int serviceCount;
-  final int activeOrders;
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(18),
-    decoration: BoxDecoration(
-      color: AppColors.forest950,
-      borderRadius: BorderRadius.circular(18),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'VEHICLE CARE DESK',
-          style: TextStyle(
-            color: AppColors.orange,
-            fontSize: 9,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 1,
-          ),
-        ),
-        const SizedBox(height: 7),
-        Text(
-          'Services built around this vehicle.',
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(color: AppColors.white),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Order for ${vehicle.displayName}, understand the fee and follow fulfilment from one place.',
-          style: const TextStyle(
-            color: Color(0xAFFFFFFF),
-            fontSize: 11,
-            height: 1.45,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            _HeroMetric(value: serviceCount, label: 'Services'),
-            const SizedBox(width: 8),
-            _HeroMetric(value: activeOrders, label: 'Active orders'),
-          ],
-        ),
-      ],
-    ),
-  );
-}
-
-class _HeroMetric extends StatelessWidget {
-  const _HeroMetric({required this.value, required this.label});
-  final int value;
-  final String label;
-  @override
-  Widget build(BuildContext context) => Expanded(
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: .07),
-        borderRadius: BorderRadius.circular(11),
-        border: Border.all(color: Colors.white.withValues(alpha: .09)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '$value',
-            style: const TextStyle(
-              color: AppColors.white,
-              fontSize: 21,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          Text(
-            label.toUpperCase(),
-            style: const TextStyle(
-              color: Color(0x77FFFFFF),
-              fontSize: 8,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
 }
 
 class _Heading extends StatelessWidget {

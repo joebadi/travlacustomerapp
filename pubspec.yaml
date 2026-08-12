@@ -50,6 +50,7 @@ dependencies:
   geolocator: ^14.0.2
   flutter_foreground_task: ^10.0.0
   fl_chart: ^1.1.1
+  pdfx: ^2.9.2
 
 dev_dependencies:
   flutter_test:

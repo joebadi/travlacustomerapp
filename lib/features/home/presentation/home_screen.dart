@@ -16,13 +16,11 @@ import 'package:travla_customer_app/features/renewals/data/renewal_repository.da
 import 'package:travla_customer_app/features/renewals/domain/renewal_models.dart';
 import 'package:travla_customer_app/features/vehicles/data/garage_repository.dart';
 import 'package:travla_customer_app/features/vehicles/domain/garage_snapshot.dart';
-import 'package:travla_customer_app/shared/widgets/section_heading.dart';
 import 'package:travla_customer_app/shared/widgets/travla_logo.dart';
 
 /// Home dashboard — mirrors the web dashboard's information architecture:
-/// hero + wallet, KPI tiles, a readiness donut + at-a-glance bars, "needs
-/// attention" and "renewals in progress" panels, quick actions, a garage
-/// preview, latest updates, and a fleet cross-sell.
+/// hero + fleet cross-sell, KPI tiles, a readiness donut + at-a-glance bars,
+/// "needs attention" and "renewals in progress" panels, and latest updates.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -107,40 +105,7 @@ class HomeScreen extends ConsumerWidget {
                   const SizedBox(height: 14),
                   _RenewalsInProgressCard(renewals: activeRenewals),
 
-                  const SizedBox(height: 26),
-                  const SectionHeading(
-                    title: 'Start something',
-                    description: 'Shortcuts to the services people use most.',
-                  ),
-                  const SizedBox(height: 14),
-                  _QuickAccessGrid(
-                    items: [
-                      _QuickAccess(
-                        icon: Icons.add_circle_outline_rounded,
-                        label: 'Add a vehicle',
-                        onTap: () => context.go('/vehicles/add-existing'),
-                      ),
-                      _QuickAccess(
-                        icon: Icons.badge_outlined,
-                        label: 'Manage your licence',
-                        onTap: () => context.go('/more/drivers-license'),
-                      ),
-                      _QuickAccess(
-                        icon: Icons.assignment_add,
-                        label: 'Register a new vehicle',
-                        onTap: () => context.go('/vehicles/register-new'),
-                      ),
-                      _QuickAccess(
-                        icon: Icons.storefront_outlined,
-                        label: 'Browse marketplace',
-                        onTap: () => context.go('/more/marketplace'),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 26),
-                  _YourGarageCard(vehicles: snapshot?.vehicles ?? const []),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 22),
                   _LatestUpdatesCard(
                     snapshot: notifications.asData?.value,
                     isLoading: notifications.isLoading,
@@ -307,6 +272,71 @@ class _HeroFleetCta extends StatelessWidget {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shared green-gradient title bar for every dashboard section card — flush
+/// against the white body below (no gap), so each section reads as header +
+/// content the same way the vehicle Documents tab's sections do.
+class _SectionHeaderBar extends StatelessWidget {
+  const _SectionHeaderBar({
+    required this.title,
+    this.subtitle,
+    this.trailing,
+  });
+
+  final String title;
+  final String? subtitle;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 13, 14, 13),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.forest700, AppColors.forest950],
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: .72),
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (trailing != null) ...[const SizedBox(width: 8), trailing!],
         ],
       ),
     );
@@ -518,140 +548,154 @@ class _ReadinessSectionState extends State<_ReadinessSection> {
     final total = valid + expiring + expired;
 
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.border),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
-            'Vehicle readiness',
-            style: TextStyle(
-              color: AppColors.ink,
-              fontSize: 14.5,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            selected != null
+          _SectionHeaderBar(
+            title: 'Vehicle readiness',
+            subtitle: selected != null
                 ? selected.displayName.isEmpty
                       ? 'Selected vehicle'
                       : selected.displayName
                 : '${vehicles.length} vehicle${vehicles.length == 1 ? '' : 's'} monitored',
-            style: const TextStyle(color: AppColors.muted, fontSize: 11.5),
           ),
-          if (vehicles.length > 1) ...[
-            const SizedBox(height: 12),
-            _VehicleFilterRow(
-              vehicles: vehicles,
-              selectedId: _selectedVehicleId,
-              onSelect: (id) => setState(() => _selectedVehicleId = id),
-            ),
-          ],
-          const SizedBox(height: 16),
-          if (total == 0)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                'Add papers to a vehicle to see its readiness here.',
-                style: TextStyle(color: AppColors.muted, fontSize: 12),
-              ),
-            )
-          else
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(
-                  width: 108,
-                  height: 108,
-                  child: Stack(
-                    alignment: Alignment.center,
+                if (vehicles.isNotEmpty) ...[
+                  _VehicleFilterRow(
+                    vehicles: vehicles,
+                    selectedId: _selectedVehicleId,
+                    onSelect: (id) => setState(() => _selectedVehicleId = id),
+                  ),
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: () => context.go('/vehicles'),
+                    borderRadius: BorderRadius.circular(8),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 2),
+                      child: Text(
+                        'Manage vehicles →',
+                        style: TextStyle(
+                          color: AppColors.forest700,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                if (total == 0)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      'Add papers to a vehicle to see its readiness here.',
+                      style: TextStyle(color: AppColors.muted, fontSize: 12),
+                    ),
+                  )
+                else
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      PieChart(
-                        PieChartData(
-                          sectionsSpace: 2,
-                          centerSpaceRadius: 34,
-                          startDegreeOffset: -90,
-                          sections: [
-                            if (valid > 0)
-                              PieChartSectionData(
-                                value: valid.toDouble(),
-                                color: AppColors.forest600,
-                                showTitle: false,
-                                radius: 18,
+                      SizedBox(
+                        width: 108,
+                        height: 108,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            PieChart(
+                              PieChartData(
+                                sectionsSpace: 2,
+                                centerSpaceRadius: 34,
+                                startDegreeOffset: -90,
+                                sections: [
+                                  if (valid > 0)
+                                    PieChartSectionData(
+                                      value: valid.toDouble(),
+                                      color: AppColors.forest600,
+                                      showTitle: false,
+                                      radius: 18,
+                                    ),
+                                  if (expiring > 0)
+                                    PieChartSectionData(
+                                      value: expiring.toDouble(),
+                                      color: AppColors.orange,
+                                      showTitle: false,
+                                      radius: 18,
+                                    ),
+                                  if (expired > 0)
+                                    PieChartSectionData(
+                                      value: expired.toDouble(),
+                                      color: AppColors.danger,
+                                      showTitle: false,
+                                      radius: 18,
+                                    ),
+                                ],
                               ),
-                            if (expiring > 0)
-                              PieChartSectionData(
-                                value: expiring.toDouble(),
-                                color: AppColors.orange,
-                                showTitle: false,
-                                radius: 18,
-                              ),
-                            if (expired > 0)
-                              PieChartSectionData(
-                                value: expired.toDouble(),
-                                color: AppColors.danger,
-                                showTitle: false,
-                                radius: 18,
-                              ),
+                            ),
+                            Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  '$total',
+                                  style: const TextStyle(
+                                    color: AppColors.ink,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                const Text(
+                                  'papers',
+                                  style: TextStyle(
+                                    color: AppColors.muted,
+                                    fontSize: 9.5,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
                         ),
                       ),
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '$total',
-                            style: const TextStyle(
-                              color: AppColors.ink,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
+                      const SizedBox(width: 18),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _LegendRow(
+                              color: AppColors.forest600,
+                              label: 'Up to date',
+                              value: valid,
                             ),
-                          ),
-                          const Text(
-                            'papers',
-                            style: TextStyle(
-                              color: AppColors.muted,
-                              fontSize: 9.5,
+                            const SizedBox(height: 9),
+                            _LegendRow(
+                              color: AppColors.orange,
+                              label: 'Expiring',
+                              value: expiring,
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 9),
+                            _LegendRow(
+                              color: AppColors.danger,
+                              label: 'Expired',
+                              value: expired,
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(width: 18),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _LegendRow(
-                        color: AppColors.forest600,
-                        label: 'Up to date',
-                        value: valid,
-                      ),
-                      const SizedBox(height: 9),
-                      _LegendRow(
-                        color: AppColors.orange,
-                        label: 'Expiring',
-                        value: expiring,
-                      ),
-                      const SizedBox(height: 9),
-                      _LegendRow(
-                        color: AppColors.danger,
-                        label: 'Expired',
-                        value: expired,
-                      ),
-                    ],
-                  ),
-                ),
               ],
             ),
+          ),
         ],
       ),
     );
@@ -856,86 +900,79 @@ class _NeedsAttentionCard extends StatelessWidget {
     final shown = items.take(4).toList(growable: false);
 
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.border),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Needs your attention',
-                      style: TextStyle(
-                        color: AppColors.ink,
-                        fontSize: 14.5,
+          _SectionHeaderBar(
+            title: 'Needs your attention',
+            subtitle: 'Upcoming expiries and time-sensitive tasks.',
+            trailing: shown.isEmpty
+                ? null
+                : Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: .18),
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    child: Text(
+                      '${items.length}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Upcoming expiries and time-sensitive tasks.',
-                      style: TextStyle(color: AppColors.muted, fontSize: 11),
-                    ),
-                  ],
-                ),
-              ),
-              if (shown.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.orangeSoft,
-                    borderRadius: BorderRadius.circular(30),
                   ),
-                  child: Text(
-                    '${items.length}',
-                    style: const TextStyle(
-                      color: AppColors.orangeDark,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-            ],
           ),
-          const SizedBox(height: 12),
-          if (shown.isEmpty)
-            Row(
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: AppColors.forest50,
-                    borderRadius: BorderRadius.circular(10),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: shown.isEmpty
+                ? Row(
+                    children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: AppColors.forest50,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.check_circle_outline_rounded,
+                          color: AppColors.forest700,
+                          size: 18,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'Nothing needs attention right now.',
+                          style: TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 12.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (var i = 0; i < shown.length; i++) ...[
+                        if (i > 0) const Divider(height: 22),
+                        _AttentionRow(item: shown[i]),
+                      ],
+                    ],
                   ),
-                  child: const Icon(
-                    Icons.check_circle_outline_rounded,
-                    color: AppColors.forest700,
-                    size: 18,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Text(
-                    'Nothing needs attention right now.',
-                    style: TextStyle(color: AppColors.muted, fontSize: 12.5),
-                  ),
-                ),
-              ],
-            )
-          else
-            for (var i = 0; i < shown.length; i++) ...[
-              if (i > 0) const Divider(height: 22),
-              _AttentionRow(item: shown[i]),
-            ],
+          ),
         ],
       ),
     );
@@ -1018,99 +1055,89 @@ class _RenewalsInProgressCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.border),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Renewals in progress',
-                      style: TextStyle(
-                        color: AppColors.ink,
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w900,
+          _SectionHeaderBar(
+            title: 'Renewals in progress',
+            subtitle: 'Track your live orders.',
+            trailing: TextButton(
+              onPressed: () => context.push('/more/renewals'),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text(
+                'View all',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: renewals == null
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Center(
+                      child: SizedBox.square(
+                        dimension: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       ),
                     ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Track your live orders.',
-                      style: TextStyle(color: AppColors.muted, fontSize: 11),
+                  )
+                : renewals!.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: AppColors.canvas,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.autorenew_rounded,
+                            color: AppColors.muted,
+                            size: 22,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'No active renewals',
+                          style: TextStyle(
+                            color: AppColors.ink,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        TextButton(
+                          onPressed: () => context.push('/more/renewals/new'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.forest700,
+                            padding: EdgeInsets.zero,
+                          ),
+                          child: const Text('Start one →'),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-              TextButton(
-                onPressed: () => context.push('/more/renewals'),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.forest700,
-                  padding: EdgeInsets.zero,
-                ),
-                child: const Text(
-                  'View all',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
-                ),
-              ),
-            ],
+                  )
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final r in renewals!.take(3)) _RenewalRow(record: r),
+                    ],
+                  ),
           ),
-          const SizedBox(height: 6),
-          if (renewals == null)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: Center(
-                child: SizedBox.square(
-                  dimension: 22,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
-            )
-          else if (renewals!.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              child: Column(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: AppColors.canvas,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.autorenew_rounded,
-                      color: AppColors.muted,
-                      size: 22,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'No active renewals',
-                    style: TextStyle(color: AppColors.ink, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 4),
-                  TextButton(
-                    onPressed: () => context.push('/more/renewals/new'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.forest700,
-                      padding: EdgeInsets.zero,
-                    ),
-                    child: const Text('Start one →'),
-                  ),
-                ],
-              ),
-            )
-          else
-            for (final r in renewals!.take(3))
-              _RenewalRow(record: r),
         ],
       ),
     );
@@ -1178,152 +1205,6 @@ class _RenewalRow extends StatelessWidget {
   }
 }
 
-/* -------------------------------- Garage ---------------------------------- */
-
-class _YourGarageCard extends StatelessWidget {
-  const _YourGarageCard({required this.vehicles});
-
-  final List<VehicleSummary> vehicles;
-
-  @override
-  Widget build(BuildContext context) {
-    final recent = vehicles.take(3).toList(growable: false);
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Your garage',
-                      style: TextStyle(
-                        color: AppColors.ink,
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      'A quick look at your recently added vehicles.',
-                      style: TextStyle(color: AppColors.muted, fontSize: 11),
-                    ),
-                  ],
-                ),
-              ),
-              TextButton(
-                onPressed: () => context.go('/vehicles'),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.forest700,
-                  padding: EdgeInsets.zero,
-                ),
-                child: const Text(
-                  'Manage vehicles',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          if (recent.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 14),
-              child: Text(
-                'No vehicles yet. Add one to get started.',
-                style: TextStyle(color: AppColors.muted, fontSize: 12.5),
-              ),
-            )
-          else
-            for (final v in recent) _GarageRow(vehicle: v),
-        ],
-      ),
-    );
-  }
-}
-
-class _GarageRow extends StatelessWidget {
-  const _GarageRow({required this.vehicle});
-
-  final VehicleSummary vehicle;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => context.push('/vehicles/${vehicle.id}'),
-      borderRadius: BorderRadius.circular(10),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.canvas,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.directions_car_filled_outlined,
-                color: AppColors.muted,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    vehicle.displayName.isEmpty ? 'Vehicle' : vehicle.displayName,
-                    style: const TextStyle(
-                      color: AppColors.ink,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    [
-                      if (vehicle.year != null) vehicle.year.toString(),
-                      vehicle.color,
-                    ].join(' · '),
-                    style: const TextStyle(color: AppColors.muted, fontSize: 11.5),
-                  ),
-                ],
-              ),
-            ),
-            if (vehicle.documentsCount == 0)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.canvas,
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: const Text(
-                  'Add papers',
-                  style: TextStyle(color: AppColors.muted, fontSize: 10, fontWeight: FontWeight.w700),
-                ),
-              )
-            else
-              const Icon(Icons.chevron_right_rounded, color: AppColors.muted, size: 18),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /* ----------------------------- Latest updates ------------------------------ */
 
 class _LatestUpdatesCard extends StatelessWidget {
@@ -1338,74 +1219,62 @@ class _LatestUpdatesCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.border),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Latest updates',
-                      style: TextStyle(
-                        color: AppColors.ink,
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w900,
+          _SectionHeaderBar(
+            title: 'Latest updates',
+            subtitle: 'From renewals, documents, and deliveries.',
+            trailing: TextButton(
+              onPressed: () => context.push('/notifications'),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text(
+                'All updates',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: isLoading && snapshot == null
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Center(
+                      child: SizedBox.square(
+                        dimension: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       ),
                     ),
-                    SizedBox(height: 2),
-                    Text(
-                      'From renewals, documents, and deliveries.',
-                      style: TextStyle(color: AppColors.muted, fontSize: 11),
+                  )
+                : items.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 14),
+                    child: Text(
+                      'No updates yet.',
+                      style: TextStyle(color: AppColors.muted, fontSize: 12.5),
                     ),
-                  ],
-                ),
-              ),
-              TextButton(
-                onPressed: () => context.push('/notifications'),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.forest700,
-                  padding: EdgeInsets.zero,
-                ),
-                child: const Text(
-                  'All updates',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
-                ),
-              ),
-            ],
+                  )
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (var i = 0; i < items.length; i++) ...[
+                        if (i > 0) const Divider(height: 20),
+                        _UpdateRow(notification: items[i]),
+                      ],
+                    ],
+                  ),
           ),
-          const SizedBox(height: 6),
-          if (isLoading && snapshot == null)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: Center(
-                child: SizedBox.square(
-                  dimension: 22,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
-            )
-          else if (items.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 14),
-              child: Text(
-                'No updates yet.',
-                style: TextStyle(color: AppColors.muted, fontSize: 12.5),
-              ),
-            )
-          else
-            for (var i = 0; i < items.length; i++) ...[
-              if (i > 0) const Divider(height: 20),
-              _UpdateRow(notification: items[i]),
-            ],
         ],
       ),
     );
@@ -1577,76 +1446,3 @@ class _HomeTransferAlert extends StatelessWidget {
   }
 }
 
-/// A 2-column grid of [_QuickAccess] tiles sized to their own content via
-/// [IntrinsicHeight] — see the note on [_StatGrid] for why this replaces a
-/// fixed-aspect-ratio GridView.
-class _QuickAccessGrid extends StatelessWidget {
-  const _QuickAccessGrid({required this.items});
-
-  final List<_QuickAccess> items;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var i = 0; i < items.length; i += 2) ...[
-          if (i > 0) const SizedBox(height: 10),
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(child: items[i]),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: i + 1 < items.length
-                      ? items[i + 1]
-                      : const SizedBox.shrink(),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _QuickAccess extends StatelessWidget {
-  const _QuickAccess({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              Icon(icon, color: AppColors.forest700),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

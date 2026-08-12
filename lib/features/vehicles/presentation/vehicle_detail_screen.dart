@@ -12,11 +12,11 @@ import 'package:travla_customer_app/features/vehicles/presentation/add_vehicle_d
 import 'package:travla_customer_app/features/vehicles/presentation/edit_vehicle_sheet.dart';
 import 'package:travla_customer_app/features/insurance/data/insurance_repository.dart';
 import 'package:travla_customer_app/features/insurance/presentation/vehicle_insurance_tab.dart';
+import 'package:travla_customer_app/features/vehicles/presentation/document_viewer_screen.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/vehicle_quick_actions.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/vehicle_services_tab.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/vehicle_tracking_tab.dart';
 import 'package:travla_customer_app/shared/widgets/travla_logo.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 enum VehicleDetailTab { overview, documents, insurance, tracking, services }
 
@@ -279,7 +279,8 @@ class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
     );
   }
 
-  Future<void> _openDocument(String? url) async {
+  void _openDocument(DocumentVersion version) {
+    final url = version.documentUrl;
     if (url == null || url.isEmpty) {
       _showMessage('No file is attached to this document.', isError: true);
       return;
@@ -292,13 +293,17 @@ class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
       );
       return;
     }
-    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!opened && mounted) {
-      _showMessage(
-        'The document could not be opened. Refresh the vehicle and try again.',
-        isError: true,
-      );
-    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => DocumentViewerScreen(
+          url: url,
+          title: version.originalFilename?.isNotEmpty == true
+              ? version.originalFilename!
+              : 'Document',
+          mimeType: version.mimeType,
+        ),
+      ),
+    );
   }
 
   void _showMessage(String message, {bool isError = false}) {
@@ -1619,7 +1624,7 @@ class _DocumentDetailsSheet extends StatelessWidget {
 
   final VehicleDetail vehicle;
   final VehicleDocument document;
-  final ValueChanged<String?> onOpen;
+  final ValueChanged<DocumentVersion> onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -1812,7 +1817,7 @@ class _DocumentDetailsSheet extends StatelessWidget {
                           const SizedBox(width: 10),
                       itemBuilder: (context, index) => _VersionCard(
                         version: versions[index],
-                        onOpen: () => onOpen(versions[index].documentUrl),
+                        onOpen: () => onOpen(versions[index]),
                       ),
                     ),
                   ),
