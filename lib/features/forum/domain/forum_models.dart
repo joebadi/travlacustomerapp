@@ -89,9 +89,13 @@ class ForumThread {
       categoryName: category is Map ? category['name']?.toString() : null,
       categoryColor: category is Map ? category['color']?.toString() : null,
       author: ForumAuthor.fromJson(
-        json['author'] is Map ? (json['author'] as Map).cast<String, dynamic>() : null,
+        json['author'] is Map
+            ? (json['author'] as Map).cast<String, dynamic>()
+            : null,
       ),
-      latestReplyAuthor: latest is Map ? latest['author_name']?.toString() : null,
+      latestReplyAuthor: latest is Map
+          ? latest['author_name']?.toString()
+          : null,
       latestReplyAt: latest is Map ? latest['created_at']?.toString() : null,
       viewCount: (json['view_count'] as num?)?.toInt() ?? 0,
       replyCount: (json['reply_count'] as num?)?.toInt() ?? 0,
@@ -130,7 +134,9 @@ class ForumReply {
       id: json['id']?.toString() ?? '',
       body: json['body']?.toString() ?? '',
       author: ForumAuthor.fromJson(
-        json['author'] is Map ? (json['author'] as Map).cast<String, dynamic>() : null,
+        json['author'] is Map
+            ? (json['author'] as Map).cast<String, dynamic>()
+            : null,
       ),
       likeCount: (json['like_count'] as num?)?.toInt() ?? 0,
       isMine: json['is_mine'] == true,
@@ -144,6 +150,44 @@ class ForumThreadDetail {
   const ForumThreadDetail({required this.thread, required this.replies});
   final ForumThread thread;
   final List<ForumReply> replies;
+}
+
+class ForumStats {
+  const ForumStats({
+    required this.threads,
+    required this.replies,
+    required this.today,
+  });
+
+  final int threads;
+  final int replies;
+  final int today;
+
+  factory ForumStats.fromJson(Map<String, dynamic> json) {
+    int asInt(Object? v) => v is num ? v.toInt() : 0;
+    return ForumStats(
+      threads: asInt(json['threads']),
+      replies: asInt(json['replies']),
+      today: asInt(json['today']),
+    );
+  }
+}
+
+/// One page of forum threads — mirrors the web's `Paginated<ForumThread>`.
+class ForumThreadsPage {
+  const ForumThreadsPage({
+    required this.items,
+    required this.page,
+    required this.lastPage,
+    required this.total,
+  });
+
+  final List<ForumThread> items;
+  final int page;
+  final int lastPage;
+  final int total;
+
+  bool get hasMore => page < lastPage;
 }
 
 const forumSortOptions = <({String value, String label})>[

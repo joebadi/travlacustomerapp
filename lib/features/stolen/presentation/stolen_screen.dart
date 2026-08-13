@@ -20,14 +20,82 @@ class StolenFeedTab extends ConsumerStatefulWidget {
 
 class StolenFeedTabState extends ConsumerState<StolenFeedTab> {
   final _plateCtrl = TextEditingController();
+  final _registryQueryCtrl = TextEditingController();
   bool _checking = false;
   StolenCheckResult? _result;
   String? _searchError;
 
+  StolenDirectoryFilters _filters = const StolenDirectoryFilters();
+  StolenDirectoryPage? _directory;
+  bool _directoryLoading = false;
+  bool _directoryLoadingMore = false;
+  String? _directoryError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDirectory();
+  }
+
   @override
   void dispose() {
     _plateCtrl.dispose();
+    _registryQueryCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadDirectory({bool loadMore = false}) async {
+    setState(() {
+      if (loadMore) {
+        _directoryLoadingMore = true;
+      } else {
+        _directoryLoading = true;
+      }
+      _directoryError = null;
+    });
+    try {
+      final nextPage = loadMore ? (_directory?.page ?? 0) + 1 : 1;
+      final page = await ref
+          .read(stolenRepositoryProvider)
+          .directory(filters: _filters, page: nextPage);
+      if (!mounted) return;
+      setState(() {
+        _directory = loadMore
+            ? StolenDirectoryPage(
+                items: [...?_directory?.items, ...page.items],
+                page: page.page,
+                lastPage: page.lastPage,
+                total: page.total,
+              )
+            : page;
+      });
+    } on ApiFailure catch (failure) {
+      if (mounted) setState(() => _directoryError = failure.message);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _directoryLoading = false;
+          _directoryLoadingMore = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _openFilters() async {
+    final result = await showModalBottomSheet<StolenDirectoryFilters>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.white,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _RegistryFilterSheet(initial: _filters),
+    );
+    if (result != null) {
+      setState(() => _filters = result);
+      _loadDirectory();
+    }
   }
 
   Future<void> _check() async {
@@ -118,14 +186,19 @@ class StolenFeedTabState extends ConsumerState<StolenFeedTab> {
   @override
   Widget build(BuildContext context) {
     final mine = ref.watch(myStolenReportsProvider);
+    final stats = ref.watch(stolenStatsProvider);
 
     return RefreshIndicator(
       color: AppColors.forest700,
       onRefresh: () async {
         ref.invalidate(myStolenReportsProvider);
-        await ref
-            .read(myStolenReportsProvider.future)
-            .catchError((_) => <StolenReport>[]);
+        ref.invalidate(stolenStatsProvider);
+        await Future.wait([
+          ref
+              .read(myStolenReportsProvider.future)
+              .catchError((_) => <StolenReport>[]),
+          _loadDirectory(),
+        ]);
       },
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -149,6 +222,101 @@ class StolenFeedTabState extends ConsumerState<StolenFeedTab> {
               result: _result!,
               onSighting: (id) => context.push('/more/stolen/$id/sighting'),
             ),
+          ],
+          const SizedBox(height: 22),
+          const _Label('Community registry'),
+          stats.when(
+            loading: () => const SizedBox.shrink(),
+            error: (_, _) => const SizedBox.shrink(),
+            data: (value) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _RegistryStatsRow(stats: value),
+            ),
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _registryQueryCtrl,
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: (v) {
+                    setState(
+                      () => _filters = _filters.copyWith(query: v.trim()),
+                    );
+                    _loadDirectory();
+                  },
+                  decoration: const InputDecoration(
+                    hintText: 'Search plate, make, model or place',
+                    prefixIcon: Icon(Icons.search_rounded),
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Material(
+                color: _filters.isDefault
+                    ? AppColors.canvas
+                    : AppColors.forest50,
+                borderRadius: BorderRadius.circular(12),
+                child: InkWell(
+                  onTap: _openFilters,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(13),
+                    child: Icon(
+                      Icons.tune_rounded,
+                      size: 20,
+                      color: _filters.isDefault
+                          ? AppColors.muted
+                          : AppColors.forest700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (_directoryLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_directoryError != null)
+            Text(
+              _directoryError!,
+              style: const TextStyle(color: AppColors.danger, fontSize: 12.5),
+            )
+          else if ((_directory?.items ?? const []).isEmpty)
+            const _EmptyRegistry()
+          else ...[
+            Text(
+              '${_directory!.total} active record${_directory!.total == 1 ? '' : 's'} found',
+              style: const TextStyle(color: AppColors.muted, fontSize: 11.5),
+            ),
+            const SizedBox(height: 10),
+            ..._directory!.items.map(
+              (r) => _RegistryCard(
+                report: r,
+                onTap: () => context.push('/more/stolen/${r.id}'),
+              ),
+            ),
+            if (_directory!.hasMore) ...[
+              const SizedBox(height: 6),
+              Center(
+                child: TextButton(
+                  onPressed: _directoryLoadingMore
+                      ? null
+                      : () => _loadDirectory(loadMore: true),
+                  child: _directoryLoadingMore
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Load more'),
+                ),
+              ),
+            ],
           ],
           const SizedBox(height: 22),
           const _Label('Your reports'),
@@ -422,6 +590,416 @@ class _EmptyMine extends StatelessWidget {
         'You have no stolen reports. If a vehicle is stolen, report it here to alert the community.',
         textAlign: TextAlign.center,
         style: TextStyle(color: AppColors.muted, height: 1.5),
+      ),
+    );
+  }
+}
+
+/// Compact strip of registry-wide counters — the mobile equivalent of the
+/// web directory's 5-stat row, condensed to fit a phone width.
+class _RegistryStatsRow extends StatelessWidget {
+  const _RegistryStatsRow({required this.stats});
+
+  final StolenStats stats;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _StatChip(
+            label: 'Active reports',
+            value: '${stats.currentlyStolen}',
+            color: AppColors.danger,
+          ),
+          const SizedBox(width: 8),
+          _StatChip(
+            label: 'Recovered',
+            value: '${stats.recovered}',
+            color: AppColors.forest700,
+          ),
+          const SizedBox(width: 8),
+          _StatChip(
+            label: 'Recovery rate',
+            value: '${stats.recoveryRate}%',
+            color: AppColors.orangeDark,
+          ),
+          const SizedBox(width: 8),
+          _StatChip(
+            label: 'Sightings',
+            value: '${stats.totalSightings}',
+            color: AppColors.ink,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatChip extends StatelessWidget {
+  const _StatChip({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 17,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.muted,
+              fontSize: 9.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A browsable registry entry — mirrors the web directory's VehicleCard:
+/// plate, last-seen location, sightings count, reward badge.
+class _RegistryCard extends StatelessWidget {
+  const _RegistryCard({required this.report, required this.onTap});
+
+  final StolenReport report;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final vehicle = report.vehicle;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: vehicle != null && vehicle.images.isNotEmpty
+                    ? Image.network(
+                        vehicle.images.first,
+                        width: 64,
+                        height: 64,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => _photoPlaceholder(),
+                      )
+                    : _photoPlaceholder(),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            vehicle?.name ?? 'Vehicle',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 13.5,
+                            ),
+                          ),
+                        ),
+                        if (vehicle?.plateNumber != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF3D6),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: AppColors.ink),
+                            ),
+                            child: Text(
+                              vehicle!.plateNumber!,
+                              style: const TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: .5,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    if (report.lastKnownLocation != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Last seen: ${report.lastKnownLocation}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        _pill(
+                          '${report.sightingsCount ?? 0} sighting${(report.sightingsCount ?? 0) == 1 ? '' : 's'}',
+                          AppColors.forest700,
+                          AppColors.forest50,
+                        ),
+                        if (report.rewardNaira != null &&
+                            report.rewardNaira != '0.00')
+                          _pill(
+                            '₦${report.rewardNaira} reward',
+                            AppColors.orangeDark,
+                            const Color(0xFFFFE9E1),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _photoPlaceholder() => Container(
+    width: 64,
+    height: 64,
+    color: AppColors.canvas,
+    child: const Icon(Icons.directions_car_outlined, color: AppColors.muted),
+  );
+
+  Widget _pill(String label, Color fg, Color bg) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(
+      color: bg,
+      borderRadius: BorderRadius.circular(30),
+    ),
+    child: Text(
+      label,
+      style: TextStyle(color: fg, fontSize: 9.5, fontWeight: FontWeight.w800),
+    ),
+  );
+}
+
+class _EmptyRegistry extends StatelessWidget {
+  const _EmptyRegistry();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: const Text(
+        'No active report matches those details. Try a broader search or clear the filters.',
+        textAlign: TextAlign.center,
+        style: TextStyle(color: AppColors.muted, height: 1.5),
+      ),
+    );
+  }
+}
+
+/// Bottom-sheet filter form for the public registry — mirrors the web
+/// directory's filter card (location, make, colour, reward, recency, sort).
+class _RegistryFilterSheet extends StatefulWidget {
+  const _RegistryFilterSheet({required this.initial});
+
+  final StolenDirectoryFilters initial;
+
+  @override
+  State<_RegistryFilterSheet> createState() => _RegistryFilterSheetState();
+}
+
+class _RegistryFilterSheetState extends State<_RegistryFilterSheet> {
+  late final _locationCtrl = TextEditingController(
+    text: widget.initial.location,
+  );
+  late final _makeCtrl = TextEditingController(text: widget.initial.make);
+  late final _colorCtrl = TextEditingController(text: widget.initial.color);
+  late bool _hasReward = widget.initial.hasReward;
+  late int? _reportedWithin = widget.initial.reportedWithinDays;
+  late String _sort = widget.initial.sort;
+
+  @override
+  void dispose() {
+    _locationCtrl.dispose();
+    _makeCtrl.dispose();
+    _colorCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          4,
+          20,
+          16 + MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Filter the registry',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(
+                      context,
+                    ).pop(const StolenDirectoryFilters()),
+                    child: const Text('Reset'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: _locationCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Last seen near',
+                  hintText: 'e.g. Lekki, Abuja',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _makeCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Vehicle make',
+                  hintText: 'e.g. Toyota',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _colorCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Colour',
+                  hintText: 'e.g. Black',
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: _sort,
+                decoration: const InputDecoration(labelText: 'Sort by'),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'newest',
+                    child: Text('Recently reported'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'sightings',
+                    child: Text('Most sightings'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'reward',
+                    child: Text('Highest reward'),
+                  ),
+                ],
+                onChanged: (v) => setState(() => _sort = v ?? 'newest'),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<int?>(
+                initialValue: _reportedWithin,
+                decoration: const InputDecoration(labelText: 'Date reported'),
+                items: const [
+                  DropdownMenuItem(value: null, child: Text('Any time')),
+                  DropdownMenuItem(value: 7, child: Text('Last 7 days')),
+                  DropdownMenuItem(value: 30, child: Text('Last 30 days')),
+                  DropdownMenuItem(value: 90, child: Text('Last 90 days')),
+                ],
+                onChanged: (v) => setState(() => _reportedWithin = v),
+              ),
+              const SizedBox(height: 6),
+              CheckboxListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                value: _hasReward,
+                onChanged: (v) => setState(() => _hasReward = v ?? false),
+                title: const Text(
+                  'Only show reward offers',
+                  style: TextStyle(fontSize: 13.5),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.forest700,
+                  ),
+                  onPressed: () => Navigator.of(context).pop(
+                    StolenDirectoryFilters(
+                      query: widget.initial.query,
+                      location: _locationCtrl.text.trim(),
+                      make: _makeCtrl.text.trim(),
+                      color: _colorCtrl.text.trim(),
+                      hasReward: _hasReward,
+                      reportedWithinDays: _reportedWithin,
+                      sort: _sort,
+                    ),
+                  ),
+                  child: const Text('Apply filters'),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

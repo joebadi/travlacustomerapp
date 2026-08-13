@@ -204,6 +204,105 @@ class StolenCheckResult {
   }
 }
 
+/// Aggregate counters shown on the public registry.
+class StolenStats {
+  const StolenStats({
+    required this.currentlyStolen,
+    required this.recovered,
+    required this.recoveryRate,
+    required this.totalSightings,
+    required this.recentSightings,
+  });
+
+  final int currentlyStolen;
+  final int recovered;
+  final num recoveryRate;
+  final int totalSightings;
+  final int recentSightings;
+
+  factory StolenStats.fromJson(Map<String, dynamic> json) {
+    int asInt(Object? v) => v is num ? v.toInt() : 0;
+    return StolenStats(
+      currentlyStolen: asInt(json['currently_stolen']),
+      recovered: asInt(json['recovered']),
+      recoveryRate: (json['recovery_rate'] as num?) ?? 0,
+      totalSightings: asInt(json['total_sightings']),
+      recentSightings: asInt(json['recent_sightings']),
+    );
+  }
+}
+
+/// One page of the public stolen-vehicle registry.
+class StolenDirectoryPage {
+  const StolenDirectoryPage({
+    required this.items,
+    required this.page,
+    required this.lastPage,
+    required this.total,
+  });
+
+  final List<StolenReport> items;
+  final int page;
+  final int lastPage;
+  final int total;
+
+  bool get hasMore => page < lastPage;
+}
+
+/// Filters for browsing the public registry — mirrors the web's
+/// `DirectoryFilters` in `useStolen.ts`.
+class StolenDirectoryFilters {
+  const StolenDirectoryFilters({
+    this.query,
+    this.location,
+    this.make,
+    this.color,
+    this.hasReward = false,
+    this.reportedWithinDays,
+    this.sort = 'newest',
+  });
+
+  final String? query;
+  final String? location;
+  final String? make;
+  final String? color;
+  final bool hasReward;
+  final int? reportedWithinDays;
+  final String sort;
+
+  bool get isDefault =>
+      (query == null || query!.isEmpty) &&
+      (location == null || location!.isEmpty) &&
+      (make == null || make!.isEmpty) &&
+      (color == null || color!.isEmpty) &&
+      !hasReward &&
+      reportedWithinDays == null &&
+      sort == 'newest';
+
+  StolenDirectoryFilters copyWith({
+    String? query,
+    String? location,
+    String? make,
+    String? color,
+    bool? hasReward,
+    int? reportedWithinDays,
+    bool clearReportedWithin = false,
+    String? sort,
+  }) {
+    return StolenDirectoryFilters(
+      query: query ?? this.query,
+      location: location ?? this.location,
+      make: make ?? this.make,
+      color: color ?? this.color,
+      hasReward: hasReward ?? this.hasReward,
+      reportedWithinDays: clearReportedWithin
+          ? null
+          : (reportedWithinDays ?? this.reportedWithinDays),
+      sort: sort ?? this.sort,
+    );
+  }
+}
+
 /// Vehicle-state options for a sighting.
 const sightingStateOptions = <({String value, String label})>[
   (value: 'MOVING', label: 'Moving'),

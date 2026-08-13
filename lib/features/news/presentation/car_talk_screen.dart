@@ -59,7 +59,7 @@ class _CarTalkScreenState extends State<CarTalkScreen>
           tabs: const [
             Tab(text: 'Blogs'),
             Tab(text: 'Forum'),
-            Tab(text: 'Stolen'),
+            Tab(text: 'Report'),
           ],
         ),
       ),

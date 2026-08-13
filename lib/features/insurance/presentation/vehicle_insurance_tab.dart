@@ -114,7 +114,9 @@ class _VehicleInsuranceTabState extends ConsumerState<VehicleInsuranceTab> {
         OutlinedButton.icon(
           onPressed: () =>
               context.push('/more/insurance/${widget.vehicleId}/add'),
-          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(46)),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(46),
+          ),
           icon: const Icon(Icons.note_add_outlined, size: 18),
           label: const Text('Add an existing policy'),
         ),
@@ -210,7 +212,11 @@ class _InsuranceCard extends StatelessWidget {
                     child: Text(
                       'No insurance recorded for this vehicle yet. Buy cover or '
                       'add an existing policy below.',
-                      style: TextStyle(color: AppColors.muted, height: 1.5, fontSize: 12.5),
+                      style: TextStyle(
+                        color: AppColors.muted,
+                        height: 1.5,
+                        fontSize: 12.5,
+                      ),
                     ),
                   )
                 else
@@ -218,7 +224,8 @@ class _InsuranceCard extends StatelessWidget {
                     if (i > 0) const Divider(height: 22),
                     _PolicyRow(
                       policy: policies[i],
-                      onViewDocument: () => onViewDocument(policies[i].documentUrl),
+                      onViewDocument: () =>
+                          onViewDocument(policies[i].documentUrl),
                       onEdit: () => onEditPolicy(policies[i]),
                       onRenew: policies[i].canRenew
                           ? () => onRenewPolicy(policies[i])
@@ -349,7 +356,10 @@ class _VerificationBanner extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               verification.errorMessage!,
-              style: const TextStyle(color: AppColors.orangeDark, fontSize: 10.5),
+              style: const TextStyle(
+                color: AppColors.orangeDark,
+                fontSize: 10.5,
+              ),
             ),
           ],
           if (!verification.hasValidPlate) ...[
@@ -363,7 +373,9 @@ class _VerificationBanner extends StatelessWidget {
           Align(
             alignment: Alignment.centerRight,
             child: TextButton.icon(
-              onPressed: (checking || !verification.hasValidPlate) ? null : onCheckNow,
+              onPressed: (checking || !verification.hasValidPlate)
+                  ? null
+                  : onCheckNow,
               style: TextButton.styleFrom(
                 foregroundColor: fg,
                 padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -379,7 +391,10 @@ class _VerificationBanner extends StatelessWidget {
                   : const Icon(Icons.travel_explore_rounded, size: 16),
               label: Text(
                 checking ? 'Checking…' : 'Check now',
-                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                ),
               ),
             ),
           ),
@@ -393,8 +408,18 @@ class _VerificationBanner extends StatelessWidget {
     final date = DateTime.tryParse(iso);
     if (date == null) return null;
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
@@ -418,7 +443,10 @@ class _PolicyRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final tone = switch (policy.status) {
       'CANCELLED' => const (AppColors.muted, Color(0xFFEDF0EF)),
-      _ when policy.isPending => const (AppColors.orangeDark, Color(0xFFFFE9E1)),
+      _ when policy.isPending => const (
+        AppColors.orangeDark,
+        Color(0xFFFFE9E1),
+      ),
       _ when policy.isExpired => const (AppColors.danger, Color(0xFFFFE3E1)),
       _ when (policy.daysToExpiry ?? 999) <= 30 => const (
         AppColors.orangeDark,
@@ -476,11 +504,23 @@ class _PolicyRow extends StatelessWidget {
             runSpacing: 6,
             children: [
               if (policy.coverageLabel != null)
-                _miniTag(policy.coverageLabel!, AppColors.muted, AppColors.canvas),
+                _miniTag(
+                  policy.coverageLabel!,
+                  AppColors.muted,
+                  AppColors.canvas,
+                ),
               if (!policy.isPending)
                 policy.isVerified
-                    ? _miniTag('Verified', AppColors.forest700, const Color(0xFFDDF2E8))
-                    : _miniTag('Manual entry', AppColors.muted, AppColors.canvas),
+                    ? _miniTag(
+                        'Verified',
+                        AppColors.forest700,
+                        const Color(0xFFDDF2E8),
+                      )
+                    : _miniTag(
+                        'Manual entry',
+                        AppColors.muted,
+                        AppColors.canvas,
+                      ),
             ],
           ),
         ],
@@ -495,7 +535,11 @@ class _PolicyRow extends StatelessWidget {
             child: const Text(
               'An agent is procuring this policy — the certificate and dates '
               'appear here once it is issued.',
-              style: TextStyle(color: AppColors.muted, fontSize: 11.5, height: 1.4),
+              style: TextStyle(
+                color: AppColors.muted,
+                fontSize: 11.5,
+                height: 1.4,
+              ),
             ),
           )
         else ...[
@@ -512,7 +556,9 @@ class _PolicyRow extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(child: _detail('Policy no.', policy.policyNumber ?? '—')),
+                    Expanded(
+                      child: _detail('Policy no.', policy.policyNumber ?? '—'),
+                    ),
                     Expanded(child: _detail('Cover period', _period(policy))),
                   ],
                 ),
@@ -520,18 +566,23 @@ class _PolicyRow extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(child: _detail('Premium', '₦${policy.premiumNaira}')),
-                    Expanded(child: _detail('Excess', '₦${policy.excessNaira}')),
+                    Expanded(
+                      child: _detail('Premium', '₦${policy.premiumNaira}'),
+                    ),
+                    Expanded(
+                      child: _detail('Excess', '₦${policy.excessNaira}'),
+                    ),
                   ],
                 ),
               ],
             ),
           ),
           const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          // A Row (not Wrap) — Spacer/Expanded below require a Flex
+          // ancestor, so the left links and the right Renew button can
+          // still push apart on one line; wraps to two lines via Wrap
+          // fallback only when space is truly too tight.
+          Row(
             children: [
               if (policy.hasDocument && policy.documentUrl != null)
                 TextButton.icon(
@@ -543,8 +594,12 @@ class _PolicyRow extends StatelessWidget {
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   icon: const Icon(Icons.open_in_new_rounded, size: 14),
-                  label: const Text('Certificate', style: TextStyle(fontSize: 11.5)),
+                  label: const Text(
+                    'Certificate',
+                    style: TextStyle(fontSize: 11.5),
+                  ),
                 ),
+              const SizedBox(width: 4),
               TextButton.icon(
                 onPressed: onEdit,
                 style: TextButton.styleFrom(
@@ -563,12 +618,18 @@ class _PolicyRow extends StatelessWidget {
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.orange,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   icon: const Icon(Icons.autorenew_rounded, size: 14),
-                  label: const Text('Renew Policy', style: TextStyle(fontSize: 11.5)),
+                  label: const Text(
+                    'Renew Policy',
+                    style: TextStyle(fontSize: 11.5),
+                  ),
                 ),
             ],
           ),
@@ -580,7 +641,10 @@ class _PolicyRow extends StatelessWidget {
   Widget _miniTag(String label, Color fg, Color bg) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(30)),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(30),
+      ),
       child: Text(
         label,
         style: TextStyle(color: fg, fontSize: 10, fontWeight: FontWeight.w800),
@@ -593,7 +657,10 @@ class _PolicyRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 9.5)),
+        Text(
+          label,
+          style: const TextStyle(color: AppColors.muted, fontSize: 9.5),
+        ),
         const SizedBox(height: 1),
         Text(
           value,
@@ -619,8 +686,18 @@ class _PolicyRow extends StatelessWidget {
     final date = DateTime.tryParse(iso);
     if (date == null) return null;
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }

@@ -102,7 +102,10 @@ class _ForumThreadScreenState extends ConsumerState<ForumThreadScreen> {
       builder: (c) => AlertDialog(
         title: Text(title),
         actions: [
-          TextButton(onPressed: () => Navigator.of(c).pop(false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.of(c).pop(false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
             onPressed: () => Navigator.of(c).pop(true),
@@ -139,8 +142,12 @@ class _ForumThreadScreenState extends ConsumerState<ForumThreadScreen> {
         error: (error, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
-            child: Text(error is ApiFailure ? error.message : 'This thread could not be loaded.',
-                textAlign: TextAlign.center),
+            child: Text(
+              error is ApiFailure
+                  ? error.message
+                  : 'This thread could not be loaded.',
+              textAlign: TextAlign.center,
+            ),
           ),
         ),
         data: (detail) {
@@ -159,31 +166,47 @@ class _ForumThreadScreenState extends ConsumerState<ForumThreadScreen> {
                     children: [
                       _ThreadHead(thread: thread, onLike: _likeThread),
                       const SizedBox(height: 16),
-                      _Label('${detail.replies.length} repl${detail.replies.length == 1 ? 'y' : 'ies'}'),
+                      _Label(
+                        '${detail.replies.length} repl${detail.replies.length == 1 ? 'y' : 'ies'}',
+                      ),
                       if (detail.replies.isEmpty)
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 18),
-                          child: Text('Be the first to reply.', style: TextStyle(color: AppColors.muted)),
+                          child: Text(
+                            'Be the first to reply.',
+                            style: TextStyle(color: AppColors.muted),
+                          ),
                         )
                       else
-                        ...detail.replies.map((r) => _ReplyCard(
-                              reply: r,
-                              onLike: () => _likeReply(r.id),
-                              onDelete: r.isMine ? () => _deleteReply(r.id) : null,
-                            )),
+                        ...detail.replies.map(
+                          (r) => _ReplyCard(
+                            reply: r,
+                            onLike: () => _likeReply(r.id),
+                            onDelete: r.isMine
+                                ? () => _deleteReply(r.id)
+                                : null,
+                          ),
+                        ),
                     ],
                   ),
                 ),
               ),
               if (!thread.isLocked)
-                _Composer(controller: _replyCtrl, sending: _sending, onSend: _sendReply)
+                _Composer(
+                  controller: _replyCtrl,
+                  sending: _sending,
+                  onSend: _sendReply,
+                )
               else
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(14),
                   color: AppColors.white,
-                  child: const Text('This thread is locked.',
-                      textAlign: TextAlign.center, style: TextStyle(color: AppColors.muted)),
+                  child: const Text(
+                    'This thread is locked.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: AppColors.muted),
+                  ),
                 ),
             ],
           );
@@ -211,8 +234,15 @@ class _ThreadHead extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(thread.title,
-              style: const TextStyle(color: AppColors.ink, fontWeight: FontWeight.w900, fontSize: 19, height: 1.3)),
+          Text(
+            thread.title,
+            style: const TextStyle(
+              color: AppColors.ink,
+              fontWeight: FontWeight.w900,
+              fontSize: 19,
+              height: 1.3,
+            ),
+          ),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -220,27 +250,56 @@ class _ThreadHead extends StatelessWidget {
                 radius: 13,
                 backgroundColor: AppColors.forest100,
                 foregroundColor: AppColors.forest800,
-                backgroundImage: thread.author.avatarUrl != null ? NetworkImage(thread.author.avatarUrl!) : null,
+                backgroundImage: thread.author.avatarUrl != null
+                    ? NetworkImage(thread.author.avatarUrl!)
+                    : null,
                 child: thread.author.avatarUrl == null
-                    ? Text(thread.author.name.isNotEmpty ? thread.author.name[0].toUpperCase() : '?',
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900))
+                    ? Text(
+                        thread.author.name.isNotEmpty
+                            ? thread.author.name[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      )
                     : null,
               ),
               const SizedBox(width: 8),
-              Text(thread.author.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5)),
+              Text(
+                thread.author.name,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12.5,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
           if (thread.body != null)
-            Text(thread.body!, style: const TextStyle(color: AppColors.ink, height: 1.55, fontSize: 14)),
+            Text(
+              thread.body!,
+              style: const TextStyle(
+                color: AppColors.ink,
+                height: 1.55,
+                fontSize: 14,
+              ),
+            ),
           const Divider(height: 24),
           Row(
             children: [
-              _LikeButton(liked: thread.liked, count: thread.likeCount, onTap: onLike),
+              _LikeButton(
+                liked: thread.liked,
+                count: thread.likeCount,
+                onTap: onLike,
+              ),
               const Spacer(),
               Icon(Icons.visibility_outlined, size: 15, color: AppColors.muted),
               const SizedBox(width: 4),
-              Text('${thread.viewCount}', style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+              Text(
+                '${thread.viewCount}',
+                style: const TextStyle(color: AppColors.muted, fontSize: 12),
+              ),
             ],
           ),
         ],
@@ -275,26 +334,57 @@ class _ReplyCard extends StatelessWidget {
                 radius: 11,
                 backgroundColor: AppColors.forest100,
                 foregroundColor: AppColors.forest800,
-                backgroundImage: reply.author.avatarUrl != null ? NetworkImage(reply.author.avatarUrl!) : null,
+                backgroundImage: reply.author.avatarUrl != null
+                    ? NetworkImage(reply.author.avatarUrl!)
+                    : null,
                 child: reply.author.avatarUrl == null
-                    ? Text(reply.author.name.isNotEmpty ? reply.author.name[0].toUpperCase() : '?',
-                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900))
+                    ? Text(
+                        reply.author.name.isNotEmpty
+                            ? reply.author.name[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      )
                     : null,
               ),
               const SizedBox(width: 8),
-              Text(reply.author.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5)),
+              Text(
+                reply.author.name,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12.5,
+                ),
+              ),
               const Spacer(),
               if (onDelete != null)
                 InkWell(
                   onTap: onDelete,
-                  child: const Icon(Icons.close_rounded, size: 16, color: AppColors.muted),
+                  child: const Icon(
+                    Icons.close_rounded,
+                    size: 16,
+                    color: AppColors.muted,
+                  ),
                 ),
             ],
           ),
           const SizedBox(height: 8),
-          Text(reply.body, style: const TextStyle(color: AppColors.ink, height: 1.5, fontSize: 13.5)),
+          Text(
+            reply.body,
+            style: const TextStyle(
+              color: AppColors.ink,
+              height: 1.5,
+              fontSize: 13.5,
+            ),
+          ),
           const SizedBox(height: 8),
-          _LikeButton(liked: reply.liked, count: reply.likeCount, onTap: onLike, small: true),
+          _LikeButton(
+            liked: reply.liked,
+            count: reply.likeCount,
+            onTap: onLike,
+            small: true,
+          ),
         ],
       ),
     );
@@ -302,7 +392,12 @@ class _ReplyCard extends StatelessWidget {
 }
 
 class _LikeButton extends StatelessWidget {
-  const _LikeButton({required this.liked, required this.count, required this.onTap, this.small = false});
+  const _LikeButton({
+    required this.liked,
+    required this.count,
+    required this.onTap,
+    this.small = false,
+  });
 
   final bool liked;
   final int count;
@@ -319,14 +414,20 @@ class _LikeButton extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                size: small ? 15 : 18, color: liked ? AppColors.orange : AppColors.muted),
+            Icon(
+              liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+              size: small ? 15 : 18,
+              color: liked ? AppColors.orange : AppColors.muted,
+            ),
             const SizedBox(width: 5),
-            Text('$count',
-                style: TextStyle(
-                    color: liked ? AppColors.orange : AppColors.muted,
-                    fontWeight: FontWeight.w800,
-                    fontSize: small ? 12 : 13)),
+            Text(
+              '$count',
+              style: TextStyle(
+                color: liked ? AppColors.orange : AppColors.muted,
+                fontWeight: FontWeight.w800,
+                fontSize: small ? 12 : 13,
+              ),
+            ),
           ],
         ),
       ),
@@ -335,7 +436,11 @@ class _LikeButton extends StatelessWidget {
 }
 
 class _Composer extends StatelessWidget {
-  const _Composer({required this.controller, required this.sending, required this.onSend});
+  const _Composer({
+    required this.controller,
+    required this.sending,
+    required this.onSend,
+  });
 
   final TextEditingController controller;
   final bool sending;
@@ -375,7 +480,14 @@ class _Composer extends StatelessWidget {
                   shape: const CircleBorder(),
                 ),
                 child: sending
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
                     : const Icon(Icons.send_rounded, size: 20),
               ),
             ),
@@ -391,8 +503,15 @@ class _Label extends StatelessWidget {
   final String text;
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(2, 0, 2, 10),
-        child: Text(text.toUpperCase(),
-            style: const TextStyle(color: AppColors.muted, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.1)),
-      );
+    padding: const EdgeInsets.fromLTRB(2, 0, 2, 10),
+    child: Text(
+      text.toUpperCase(),
+      style: const TextStyle(
+        color: AppColors.muted,
+        fontSize: 10,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 1.1,
+      ),
+    ),
+  );
 }

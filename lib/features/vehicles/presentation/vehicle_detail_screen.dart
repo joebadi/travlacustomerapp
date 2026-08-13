@@ -432,7 +432,9 @@ class _VehicleHero extends StatelessWidget {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          vehicle.statusLabel ?? 'Papers not added',
+                          vehicle.status == 'EXPIRED'
+                              ? '${vehicle.expiredDocumentsCount} Expired'
+                              : vehicle.statusLabel ?? 'Papers not added',
                           style: TextStyle(
                             color: status.foreground,
                             fontSize: 9,
@@ -641,7 +643,9 @@ class _DetailTabButton extends StatelessWidget {
                           vertical: 1,
                         ),
                         decoration: BoxDecoration(
-                          color: selected ? AppColors.forest700 : AppColors.muted,
+                          color: selected
+                              ? AppColors.forest700
+                              : AppColors.muted,
                           borderRadius: BorderRadius.circular(9),
                         ),
                         child: Text(
@@ -674,10 +678,7 @@ class _DetailTabButton extends StatelessWidget {
 }
 
 class _OverviewTab extends StatelessWidget {
-  const _OverviewTab({
-    required this.vehicle,
-    super.key,
-  });
+  const _OverviewTab({required this.vehicle, super.key});
 
   final VehicleDetail vehicle;
 
@@ -913,7 +914,11 @@ class _DocumentsSummaryCard extends StatelessWidget {
           const SizedBox(height: 4),
           const Text(
             "Manage this vehicle's legal documents and permits, organised by category.",
-            style: TextStyle(color: AppColors.muted, fontSize: 11.5, height: 1.4),
+            style: TextStyle(
+              color: AppColors.muted,
+              fontSize: 11.5,
+              height: 1.4,
+            ),
           ),
           if (!hasValidPlate) ...[
             const SizedBox(height: 14),
@@ -941,7 +946,11 @@ class _DocumentsSummaryCard extends StatelessWidget {
                     "This vehicle's plate number is a dealer or temporary plate and "
                     'does not qualify for document management. Update the plate '
                     'from Edit vehicle above once the permanent one is available.',
-                    style: TextStyle(color: AppColors.orangeDark, fontSize: 11, height: 1.4),
+                    style: TextStyle(
+                      color: AppColors.orangeDark,
+                      fontSize: 11,
+                      height: 1.4,
+                    ),
                   ),
                 ],
               ),
@@ -1118,7 +1127,10 @@ class _DocumentSection extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: .18),
                     borderRadius: BorderRadius.circular(20),
@@ -1136,7 +1148,11 @@ class _DocumentSection extends StatelessWidget {
                   IconButton(
                     tooltip: 'Add to $title',
                     onPressed: onAdd,
-                    icon: const Icon(Icons.add_rounded, color: Colors.white, size: 22),
+                    icon: const Icon(
+                      Icons.add_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
                   ),
               ],
             ),
@@ -1157,9 +1173,12 @@ class _DocumentSection extends StatelessWidget {
                             child: _DocumentTile(
                               document: entry.$2,
                               vehicleId: vehicleId,
-                              isMutating: mutatingDocuments.contains(entry.$2.id),
+                              isMutating: mutatingDocuments.contains(
+                                entry.$2.id,
+                              ),
                               onView: () => onView(entry.$2),
-                              onAutoRenew: (enabled) => onAutoRenew(entry.$2, enabled),
+                              onAutoRenew: (enabled) =>
+                                  onAutoRenew(entry.$2, enabled),
                               onDelete: () => onDelete(entry.$2),
                             ),
                           ),
@@ -1268,7 +1287,9 @@ class _DocumentTile extends StatelessWidget {
             children: [
               Container(
                 decoration: BoxDecoration(
-                  border: Border(left: BorderSide(color: status.foreground, width: 4)),
+                  border: Border(
+                    left: BorderSide(color: status.foreground, width: 4),
+                  ),
                 ),
                 padding: const EdgeInsets.fromLTRB(11, 13, 12, 13),
                 child: Row(
@@ -1363,7 +1384,11 @@ class _DocumentTile extends StatelessWidget {
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                Icon(Icons.schedule_rounded, size: 13, color: status.foreground),
+                                Icon(
+                                  Icons.schedule_rounded,
+                                  size: 13,
+                                  color: status.foreground,
+                                ),
                                 const SizedBox(width: 5),
                                 Expanded(
                                   child: Text(
@@ -1419,14 +1444,21 @@ class _DocumentTile extends StatelessWidget {
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                const Icon(Icons.lock_outline_rounded, size: 13, color: AppColors.muted),
+                                const Icon(
+                                  Icons.lock_outline_rounded,
+                                  size: 13,
+                                  color: AppColors.muted,
+                                ),
                                 const SizedBox(width: 5),
                                 Expanded(
                                   child: Text(
                                     document.hasFile
                                         ? 'Secure copy attached'
                                         : 'Details saved without a file',
-                                    style: const TextStyle(color: AppColors.muted, fontSize: 10.5),
+                                    style: const TextStyle(
+                                      color: AppColors.muted,
+                                      fontSize: 10.5,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -1453,36 +1485,75 @@ class _DocumentTile extends StatelessWidget {
                           ),
                         ),
                       )
-                    // Renew sits left (the action that matters most on an
-                    // expired paper); View + Delete are grouped right.
+                    // View + Delete sit left as plain links, Renew sits
+                    // right as a filled call-to-action — matches the
+                    // Insurance tab's Certificate/Edit/Renew Policy row.
                     : Row(
                         children: [
+                          TextButton.icon(
+                            onPressed: onView,
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppColors.forest700,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                              ),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            icon: const Icon(
+                              Icons.visibility_outlined,
+                              size: 14,
+                            ),
+                            label: const Text(
+                              'View',
+                              style: TextStyle(fontSize: 11.5),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          TextButton.icon(
+                            onPressed: onDelete,
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppColors.danger,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                              ),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            icon: const Icon(
+                              Icons.delete_outline_rounded,
+                              size: 14,
+                            ),
+                            label: const Text(
+                              'Delete',
+                              style: TextStyle(fontSize: 11.5),
+                            ),
+                          ),
+                          const Spacer(),
                           if (document.isExpired)
-                            _TileActionChip(
-                              icon: Icons.autorenew_rounded,
-                              label: 'Renew',
-                              foreground: AppColors.danger,
-                              background: const Color(0xFFFFE3E1),
-                              onTap: () => context.push(
+                            FilledButton.icon(
+                              onPressed: () => context.push(
                                 '/more/renewals/new?vehicle=$vehicleId&preselect=expired',
                               ),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.orange,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              icon: const Icon(
+                                Icons.autorenew_rounded,
+                                size: 14,
+                              ),
+                              label: const Text(
+                                'Renew',
+                                style: TextStyle(fontSize: 11.5),
+                              ),
                             ),
-                          const Spacer(),
-                          _TileActionChip(
-                            icon: Icons.visibility_outlined,
-                            label: 'View',
-                            foreground: AppColors.forest700,
-                            background: AppColors.forest50,
-                            onTap: onView,
-                          ),
-                          const SizedBox(width: 8),
-                          _TileIconAction(
-                            icon: Icons.delete_outline_rounded,
-                            tooltip: 'Remove document',
-                            foreground: AppColors.danger,
-                            background: const Color(0xFFFFE3E1),
-                            onTap: onDelete,
-                          ),
                         ],
                       ),
               ),
@@ -1521,93 +1592,9 @@ class _MiniToggle extends StatelessWidget {
         child: Container(
           width: 12,
           height: 12,
-          decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-        ),
-      ),
-    );
-  }
-}
-
-/// A tonal icon+label pill used in the document tile's footer — Renew and
-/// View share this shape so the row reads as a set of deliberate actions
-/// rather than a row of bare TextButtons.
-class _TileActionChip extends StatelessWidget {
-  const _TileActionChip({
-    required this.icon,
-    required this.label,
-    required this.foreground,
-    required this.background,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color foreground;
-  final Color background;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: background,
-      borderRadius: BorderRadius.circular(30),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(30),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 15, color: foreground),
-              const SizedBox(width: 5),
-              Text(
-                label,
-                style: TextStyle(
-                  color: foreground,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// A tonal icon-only button (a small tinted circle) for the document tile's
-/// delete action — matches [_TileActionChip]'s tonal treatment instead of a
-/// bare [IconButton].
-class _TileIconAction extends StatelessWidget {
-  const _TileIconAction({
-    required this.icon,
-    required this.tooltip,
-    required this.foreground,
-    required this.background,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final Color foreground;
-  final Color background;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: background,
-      shape: const CircleBorder(),
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        child: Tooltip(
-          message: tooltip,
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: Icon(icon, size: 17, color: foreground),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
           ),
         ),
       ),

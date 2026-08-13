@@ -470,7 +470,9 @@ class _VehicleCard extends StatelessWidget {
                   top: 12,
                   right: 12,
                   child: _StatusPill(
-                    label: vehicle.statusLabel ?? 'Papers not added',
+                    label: vehicle.status == 'EXPIRED'
+                        ? '${vehicle.expiredDocumentsCount} Expired'
+                        : vehicle.statusLabel ?? 'Papers not added',
                     style: status,
                   ),
                 ),

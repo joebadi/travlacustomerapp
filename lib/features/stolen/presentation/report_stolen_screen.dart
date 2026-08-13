@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/stolen/data/stolen_repository.dart';
+import 'package:travla_customer_app/features/stolen/presentation/location_pin_button.dart';
 
 class ReportStolenScreen extends ConsumerStatefulWidget {
   const ReportStolenScreen({super.key, required this.vehicleId});
@@ -26,6 +28,9 @@ class _ReportStolenScreenState extends ConsumerState<ReportStolenScreen> {
   DateTime? _occurredAt;
   bool _public = true;
   bool _submitting = false;
+  bool _locating = false;
+  double? _latitude;
+  double? _longitude;
   String? _error;
 
   @override
@@ -36,6 +41,40 @@ class _ReportStolenScreenState extends ConsumerState<ReportStolenScreen> {
     _rewardCtrl.dispose();
     _contactCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _captureLocation() async {
+    setState(() => _locating = true);
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        _snack('Turn on location (GPS), then try again.');
+        return;
+      }
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        _snack('Location permission is required to pin the exact spot.');
+        return;
+      }
+      final position = await Geolocator.getCurrentPosition();
+      if (!mounted) return;
+      setState(() {
+        _latitude = position.latitude;
+        _longitude = position.longitude;
+      });
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
+  }
+
+  void _snack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _pickDate() async {
@@ -60,20 +99,24 @@ class _ReportStolenScreenState extends ConsumerState<ReportStolenScreen> {
 
     final payload = <String, dynamic>{
       'last_known_location': _locationCtrl.text.trim(),
+      if (_latitude != null) 'last_known_latitude': _latitude,
+      if (_longitude != null) 'last_known_longitude': _longitude,
       if (_occurredAt != null) 'theft_occurred_at': _ymd(_occurredAt!),
-      if (_descriptionCtrl.text.trim().isNotEmpty) 'description': _descriptionCtrl.text.trim(),
-      if (_policeCtrl.text.trim().isNotEmpty) 'police_report_number': _policeCtrl.text.trim(),
+      if (_descriptionCtrl.text.trim().isNotEmpty)
+        'description': _descriptionCtrl.text.trim(),
+      if (_policeCtrl.text.trim().isNotEmpty)
+        'police_report_number': _policeCtrl.text.trim(),
       'reward_kobo': ?rewardKobo,
-      if (_contactCtrl.text.trim().isNotEmpty) 'contact_info': _contactCtrl.text.trim(),
+      if (_contactCtrl.text.trim().isNotEmpty)
+        'contact_info': _contactCtrl.text.trim(),
       'is_public': _public,
     };
 
     setState(() => _submitting = true);
     try {
-      final report = await ref.read(stolenRepositoryProvider).report(
-            vehicleId: widget.vehicleId,
-            payload: payload,
-          );
+      final report = await ref
+          .read(stolenRepositoryProvider)
+          .report(vehicleId: widget.vehicleId, payload: payload);
       ref.invalidate(myStolenReportsProvider);
       if (!mounted) return;
       context.pushReplacement('/more/stolen/${report.id}');
@@ -105,7 +148,11 @@ class _ReportStolenScreenState extends ConsumerState<ReportStolenScreen> {
               ),
               child: const Text(
                 'Filing here alerts the Travla community and lets others report sightings. Also report to the police.',
-                style: TextStyle(color: AppColors.orangeDark, fontSize: 12, height: 1.4),
+                style: TextStyle(
+                  color: AppColors.orangeDark,
+                  fontSize: 12,
+                  height: 1.4,
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -119,7 +166,16 @@ class _ReportStolenScreenState extends ConsumerState<ReportStolenScreen> {
                 labelText: 'Where was it last seen?',
                 prefixIcon: Icon(Icons.location_on_outlined),
               ),
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter the last known location.' : null,
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Enter the last known location.'
+                  : null,
+            ),
+            const SizedBox(height: 8),
+            LocationPinButton(
+              latitude: _latitude,
+              longitude: _longitude,
+              busy: _locating,
+              onTap: _captureLocation,
             ),
             const SizedBox(height: 14),
             _DateTile(value: _occurredAt, onTap: _pickDate),
@@ -135,14 +191,22 @@ class _ReportStolenScreenState extends ConsumerState<ReportStolenScreen> {
             const SizedBox(height: 14),
             TextFormField(
               controller: _policeCtrl,
-              decoration: const InputDecoration(labelText: 'Police report number (optional)'),
+              decoration: const InputDecoration(
+                labelText: 'Police report number (optional)',
+              ),
             ),
             const SizedBox(height: 14),
             TextFormField(
               controller: _rewardCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
-              decoration: const InputDecoration(labelText: 'Reward ₦ (optional)'),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+              ],
+              decoration: const InputDecoration(
+                labelText: 'Reward ₦ (optional)',
+              ),
             ),
             const SizedBox(height: 14),
             TextFormField(
@@ -156,10 +220,14 @@ class _ReportStolenScreenState extends ConsumerState<ReportStolenScreen> {
             SwitchListTile.adaptive(
               contentPadding: EdgeInsets.zero,
               activeThumbColor: AppColors.forest700,
-              title: const Text('List publicly in the community registry',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-              subtitle: const Text('Lets anyone check the plate and report sightings.',
-                  style: TextStyle(fontSize: 11.5)),
+              title: const Text(
+                'List publicly in the community registry',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+              ),
+              subtitle: const Text(
+                'Lets anyone check the plate and report sightings.',
+                style: TextStyle(fontSize: 11.5),
+              ),
               value: _public,
               onChanged: (v) => setState(() => _public = v),
             ),
@@ -170,8 +238,10 @@ class _ReportStolenScreenState extends ConsumerState<ReportStolenScreen> {
                 minimumSize: const Size.fromHeight(52),
                 backgroundColor: AppColors.danger,
               ),
-              child: Text(_submitting ? 'Reporting…' : 'Report as stolen',
-                  style: const TextStyle(fontWeight: FontWeight.w900)),
+              child: Text(
+                _submitting ? 'Reporting…' : 'Report as stolen',
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
             ),
           ],
         ),
@@ -222,12 +292,20 @@ class _Banner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(color: const Color(0xFFFFE3E1), borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFE3E1),
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Row(
         children: [
           const Icon(Icons.error_outline_rounded, color: AppColors.danger),
           const SizedBox(width: 10),
-          Expanded(child: Text(message, style: const TextStyle(color: AppColors.danger, fontSize: 12.5))),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(color: AppColors.danger, fontSize: 12.5),
+            ),
+          ),
         ],
       ),
     );

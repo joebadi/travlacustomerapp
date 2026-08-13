@@ -18,28 +18,125 @@ class ForumFeedTab extends ConsumerStatefulWidget {
 }
 
 class _ForumFeedTabState extends ConsumerState<ForumFeedTab> {
+  final _queryCtrl = TextEditingController();
   String? _category; // slug
   String _sort = 'active';
+  String? _query;
 
-  ForumQuery get _query => (category: _category, query: null, sort: _sort);
+  List<ForumThread> _items = const [];
+  int _page = 1;
+  int _lastPage = 1;
+  bool _loading = false;
+  bool _loadingMore = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _queryCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load({bool loadMore = false}) async {
+    setState(() {
+      if (loadMore) {
+        _loadingMore = true;
+      } else {
+        _loading = true;
+      }
+      _error = null;
+    });
+    try {
+      final nextPage = loadMore ? _page + 1 : 1;
+      final result = await ref
+          .read(forumRepositoryProvider)
+          .threads(
+            category: _category,
+            query: _query,
+            sort: _sort,
+            page: nextPage,
+          );
+      if (!mounted) return;
+      setState(() {
+        _items = loadMore ? [..._items, ...result.items] : result.items;
+        _page = result.page;
+        _lastPage = result.lastPage;
+      });
+    } on ApiFailure catch (failure) {
+      if (mounted) setState(() => _error = failure.message);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _loadingMore = false;
+        });
+      }
+    }
+  }
+
+  void _setCategory(String? slug) {
+    setState(() => _category = slug);
+    _load();
+  }
+
+  void _setSort(String sort) {
+    setState(() => _sort = sort);
+    _load();
+  }
+
+  void _search(String value) {
+    setState(() => _query = value.trim().isEmpty ? null : value.trim());
+    _load();
+  }
 
   @override
   Widget build(BuildContext context) {
     final categories = ref.watch(forumCategoriesProvider);
-    final threads = ref.watch(forumThreadsProvider(_query));
+    final stats = ref.watch(forumStatsProvider);
 
     return RefreshIndicator(
       color: AppColors.forest700,
       onRefresh: () async {
         ref.invalidate(forumCategoriesProvider);
-        ref.invalidate(forumThreadsProvider(_query));
-        await ref
-            .read(forumThreadsProvider(_query).future)
-            .catchError((_) => <ForumThread>[]);
+        ref.invalidate(forumStatsProvider);
+        await _load();
       },
       child: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  stats.when(
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, _) => const SizedBox.shrink(),
+                    data: (value) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _ForumStatsRow(stats: value),
+                    ),
+                  ),
+                  TextField(
+                    controller: _queryCtrl,
+                    textInputAction: TextInputAction.search,
+                    onSubmitted: _search,
+                    decoration: const InputDecoration(
+                      hintText: 'Search the archives',
+                      prefixIcon: Icon(Icons.search_rounded),
+                      isDense: true,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           SliverToBoxAdapter(
             child: SizedBox(
               height: 44,
@@ -54,13 +151,13 @@ class _ForumFeedTabState extends ConsumerState<ForumFeedTab> {
                           _CategoryChip(
                             label: 'All',
                             selected: _category == null,
-                            onTap: () => setState(() => _category = null),
+                            onTap: () => _setCategory(null),
                           ),
                           ...cats.map(
                             (c) => _CategoryChip(
                               label: '${c.name} · ${c.threadCount}',
                               selected: _category == c.slug,
-                              onTap: () => setState(() => _category = c.slug),
+                              onTap: () => _setCategory(c.slug),
                             ),
                           ),
                         ],
@@ -74,7 +171,7 @@ class _ForumFeedTabState extends ConsumerState<ForumFeedTab> {
                       Icons.sort_rounded,
                       color: AppColors.muted,
                     ),
-                    onSelected: (v) => setState(() => _sort = v),
+                    onSelected: _setSort,
                     itemBuilder: (_) => forumSortOptions
                         .map(
                           (o) => PopupMenuItem(
@@ -89,48 +186,125 @@ class _ForumFeedTabState extends ConsumerState<ForumFeedTab> {
               ),
             ),
           ),
-          threads.when(
-            loading: () => const SliverFillRemaining(
+          if (_loading)
+            const SliverFillRemaining(
               hasScrollBody: false,
               child: Center(child: CircularProgressIndicator()),
-            ),
-            error: (error, _) => SliverFillRemaining(
+            )
+          else if (_error != null)
+            SliverFillRemaining(
               hasScrollBody: false,
               child: Center(
                 child: Padding(
                   padding: const EdgeInsets.all(24),
+                  child: Text(_error!, textAlign: TextAlign.center),
+                ),
+              ),
+            )
+          else if (_items.isEmpty)
+            const SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: Padding(
+                  padding: EdgeInsets.all(28),
                   child: Text(
-                    error is ApiFailure
-                        ? error.message
-                        : 'The forum could not be loaded.',
+                    'No threads here yet. Start the conversation!',
                     textAlign: TextAlign.center,
+                    style: TextStyle(color: AppColors.muted),
                   ),
                 ),
               ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              sliver: SliverList.list(
+                children: _items.map((t) => _ThreadRow(thread: t)).toList(),
+              ),
             ),
-            data: (list) => list.isEmpty
-                ? const SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(28),
-                        child: Text(
-                          'No threads here yet. Start the conversation!',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: AppColors.muted),
-                        ),
-                      ),
-                    ),
-                  )
-                : SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
-                    sliver: SliverList.list(
-                      children: list.map((t) => _ThreadRow(thread: t)).toList(),
-                    ),
+          if (!_loading && _error == null && _page < _lastPage)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 96),
+                child: Center(
+                  child: TextButton(
+                    onPressed: _loadingMore
+                        ? null
+                        : () => _load(loadMore: true),
+                    child: _loadingMore
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Load more'),
                   ),
-          ),
+                ),
+              ),
+            )
+          else
+            const SliverToBoxAdapter(child: SizedBox(height: 96)),
         ],
       ),
+    );
+  }
+}
+
+/// Compact registry of forum-wide counters — mirrors the web forum's
+/// 3-stat header (topics filed / replies posted / active today).
+class _ForumStatsRow extends StatelessWidget {
+  const _ForumStatsRow({required this.stats});
+
+  final ForumStats stats;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _ForumStat(label: 'Topics', value: stats.threads),
+        ),
+        Container(width: 1, height: 30, color: AppColors.border),
+        Expanded(
+          child: _ForumStat(label: 'Replies', value: stats.replies),
+        ),
+        Container(width: 1, height: 30, color: AppColors.border),
+        Expanded(
+          child: _ForumStat(label: 'Active today', value: stats.today),
+        ),
+      ],
+    );
+  }
+}
+
+class _ForumStat extends StatelessWidget {
+  const _ForumStat({required this.label, required this.value});
+
+  final String label;
+  final int value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          '$value',
+          style: const TextStyle(
+            color: AppColors.ink,
+            fontSize: 17,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: const TextStyle(
+            color: AppColors.muted,
+            fontSize: 9.5,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -15,19 +15,53 @@ class StolenRepository {
     return _list('/stolen/mine');
   }
 
-  Future<List<StolenReport>> directory({String? query}) async {
+  Future<StolenDirectoryPage> directory({
+    StolenDirectoryFilters filters = const StolenDirectoryFilters(),
+    int page = 1,
+  }) async {
     try {
       final response = await _apiClient.dio.get<Map<String, dynamic>>(
         '/public/stolen',
-        queryParameters: {if (query != null && query.isNotEmpty) 'q': query},
+        queryParameters: {
+          if (filters.query?.isNotEmpty == true) 'q': filters.query,
+          if (filters.location?.isNotEmpty == true)
+            'location': filters.location,
+          if (filters.make?.isNotEmpty == true) 'make': filters.make,
+          if (filters.color?.isNotEmpty == true) 'color': filters.color,
+          if (filters.hasReward) 'has_reward': true,
+          if (filters.reportedWithinDays != null)
+            'reported_within': filters.reportedWithinDays,
+          'sort': filters.sort,
+          'page': page,
+        },
       );
-      // Public directory is paginated: data is the list.
-      final data = response.data?['data'];
-      if (data is! List) return const [];
-      return data
-          .whereType<Map<String, dynamic>>()
-          .map(StolenReport.fromJson)
-          .toList(growable: false);
+      final body = response.data ?? const <String, dynamic>{};
+      final data = body['data'];
+      final meta = body['meta'];
+      final items = data is List
+          ? data
+                .whereType<Map<String, dynamic>>()
+                .map(StolenReport.fromJson)
+                .toList(growable: false)
+          : const <StolenReport>[];
+      final metaMap = meta is Map ? meta.cast<String, dynamic>() : null;
+      return StolenDirectoryPage(
+        items: items,
+        page: (metaMap?['current_page'] as num?)?.toInt() ?? page,
+        lastPage: (metaMap?['last_page'] as num?)?.toInt() ?? page,
+        total: (metaMap?['total'] as num?)?.toInt() ?? items.length,
+      );
+    } on DioException catch (exception) {
+      throw ApiFailure.fromDio(exception);
+    }
+  }
+
+  Future<StolenStats> stats() async {
+    try {
+      final response = await _apiClient.dio.get<Map<String, dynamic>>(
+        '/public/stolen/stats',
+      );
+      return StolenStats.fromJson(_dataMap(response.data));
     } on DioException catch (exception) {
       throw ApiFailure.fromDio(exception);
     }
@@ -128,7 +162,9 @@ class StolenRepository {
     final data = envelope?['data'];
     if (data is Map<String, dynamic>) return data;
     if (data is Map) return data.map((k, v) => MapEntry('$k', v));
-    throw const ApiFailure('Travla returned an unexpected stolen-registry response.');
+    throw const ApiFailure(
+      'Travla returned an unexpected stolen-registry response.',
+    );
   }
 }
 
@@ -136,12 +172,17 @@ final stolenRepositoryProvider = Provider<StolenRepository>((ref) {
   return StolenRepository(ref.watch(apiClientProvider));
 });
 
-final myStolenReportsProvider =
-    FutureProvider.autoDispose<List<StolenReport>>((ref) {
-      return ref.watch(stolenRepositoryProvider).mine();
-    });
+final myStolenReportsProvider = FutureProvider.autoDispose<List<StolenReport>>((
+  ref,
+) {
+  return ref.watch(stolenRepositoryProvider).mine();
+});
 
 final stolenReportProvider = FutureProvider.autoDispose
     .family<StolenReport, String>((ref, reportId) {
       return ref.watch(stolenRepositoryProvider).show(reportId);
     });
+
+final stolenStatsProvider = FutureProvider.autoDispose<StolenStats>((ref) {
+  return ref.watch(stolenRepositoryProvider).stats();
+});

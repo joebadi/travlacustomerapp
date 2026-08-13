@@ -11,10 +11,12 @@ class StolenReportDetailScreen extends ConsumerStatefulWidget {
   final String reportId;
 
   @override
-  ConsumerState<StolenReportDetailScreen> createState() => _StolenReportDetailScreenState();
+  ConsumerState<StolenReportDetailScreen> createState() =>
+      _StolenReportDetailScreenState();
 }
 
-class _StolenReportDetailScreenState extends ConsumerState<StolenReportDetailScreen> {
+class _StolenReportDetailScreenState
+    extends ConsumerState<StolenReportDetailScreen> {
   bool _busy = false;
 
   void _refresh() {
@@ -49,8 +51,14 @@ class _StolenReportDetailScreenState extends ConsumerState<StolenReportDetailScr
         title: Text(title),
         content: body == null ? null : Text(body),
         actions: [
-          TextButton(onPressed: () => Navigator.of(c).pop(false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.of(c).pop(true), child: Text(confirm)),
+          TextButton(
+            onPressed: () => Navigator.of(c).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(c).pop(true),
+            child: Text(confirm),
+          ),
         ],
       ),
     );
@@ -69,8 +77,12 @@ class _StolenReportDetailScreenState extends ConsumerState<StolenReportDetailScr
         error: (error, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
-            child: Text(error is ApiFailure ? error.message : 'This report could not be loaded.',
-                textAlign: TextAlign.center),
+            child: Text(
+              error is ApiFailure
+                  ? error.message
+                  : 'This report could not be loaded.',
+              textAlign: TextAlign.center,
+            ),
           ),
         ),
         data: (report) => Stack(
@@ -93,26 +105,42 @@ class _StolenReportDetailScreenState extends ConsumerState<StolenReportDetailScr
                   if (report.sightings.isEmpty)
                     const _Empty('No sightings reported yet.')
                   else
-                    ...report.sightings.map((s) => _SightingCard(
-                          sighting: s,
-                          busy: _busy,
-                          onVerify: () => _run(
-                              () => ref.read(stolenRepositoryProvider).verifySighting(s.id),
-                              done: 'Sighting verified.'),
-                          onDismiss: () => _run(
-                              () => ref.read(stolenRepositoryProvider).dismissSighting(s.id),
-                              done: 'Sighting dismissed.'),
-                        )),
+                    ...report.sightings.map(
+                      (s) => _SightingCard(
+                        sighting: s,
+                        busy: _busy,
+                        onVerify: () => _run(
+                          () => ref
+                              .read(stolenRepositoryProvider)
+                              .verifySighting(s.id),
+                          done: 'Sighting verified.',
+                        ),
+                        onDismiss: () => _run(
+                          () => ref
+                              .read(stolenRepositoryProvider)
+                              .dismissSighting(s.id),
+                          done: 'Sighting dismissed.',
+                        ),
+                      ),
+                    ),
                   if (report.isStolen) ...[
                     const SizedBox(height: 18),
                     FilledButton.icon(
                       onPressed: _busy
                           ? null
                           : () async {
-                              if (await _confirm('Mark as recovered?', 'Recovered',
-                                  body: 'This flags the vehicle as found and closes the alert.')) {
-                                _run(() => ref.read(stolenRepositoryProvider).recover(report.id),
-                                    done: 'Marked recovered.');
+                              if (await _confirm(
+                                'Mark as recovered?',
+                                'Recovered',
+                                body:
+                                    'This flags the vehicle as found and closes the alert.',
+                              )) {
+                                _run(
+                                  () => ref
+                                      .read(stolenRepositoryProvider)
+                                      .recover(report.id),
+                                  done: 'Marked recovered.',
+                                );
                               }
                             },
                       style: FilledButton.styleFrom(
@@ -127,13 +155,23 @@ class _StolenReportDetailScreenState extends ConsumerState<StolenReportDetailScr
                       onPressed: _busy
                           ? null
                           : () async {
-                              if (await _confirm('Close this report?', 'Close',
-                                  body: 'Removes the alert without marking the vehicle recovered.')) {
-                                _run(() => ref.read(stolenRepositoryProvider).close(report.id),
-                                    done: 'Report closed.');
+                              if (await _confirm(
+                                'Close this report?',
+                                'Close',
+                                body:
+                                    'Removes the alert without marking the vehicle recovered.',
+                              )) {
+                                _run(
+                                  () => ref
+                                      .read(stolenRepositoryProvider)
+                                      .close(report.id),
+                                  done: 'Report closed.',
+                                );
                               }
                             },
-                      style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(50),
+                      ),
                       icon: const Icon(Icons.close_rounded),
                       label: const Text('Close report'),
                     ),
@@ -174,21 +212,46 @@ class _StolenReportDetailScreenState extends ConsumerState<StolenReportDetailScr
           Row(
             children: [
               Expanded(
-                child: Text(report.vehicle?.name ?? 'Vehicle',
-                    style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
+                child: Text(
+                  report.vehicle?.name ?? 'Vehicle',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(color: Colors.white.withValues(alpha: .2), borderRadius: BorderRadius.circular(30)),
-                child: Text(report.statusLabel.toUpperCase(),
-                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .2),
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: Text(
+                  report.statusLabel.toUpperCase(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
               ),
             ],
           ),
           if (report.vehicle?.plateNumber != null) ...[
             const SizedBox(height: 4),
-            Text(report.vehicle!.plateNumber!,
-                style: TextStyle(color: Colors.white.withValues(alpha: .85), fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 1)),
+            Text(
+              report.vehicle!.plateNumber!,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: .85),
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1,
+              ),
+            ),
           ],
         ],
       ),
@@ -206,16 +269,24 @@ class _StolenReportDetailScreenState extends ConsumerState<StolenReportDetailScr
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (report.lastKnownLocation != null) _line('Last seen', report.lastKnownLocation!),
-          if (report.theftOccurredAt != null) _line('Stolen on', _fmt(report.theftOccurredAt)),
-          if (report.dateReported != null) _line('Reported', _fmt(report.dateReported)),
-          if (report.rewardNaira != null && report.rewardNaira != '0.00') _line('Reward', '₦${report.rewardNaira}'),
-          if (report.policeReportNumber != null) _line('Police report', report.policeReportNumber!),
+          if (report.lastKnownLocation != null)
+            _line('Last seen', report.lastKnownLocation!),
+          if (report.theftOccurredAt != null)
+            _line('Stolen on', _fmt(report.theftOccurredAt)),
+          if (report.dateReported != null)
+            _line('Reported', _fmt(report.dateReported)),
+          if (report.rewardNaira != null && report.rewardNaira != '0.00')
+            _line('Reward', '₦${report.rewardNaira}'),
+          if (report.policeReportNumber != null)
+            _line('Police report', report.policeReportNumber!),
           if (report.contactInfo != null) _line('Contact', report.contactInfo!),
           _line('Listed publicly', report.isPublic ? 'Yes' : 'No'),
           if (report.description != null) ...[
             const SizedBox(height: 10),
-            Text(report.description!, style: const TextStyle(color: AppColors.ink, height: 1.5)),
+            Text(
+              report.description!,
+              style: const TextStyle(color: AppColors.ink, height: 1.5),
+            ),
           ],
         ],
       ),
@@ -223,19 +294,31 @@ class _StolenReportDetailScreenState extends ConsumerState<StolenReportDetailScr
   }
 
   Widget _line(String label, String value) => Padding(
-        padding: const EdgeInsets.only(bottom: 7),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(width: 110, child: Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 12.5))),
-            Expanded(
-              child: Text(value,
-                  textAlign: TextAlign.right,
-                  style: const TextStyle(color: AppColors.ink, fontSize: 13, fontWeight: FontWeight.w700)),
-            ),
-          ],
+    padding: const EdgeInsets.only(bottom: 7),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 110,
+          child: Text(
+            label,
+            style: const TextStyle(color: AppColors.muted, fontSize: 12.5),
+          ),
         ),
-      );
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              color: AppColors.ink,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _SightingCard extends StatelessWidget {
@@ -262,18 +345,29 @@ class _SightingCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: sighting.isVerified ? AppColors.forest700 : AppColors.border),
+          border: Border.all(
+            color: sighting.isVerified ? AppColors.forest700 : AppColors.border,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Icon(Icons.location_on_rounded, size: 16, color: AppColors.danger),
+                const Icon(
+                  Icons.location_on_rounded,
+                  size: 16,
+                  color: AppColors.danger,
+                ),
                 const SizedBox(width: 6),
                 Expanded(
-                  child: Text(sighting.location ?? 'Unknown location',
-                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                  child: Text(
+                    sighting.location ?? 'Unknown location',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                    ),
+                  ),
                 ),
                 if (sighting.isVerified)
                   const _Tag('Verified', AppColors.forest700)
@@ -283,17 +377,28 @@ class _SightingCard extends StatelessWidget {
             ),
             if (sighting.description != null) ...[
               const SizedBox(height: 6),
-              Text(sighting.description!, style: const TextStyle(fontSize: 12.5, height: 1.4)),
+              Text(
+                sighting.description!,
+                style: const TextStyle(fontSize: 12.5, height: 1.4),
+              ),
             ],
             const SizedBox(height: 6),
             Wrap(
               spacing: 12,
               runSpacing: 2,
               children: [
-                if (sighting.vehicleState != null) _meta(Icons.info_outline, _titleCase(sighting.vehicleState!)),
-                if (sighting.directionOfTravel != null) _meta(Icons.navigation_outlined, sighting.directionOfTravel!),
-                _meta(Icons.person_outline, sighting.submittedAnonymously ? 'Anonymous' : (sighting.reporterName ?? 'Reporter')),
-                if (sighting.sightingDate != null) _meta(Icons.schedule, _fmt(sighting.sightingDate)),
+                if (sighting.vehicleState != null)
+                  _meta(Icons.info_outline, _titleCase(sighting.vehicleState!)),
+                if (sighting.directionOfTravel != null)
+                  _meta(Icons.navigation_outlined, sighting.directionOfTravel!),
+                _meta(
+                  Icons.person_outline,
+                  sighting.submittedAnonymously
+                      ? 'Anonymous'
+                      : (sighting.reporterName ?? 'Reporter'),
+                ),
+                if (sighting.sightingDate != null)
+                  _meta(Icons.schedule, _fmt(sighting.sightingDate)),
               ],
             ),
             if (sighting.photos.isNotEmpty) ...[
@@ -306,8 +411,17 @@ class _SightingCard extends StatelessWidget {
                   separatorBuilder: (_, _) => const SizedBox(width: 8),
                   itemBuilder: (_, i) => ClipRRect(
                     borderRadius: BorderRadius.circular(10),
-                    child: Image.network(sighting.photos[i], width: 64, height: 64, fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => Container(width: 64, height: 64, color: AppColors.border)),
+                    child: Image.network(
+                      sighting.photos[i],
+                      width: 64,
+                      height: 64,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => Container(
+                        width: 64,
+                        height: 64,
+                        color: AppColors.border,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -318,14 +432,19 @@ class _SightingCard extends StatelessWidget {
                 children: [
                   TextButton.icon(
                     onPressed: busy ? null : onDismiss,
-                    style: TextButton.styleFrom(foregroundColor: AppColors.muted),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.muted,
+                    ),
                     icon: const Icon(Icons.close_rounded, size: 18),
                     label: const Text('Dismiss'),
                   ),
                   const Spacer(),
                   FilledButton.tonalIcon(
                     onPressed: busy ? null : onVerify,
-                    style: FilledButton.styleFrom(backgroundColor: AppColors.forest50, foregroundColor: AppColors.forest800),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.forest50,
+                      foregroundColor: AppColors.forest800,
+                    ),
                     icon: const Icon(Icons.check_rounded, size: 18),
                     label: const Text('Verify'),
                   ),
@@ -339,13 +458,13 @@ class _SightingCard extends StatelessWidget {
   }
 
   Widget _meta(IconData icon, String text) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: AppColors.muted),
-          const SizedBox(width: 3),
-          Text(text, style: const TextStyle(color: AppColors.muted, fontSize: 11)),
-        ],
-      );
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(icon, size: 12, color: AppColors.muted),
+      const SizedBox(width: 3),
+      Text(text, style: const TextStyle(color: AppColors.muted, fontSize: 11)),
+    ],
+  );
 }
 
 class _Tag extends StatelessWidget {
@@ -354,10 +473,20 @@ class _Tag extends StatelessWidget {
   final Color color;
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(color: color.withValues(alpha: .12), borderRadius: BorderRadius.circular(20)),
-        child: Text(text, style: TextStyle(color: color, fontSize: 9.5, fontWeight: FontWeight.w900)),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: .12),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Text(
+      text,
+      style: TextStyle(
+        color: color,
+        fontSize: 9.5,
+        fontWeight: FontWeight.w900,
+      ),
+    ),
+  );
 }
 
 class _Label extends StatelessWidget {
@@ -365,10 +494,17 @@ class _Label extends StatelessWidget {
   final String text;
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(2, 0, 2, 10),
-        child: Text(text.toUpperCase(),
-            style: const TextStyle(color: AppColors.muted, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.1)),
-      );
+    padding: const EdgeInsets.fromLTRB(2, 0, 2, 10),
+    child: Text(
+      text.toUpperCase(),
+      style: const TextStyle(
+        color: AppColors.muted,
+        fontSize: 10,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 1.1,
+      ),
+    ),
+  );
 }
 
 class _Empty extends StatelessWidget {
@@ -376,23 +512,42 @@ class _Empty extends StatelessWidget {
   final String text;
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 18),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Text(text, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.muted)),
-      );
+    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 18),
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: AppColors.border),
+    ),
+    child: Text(
+      text,
+      textAlign: TextAlign.center,
+      style: const TextStyle(color: AppColors.muted),
+    ),
+  );
 }
 
-String _titleCase(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1).toLowerCase().replaceAll('_', ' ');
+String _titleCase(String s) => s.isEmpty
+    ? s
+    : s[0].toUpperCase() + s.substring(1).toLowerCase().replaceAll('_', ' ');
 
 String _fmt(String? iso) {
   if (iso == null || iso.isEmpty) return '';
   final d = DateTime.tryParse(iso);
   if (d == null) return iso;
-  const m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const m = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
   return '${d.day} ${m[d.month - 1]} ${d.year}';
 }

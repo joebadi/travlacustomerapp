@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:travla_customer_app/features/more/presentation/app_drawer.dart';
+import 'package:travla_customer_app/features/support/presentation/support_floating_widget.dart';
 import 'package:travla_customer_app/shared/widgets/profile_avatar.dart';
 import 'package:travla_customer_app/core/auth/auth_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,7 +37,7 @@ class CustomerShell extends ConsumerWidget {
     return Scaffold(
       key: customerShellScaffoldKey,
       drawer: const AppDrawer(),
-      body: navigationShell,
+      body: Stack(children: [navigationShell, const SupportFloatingWidget()]),
       bottomNavigationBar: SafeArea(
         top: false,
         child: NavigationBar(
