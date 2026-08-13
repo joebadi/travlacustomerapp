@@ -21,6 +21,8 @@ class StolenFeedTab extends ConsumerStatefulWidget {
 class StolenFeedTabState extends ConsumerState<StolenFeedTab> {
   final _plateCtrl = TextEditingController();
   final _registryQueryCtrl = TextEditingController();
+  final _scrollController = ScrollController();
+  final _myReportsKey = GlobalKey();
   bool _checking = false;
   StolenCheckResult? _result;
   String? _searchError;
@@ -41,7 +43,18 @@ class StolenFeedTabState extends ConsumerState<StolenFeedTab> {
   void dispose() {
     _plateCtrl.dispose();
     _registryQueryCtrl.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _scrollToMyReports() {
+    final ctx = _myReportsKey.currentContext;
+    if (ctx == null) return;
+    Scrollable.ensureVisible(
+      ctx,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
   }
 
   Future<void> _loadDirectory({bool loadMore = false}) async {
@@ -201,9 +214,12 @@ class StolenFeedTabState extends ConsumerState<StolenFeedTab> {
         ]);
       },
       child: ListView(
+        controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
         children: [
+          _HeroCard(onReport: reportStolen, onManage: _scrollToMyReports),
+          const SizedBox(height: 16),
           _SearchCard(
             controller: _plateCtrl,
             checking: _checking,
@@ -319,7 +335,7 @@ class StolenFeedTabState extends ConsumerState<StolenFeedTab> {
             ],
           ],
           const SizedBox(height: 22),
-          const _Label('Your reports'),
+          KeyedSubtree(key: _myReportsKey, child: const _Label('Your reports')),
           mine.when(
             loading: () => const Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
@@ -338,6 +354,118 @@ class StolenFeedTabState extends ConsumerState<StolenFeedTab> {
                         .map((r) => _ReportRow(report: r))
                         .toList(),
                   ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Dark intro banner — mirrors the web registry's hero (headline + the
+/// "Report a stolen vehicle" / "Manage my reports" CTAs), which mobile
+/// previously buried behind the tab-aware FAB with no on-screen entry
+/// point of its own.
+class _HeroCard extends StatelessWidget {
+  const _HeroCard({required this.onReport, required this.onManage});
+
+  final VoidCallback onReport;
+  final VoidCallback onManage;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF111B1F), Color(0xFF1D2E27)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: AppColors.danger.withValues(alpha: .15),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: AppColors.danger.withValues(alpha: .3)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: const BoxDecoration(
+                    color: AppColors.danger,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Text(
+                  'COMMUNITY SECURITY REGISTRY',
+                  style: TextStyle(
+                    color: Color(0xFFFFC2BC),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: .6,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Check before you buy.\nSpeak up when you see something.',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 19,
+              fontWeight: FontWeight.w900,
+              height: 1.25,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Search active theft reports, help owners with precise sightings, and keep suspicious vehicles out of circulation.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: .6),
+              fontSize: 12,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: onReport,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.danger,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                  ),
+                  icon: const Icon(
+                    Icons.report_gmailerrorred_rounded,
+                    size: 17,
+                  ),
+                  label: const Text('Report stolen'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: onManage,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: BorderSide(color: Colors.white.withValues(alpha: .3)),
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                  ),
+                  child: const Text('Manage my reports'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -627,9 +755,15 @@ class _RegistryStatsRow extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           _StatChip(
-            label: 'Sightings',
+            label: 'Verified sightings',
             value: '${stats.totalSightings}',
             color: AppColors.ink,
+          ),
+          const SizedBox(width: 8),
+          _StatChip(
+            label: 'Sightings this week',
+            value: '${stats.recentSightings}',
+            color: AppColors.forest700,
           ),
         ],
       ),
