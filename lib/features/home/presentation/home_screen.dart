@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:travla_customer_app/app/router/customer_shell.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/auth/auth_controller.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
@@ -54,9 +55,7 @@ class HomeScreen extends ConsumerWidget {
         },
         child: CustomScrollView(
           slivers: [
-            SliverToBoxAdapter(
-              child: _Hero(firstName: user?.firstName),
-            ),
+            SliverToBoxAdapter(child: _Hero(firstName: user?.firstName)),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
               sliver: SliverList.list(
@@ -76,7 +75,9 @@ class HomeScreen extends ConsumerWidget {
                   ],
                   if (snapshot != null &&
                       snapshot.pendingTransfers.isNotEmpty) ...[
-                    _HomeTransferAlert(transfer: snapshot.pendingTransfers.first),
+                    _HomeTransferAlert(
+                      transfer: snapshot.pendingTransfers.first,
+                    ),
                     const SizedBox(height: 16),
                   ],
 
@@ -150,7 +151,15 @@ class _Hero extends StatelessWidget {
         children: [
           Row(
             children: [
-              const TravlaLogo(onDark: true, width: 124),
+              IconButton(
+                tooltip: 'Menu',
+                onPressed: openAppDrawer,
+                icon: const Icon(Icons.menu_rounded, color: Colors.white),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+              const SizedBox(width: 6),
+              const TravlaLogo(onDark: true, width: 116),
               const Spacer(),
               const DashboardHeaderActions(),
             ],
@@ -180,11 +189,7 @@ class _Hero extends StatelessWidget {
 /// against the white body below (no gap), so each section reads as header +
 /// content the same way the vehicle Documents tab's sections do.
 class _SectionHeaderBar extends StatelessWidget {
-  const _SectionHeaderBar({
-    required this.title,
-    this.subtitle,
-    this.trailing,
-  });
+  const _SectionHeaderBar({required this.title, this.subtitle, this.trailing});
 
   final String title;
   final String? subtitle;
@@ -273,7 +278,9 @@ class _StatGrid extends StatelessWidget {
         iconBg: AppColors.forest50,
         label: 'Papers to review',
         value: '$papersToReview',
-        caption: papersToReview == 0 ? 'everything looks current' : 'need attention',
+        caption: papersToReview == 0
+            ? 'everything looks current'
+            : 'need attention',
       ),
       _StatTile(
         icon: Icons.autorenew_rounded,
@@ -895,7 +902,10 @@ class _AttentionRow extends StatelessWidget {
           Container(
             width: 34,
             height: 34,
-            decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(10),
+            ),
             child: Icon(Icons.warning_amber_rounded, color: tone, size: 18),
           ),
           const SizedBox(width: 12),
@@ -916,12 +926,19 @@ class _AttentionRow extends StatelessWidget {
                   item.subtitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: AppColors.muted, fontSize: 11.5),
+                  style: const TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 11.5,
+                  ),
                 ),
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded, color: AppColors.muted, size: 18),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: AppColors.muted,
+            size: 18,
+          ),
         ],
       ),
     );
@@ -1049,7 +1066,11 @@ class _RenewalRow extends StatelessWidget {
                 color: AppColors.forest50,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.autorenew_rounded, color: AppColors.forest700, size: 18),
+              child: const Icon(
+                Icons.autorenew_rounded,
+                color: AppColors.forest700,
+                size: 18,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1057,7 +1078,9 @@ class _RenewalRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    record.documentName.isEmpty ? 'Renewal' : record.documentName,
+                    record.documentName.isEmpty
+                        ? 'Renewal'
+                        : record.documentName,
                     style: const TextStyle(
                       color: AppColors.ink,
                       fontSize: 13,
@@ -1069,7 +1092,10 @@ class _RenewalRow extends StatelessWidget {
                     record.vehicle?.displayName ?? 'Vehicle',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: AppColors.muted, fontSize: 11.5),
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 11.5,
+                    ),
                   ),
                 ],
               ),
@@ -1186,7 +1212,9 @@ class _UpdateRow extends StatelessWidget {
               width: 8,
               height: 8,
               decoration: BoxDecoration(
-                color: notification.isRead ? AppColors.border : AppColors.forest600,
+                color: notification.isRead
+                    ? AppColors.border
+                    : AppColors.forest600,
                 shape: BoxShape.circle,
               ),
             ),
@@ -1209,7 +1237,10 @@ class _UpdateRow extends StatelessWidget {
                   notification.message,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: AppColors.muted, fontSize: 11.5),
+                  style: const TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 11.5,
+                  ),
                 ),
               ],
             ),
@@ -1238,11 +1269,7 @@ class _DashboardLoadingSkeleton extends StatelessWidget {
     );
 
     return Column(
-      children: [
-        block(210),
-        const SizedBox(height: 12),
-        block(140),
-      ],
+      children: [block(210), const SizedBox(height: 12), block(140)],
     );
   }
 }
@@ -1263,7 +1290,10 @@ class _DashboardLoadError extends StatelessWidget {
             const Icon(Icons.cloud_off_outlined, color: AppColors.muted),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(message, style: const TextStyle(color: AppColors.muted)),
+              child: Text(
+                message,
+                style: const TextStyle(color: AppColors.muted),
+              ),
             ),
             IconButton(
               tooltip: 'Try again',
@@ -1329,7 +1359,6 @@ class _HomeTransferAlert extends StatelessWidget {
     );
   }
 }
-
 
 /* ----------------------------- Fleet CTA banner ---------------------------- */
 

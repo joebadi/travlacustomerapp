@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:travla_customer_app/app/router/customer_shell.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/auth/auth_controller.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
@@ -92,7 +93,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final states = ref.watch(profileStatesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile & security')),
+      appBar: AppBar(
+        leading: IconButton(
+          tooltip: 'Menu',
+          icon: const Icon(Icons.menu_rounded),
+          onPressed: openAppDrawer,
+        ),
+        title: const Text('Profile & security'),
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 6, 16, 36),
         children: [

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:travla_customer_app/app/router/customer_shell.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/home/presentation/dashboard_header_actions.dart';
@@ -133,10 +134,18 @@ class _Header extends StatelessWidget {
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
       ),
       child: Row(
-        children: const [
-          TravlaLogo(onDark: true, width: 116),
-          Spacer(),
-          DashboardHeaderActions(),
+        children: [
+          IconButton(
+            tooltip: 'Menu',
+            onPressed: openAppDrawer,
+            icon: const Icon(Icons.menu_rounded, color: Colors.white),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+          const SizedBox(width: 6),
+          const TravlaLogo(onDark: true, width: 108),
+          const Spacer(),
+          const DashboardHeaderActions(),
         ],
       ),
     );
@@ -210,8 +219,10 @@ class _GarageTitleBarState extends State<_GarageTitleBar> {
           open: _openAction == 'register',
           duration: _duration,
           curve: _curve,
-          onTap: () =>
-              _tapAction('register', () => context.go('/vehicles/register-new')),
+          onTap: () => _tapAction(
+            'register',
+            () => context.go('/vehicles/register-new'),
+          ),
         ),
         const SizedBox(width: 8),
         _ActionPill(
@@ -343,9 +354,7 @@ class _ActionPill extends StatelessWidget {
           padding: EdgeInsets.symmetric(horizontal: open ? 15 : 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(30),
-            border: accent
-                ? null
-                : Border.all(color: AppColors.border),
+            border: accent ? null : Border.all(color: AppColors.border),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,

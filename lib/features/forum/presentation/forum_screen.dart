@@ -6,14 +6,18 @@ import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/forum/data/forum_repository.dart';
 import 'package:travla_customer_app/features/forum/domain/forum_models.dart';
 
-class ForumScreen extends ConsumerStatefulWidget {
-  const ForumScreen({super.key});
+/// The "Forum" tab inside Car Talk. Headless (no Scaffold/AppBar/FAB of its
+/// own) so it can live inside CarTalkScreen's TabBarView — the sort control
+/// moved inline into the category row. "New thread" is CarTalkScreen's FAB,
+/// which just pushes '/more/forum/new' directly — no state here to reach.
+class ForumFeedTab extends ConsumerStatefulWidget {
+  const ForumFeedTab({super.key});
 
   @override
-  ConsumerState<ForumScreen> createState() => _ForumScreenState();
+  ConsumerState<ForumFeedTab> createState() => _ForumFeedTabState();
 }
 
-class _ForumScreenState extends ConsumerState<ForumScreen> {
+class _ForumFeedTabState extends ConsumerState<ForumFeedTab> {
   String? _category; // slug
   String _sort = 'active';
 
@@ -24,107 +28,119 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
     final categories = ref.watch(forumCategoriesProvider);
     final threads = ref.watch(forumThreadsProvider(_query));
 
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AppBar(
-        title: const Text('Car Talk'),
-        actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.sort_rounded),
-            onSelected: (v) => setState(() => _sort = v),
-            itemBuilder: (_) => forumSortOptions
-                .map((o) => PopupMenuItem(value: o.value, child: Text(o.label)))
-                .toList(),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: AppColors.orange,
-        onPressed: () => context.push('/more/forum/new'),
-        icon: const Icon(Icons.edit_outlined),
-        label: const Text('New thread'),
-      ),
-      body: RefreshIndicator(
-        color: AppColors.forest700,
-        onRefresh: () async {
-          ref.invalidate(forumCategoriesProvider);
-          ref.invalidate(forumThreadsProvider(_query));
-          await ref.read(forumThreadsProvider(_query).future).catchError((_) => <ForumThread>[]);
-        },
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: 44,
-                child: categories.maybeWhen(
-                  data: (cats) => ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                    children: [
-                      _CategoryChip(
-                        label: 'All',
-                        selected: _category == null,
-                        onTap: () => setState(() => _category = null),
+    return RefreshIndicator(
+      color: AppColors.forest700,
+      onRefresh: () async {
+        ref.invalidate(forumCategoriesProvider);
+        ref.invalidate(forumThreadsProvider(_query));
+        await ref
+            .read(forumThreadsProvider(_query).future)
+            .catchError((_) => <ForumThread>[]);
+      },
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: 44,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: categories.maybeWhen(
+                      data: (cats) => ListView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
+                        children: [
+                          _CategoryChip(
+                            label: 'All',
+                            selected: _category == null,
+                            onTap: () => setState(() => _category = null),
+                          ),
+                          ...cats.map(
+                            (c) => _CategoryChip(
+                              label: '${c.name} · ${c.threadCount}',
+                              selected: _category == c.slug,
+                              onTap: () => setState(() => _category = c.slug),
+                            ),
+                          ),
+                        ],
                       ),
-                      ...cats.map((c) => _CategoryChip(
-                            label: '${c.name} · ${c.threadCount}',
-                            selected: _category == c.slug,
-                            onTap: () => setState(() => _category = c.slug),
-                          )),
-                    ],
+                      orElse: () => const SizedBox.shrink(),
+                    ),
                   ),
-                  orElse: () => const SizedBox.shrink(),
+                  PopupMenuButton<String>(
+                    tooltip: 'Sort threads',
+                    icon: const Icon(
+                      Icons.sort_rounded,
+                      color: AppColors.muted,
+                    ),
+                    onSelected: (v) => setState(() => _sort = v),
+                    itemBuilder: (_) => forumSortOptions
+                        .map(
+                          (o) => PopupMenuItem(
+                            value: o.value,
+                            child: Text(o.label),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                  const SizedBox(width: 6),
+                ],
+              ),
+            ),
+          ),
+          threads.when(
+            loading: () => const SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            error: (error, _) => SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    error is ApiFailure
+                        ? error.message
+                        : 'The forum could not be loaded.',
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ),
             ),
-            threads.when(
-              loading: () => const SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(child: CircularProgressIndicator()),
-              ),
-              error: (error, _) => SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      error is ApiFailure ? error.message : 'The forum could not be loaded.',
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-              ),
-              data: (list) => list.isEmpty
-                  ? const SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(28),
-                          child: Text(
-                            'No threads here yet. Start the conversation!',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: AppColors.muted),
-                          ),
+            data: (list) => list.isEmpty
+                ? const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(28),
+                        child: Text(
+                          'No threads here yet. Start the conversation!',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: AppColors.muted),
                         ),
                       ),
-                    )
-                  : SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
-                      sliver: SliverList.list(
-                        children: list.map((t) => _ThreadRow(thread: t)).toList(),
-                      ),
                     ),
-            ),
-          ],
-        ),
+                  )
+                : SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
+                    sliver: SliverList.list(
+                      children: list.map((t) => _ThreadRow(thread: t)).toList(),
+                    ),
+                  ),
+          ),
+        ],
       ),
     );
   }
 }
 
 class _CategoryChip extends StatelessWidget {
-  const _CategoryChip({required this.label, required this.selected, required this.onTap});
+  const _CategoryChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   final String label;
   final bool selected;
@@ -142,7 +158,9 @@ class _CategoryChip extends StatelessWidget {
           decoration: BoxDecoration(
             color: selected ? AppColors.forest700 : AppColors.white,
             borderRadius: BorderRadius.circular(30),
-            border: Border.all(color: selected ? AppColors.forest700 : AppColors.border),
+            border: Border.all(
+              color: selected ? AppColors.forest700 : AppColors.border,
+            ),
           ),
           child: Text(
             label,
@@ -183,24 +201,42 @@ class _ThreadRow extends StatelessWidget {
               Row(
                 children: [
                   if (thread.isPinned) ...[
-                    const Icon(Icons.push_pin_rounded, size: 14, color: AppColors.orange),
+                    const Icon(
+                      Icons.push_pin_rounded,
+                      size: 14,
+                      color: AppColors.orange,
+                    ),
                     const SizedBox(width: 4),
                   ],
                   if (thread.categoryName != null)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
-                        color: _color(thread.categoryColor).withValues(alpha: .12),
+                        color: _color(
+                          thread.categoryColor,
+                        ).withValues(alpha: .12),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
                         thread.categoryName!,
-                        style: TextStyle(color: _color(thread.categoryColor), fontSize: 10, fontWeight: FontWeight.w800),
+                        style: TextStyle(
+                          color: _color(thread.categoryColor),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
                   const Spacer(),
-                  Text(_ago(thread.lastActivityAt ?? thread.createdAt),
-                      style: const TextStyle(color: AppColors.muted, fontSize: 11)),
+                  Text(
+                    _ago(thread.lastActivityAt ?? thread.createdAt),
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 11,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 8),
@@ -208,13 +244,23 @@ class _ThreadRow extends StatelessWidget {
                 thread.title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: AppColors.ink, fontWeight: FontWeight.w900, fontSize: 15, height: 1.3),
+                style: const TextStyle(
+                  color: AppColors.ink,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 15,
+                  height: 1.3,
+                ),
               ),
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Text('by ${thread.author.name}',
-                      style: const TextStyle(color: AppColors.muted, fontSize: 11.5)),
+                  Text(
+                    'by ${thread.author.name}',
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 11.5,
+                    ),
+                  ),
                   const Spacer(),
                   _stat(Icons.mode_comment_outlined, thread.replyCount),
                   const SizedBox(width: 12),
@@ -231,18 +277,28 @@ class _ThreadRow extends StatelessWidget {
   }
 
   Widget _stat(IconData icon, int count) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: AppColors.muted),
-          const SizedBox(width: 3),
-          Text('$count', style: const TextStyle(color: AppColors.muted, fontSize: 11.5, fontWeight: FontWeight.w700)),
-        ],
-      );
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(icon, size: 14, color: AppColors.muted),
+      const SizedBox(width: 3),
+      Text(
+        '$count',
+        style: const TextStyle(
+          color: AppColors.muted,
+          fontSize: 11.5,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    ],
+  );
 
   Color _color(String? hex) {
     if (hex == null) return AppColors.forest700;
     final cleaned = hex.replaceAll('#', '');
-    final value = int.tryParse(cleaned.length == 6 ? 'FF$cleaned' : cleaned, radix: 16);
+    final value = int.tryParse(
+      cleaned.length == 6 ? 'FF$cleaned' : cleaned,
+      radix: 16,
+    );
     return value == null ? AppColors.forest700 : Color(value);
   }
 }

@@ -16,7 +16,7 @@ class JourneysScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
-      appBar: const TravlaAppBar(),
+      appBar: const TravlaAppBar(showMenuButton: true),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: AppColors.orange,
         onPressed: () => context.push('/journeys/record'),
@@ -27,14 +27,23 @@ class JourneysScreen extends ConsumerWidget {
         color: AppColors.forest700,
         onRefresh: () async {
           ref.invalidate(journeysProvider);
-          await ref.read(journeysProvider.future).catchError((_) => <Journey>[]);
+          await ref
+              .read(journeysProvider.future)
+              .catchError((_) => <Journey>[]);
         },
         child: journeys.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, _) => ListView(
             padding: const EdgeInsets.fromLTRB(18, 40, 18, 18),
             children: [
-              Center(child: Text(error is ApiFailure ? error.message : 'Your journeys could not be loaded.', textAlign: TextAlign.center)),
+              Center(
+                child: Text(
+                  error is ApiFailure
+                      ? error.message
+                      : 'Your journeys could not be loaded.',
+                  textAlign: TextAlign.center,
+                ),
+              ),
             ],
           ),
           data: (list) => ListView(
@@ -43,8 +52,12 @@ class JourneysScreen extends ConsumerWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(2, 4, 2, 14),
-                child: Text('Your journeys',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
+                child: Text(
+                  'Your journeys',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
               ),
               if (list.isEmpty)
                 const _Empty()
@@ -85,24 +98,40 @@ class _JourneyCard extends StatelessWidget {
                   Container(
                     width: 42,
                     height: 42,
-                    decoration: BoxDecoration(color: AppColors.forest50, borderRadius: BorderRadius.circular(12)),
-                    child: const Icon(Icons.route_rounded, color: AppColors.forest700),
+                    decoration: BoxDecoration(
+                      color: AppColors.forest50,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.route_rounded,
+                      color: AppColors.forest700,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(journey.title,
-                            maxLines: 1, overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
+                        Text(
+                          journey.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 15,
+                          ),
+                        ),
                         const SizedBox(height: 2),
                         Text(
                           [
-                            if (journey.transportModeLabel != null) journey.transportModeLabel!,
+                            if (journey.transportModeLabel != null)
+                              journey.transportModeLabel!,
                             _fmt(journey.recordedAt ?? journey.createdAt),
                           ].join(' · '),
-                          style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                          style: const TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),
@@ -112,7 +141,10 @@ class _JourneyCard extends StatelessWidget {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  _stat(Icons.straighten_rounded, '${journey.distanceKm.toStringAsFixed(1)} km'),
+                  _stat(
+                    Icons.straighten_rounded,
+                    '${journey.distanceKm.toStringAsFixed(1)} km',
+                  ),
                   const SizedBox(width: 16),
                   _stat(Icons.timer_outlined, journey.durationLabel),
                   const SizedBox(width: 16),
@@ -127,13 +159,20 @@ class _JourneyCard extends StatelessWidget {
   }
 
   Widget _stat(IconData icon, String text) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 15, color: AppColors.muted),
-          const SizedBox(width: 5),
-          Text(text, style: const TextStyle(color: AppColors.ink, fontSize: 12.5, fontWeight: FontWeight.w700)),
-        ],
-      );
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(icon, size: 15, color: AppColors.muted),
+      const SizedBox(width: 5),
+      Text(
+        text,
+        style: const TextStyle(
+          color: AppColors.ink,
+          fontSize: 12.5,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    ],
+  );
 }
 
 class _Empty extends StatelessWidget {
@@ -144,17 +183,31 @@ class _Empty extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
-      decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(22), border: Border.all(color: AppColors.border)),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.border),
+      ),
       child: Column(
         children: [
           Container(
             width: 72,
             height: 72,
-            decoration: const BoxDecoration(color: AppColors.forest100, shape: BoxShape.circle),
-            child: const Icon(Icons.route_rounded, size: 34, color: AppColors.forest700),
+            decoration: const BoxDecoration(
+              color: AppColors.forest100,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.route_rounded,
+              size: 34,
+              color: AppColors.forest700,
+            ),
           ),
           const SizedBox(height: 18),
-          Text('Record your first journey', style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            'Record your first journey',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
           const SizedBox(height: 8),
           const Text(
             'Tap Record to capture a GPS trail. Save it, replay it on the map, and flag road conditions along the way.',
@@ -171,6 +224,19 @@ String _fmt(String? iso) {
   if (iso == null || iso.isEmpty) return '';
   final d = DateTime.tryParse(iso);
   if (d == null) return '';
-  const m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const m = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
   return '${d.day} ${m[d.month - 1]} ${d.year}';
 }

@@ -1,7 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:travla_customer_app/features/more/presentation/app_drawer.dart';
+import 'package:travla_customer_app/shared/widgets/profile_avatar.dart';
+import 'package:travla_customer_app/core/auth/auth_controller.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class CustomerShell extends StatelessWidget {
+/// The single Scaffold that owns the app's navigation drawer — every tab
+/// root lives inside [navigationShell] as its body, and each of them opens
+/// this SAME drawer via [openAppDrawer] rather than declaring their own
+/// (nested Scaffolds don't share a drawer, so a single shared key is what
+/// lets a hamburger button on any tab reach it).
+final GlobalKey<ScaffoldState> customerShellScaffoldKey =
+    GlobalKey<ScaffoldState>();
+
+void openAppDrawer() {
+  customerShellScaffoldKey.currentState?.openDrawer();
+}
+
+class CustomerShell extends ConsumerWidget {
   const CustomerShell({required this.navigationShell, super.key});
 
   final StatefulNavigationShell navigationShell;
@@ -14,39 +30,43 @@ class CustomerShell extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authControllerProvider).user;
+
     return Scaffold(
+      key: customerShellScaffoldKey,
+      drawer: const AppDrawer(),
       body: navigationShell,
       bottomNavigationBar: SafeArea(
         top: false,
         child: NavigationBar(
           selectedIndex: navigationShell.currentIndex,
           onDestinationSelected: _selectDestination,
-          destinations: const [
-            NavigationDestination(
+          destinations: [
+            const NavigationDestination(
               icon: Icon(Icons.home_outlined),
               selectedIcon: Icon(Icons.home_rounded),
               label: 'Home',
             ),
-            NavigationDestination(
+            const NavigationDestination(
               icon: Icon(Icons.directions_car_outlined),
               selectedIcon: Icon(Icons.directions_car_filled_rounded),
               label: 'Vehicles',
             ),
-            NavigationDestination(
+            const NavigationDestination(
               icon: Icon(Icons.route_outlined),
               selectedIcon: Icon(Icons.route_rounded),
               label: 'Journeys',
             ),
-            NavigationDestination(
-              icon: Icon(Icons.newspaper_outlined),
-              selectedIcon: Icon(Icons.newspaper_rounded),
-              label: 'News',
+            const NavigationDestination(
+              icon: Icon(Icons.forum_outlined),
+              selectedIcon: Icon(Icons.forum_rounded),
+              label: 'Car Talk',
             ),
             NavigationDestination(
-              icon: Icon(Icons.grid_view_outlined),
-              selectedIcon: Icon(Icons.grid_view_rounded),
-              label: 'More',
+              icon: ProfileAvatar(user: user, radius: 12),
+              selectedIcon: ProfileAvatar(user: user, radius: 12),
+              label: 'Profile',
             ),
           ],
         ),

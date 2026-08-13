@@ -17,11 +17,9 @@ import 'package:travla_customer_app/features/claims/presentation/new_claim_scree
 import 'package:travla_customer_app/features/home/presentation/home_screen.dart';
 import 'package:travla_customer_app/features/tracking/presentation/live_map_screen.dart';
 import 'package:travla_customer_app/features/tracking/presentation/phone_tracker_screen.dart';
-import 'package:travla_customer_app/features/stolen/presentation/stolen_screen.dart';
 import 'package:travla_customer_app/features/stolen/presentation/report_stolen_screen.dart';
 import 'package:travla_customer_app/features/stolen/presentation/stolen_report_detail_screen.dart';
 import 'package:travla_customer_app/features/stolen/presentation/report_sighting_screen.dart';
-import 'package:travla_customer_app/features/forum/presentation/forum_screen.dart';
 import 'package:travla_customer_app/features/forum/presentation/forum_thread_screen.dart';
 import 'package:travla_customer_app/features/forum/presentation/new_thread_screen.dart';
 import 'package:travla_customer_app/features/fleet/presentation/fleet_screen.dart';
@@ -39,9 +37,8 @@ import 'package:travla_customer_app/features/journeys/presentation/record_journe
 import 'package:travla_customer_app/features/journeys/presentation/journey_detail_screen.dart';
 import 'package:travla_customer_app/features/marketplace/presentation/marketplace_screen.dart';
 import 'package:travla_customer_app/features/marketplace/presentation/new_listing_screen.dart';
-import 'package:travla_customer_app/features/more/presentation/more_screen.dart';
+import 'package:travla_customer_app/features/news/presentation/car_talk_screen.dart';
 import 'package:travla_customer_app/features/news/presentation/news_article_screen.dart';
-import 'package:travla_customer_app/features/news/presentation/news_screen.dart';
 import 'package:travla_customer_app/features/notifications/presentation/notifications_screen.dart';
 import 'package:travla_customer_app/features/onboarding/presentation/onboarding_screen.dart';
 import 'package:travla_customer_app/features/profile/presentation/profile_screen.dart';
@@ -195,8 +192,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
+                // "Car Talk" bottom-nav tab — kept at the /news path so
+                // existing article links (/news/:slug) and any stored
+                // notification action_urls keep working unchanged.
                 path: '/news',
-                builder: (context, state) => const NewsScreen(),
+                builder: (context, state) => const CarTalkScreen(),
                 routes: [
                   GoRoute(
                     path: ':slug',
@@ -211,8 +211,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
+                // The Profile bottom-nav tab lands here directly — the old
+                // MoreScreen grid is retired in favour of the AppDrawer.
                 path: '/more',
-                builder: (context, state) => const MoreScreen(),
+                builder: (context, state) => const ProfileScreen(),
                 routes: [
                   GoRoute(
                     path: 'transactions',
@@ -358,8 +360,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     ],
                   ),
                   GoRoute(
+                    // Browsing now lives in the "Car Talk" tab (/news); this
+                    // bare path only still exists to host the routes below.
+                    // Guarded so the redirect doesn't also swallow them (see
+                    // the /more/insurance/:vehicleId redirect for the same
+                    // matchedLocation gotcha).
                     path: 'forum',
-                    builder: (context, state) => const ForumScreen(),
+                    redirect: (context, state) {
+                      if (state.matchedLocation != state.uri.path) {
+                        return null;
+                      }
+                      return '/news';
+                    },
                     routes: [
                       GoRoute(
                         path: 'new',
@@ -374,8 +386,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     ],
                   ),
                   GoRoute(
+                    // Browsing now lives in the "Car Talk" tab (/news); see
+                    // the note on the 'forum' route above for the guard.
                     path: 'stolen',
-                    builder: (context, state) => const StolenScreen(),
+                    redirect: (context, state) {
+                      if (state.matchedLocation != state.uri.path) {
+                        return null;
+                      }
+                      return '/news';
+                    },
                     routes: [
                       GoRoute(
                         path: 'report',

@@ -2,27 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
-import 'package:travla_customer_app/core/auth/auth_controller.dart';
-import 'package:travla_customer_app/features/auth/domain/app_user.dart';
 import 'package:travla_customer_app/features/notifications/data/notification_repository.dart';
 import 'package:travla_customer_app/features/notifications/domain/app_notification.dart';
 import 'package:travla_customer_app/shared/widgets/anchored_menu.dart';
 
+/// Top-right dashboard action — just the notification bell now; the account
+/// menu moved to the bottom-nav Profile tab (see ProfileAvatar there).
 class DashboardHeaderActions extends ConsumerWidget {
   const DashboardHeaderActions({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(authControllerProvider).user;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _NotificationMenu(ref: ref),
-        const SizedBox(width: 9),
-        _ProfileMenu(ref: ref, user: user),
-      ],
-    );
+    return _NotificationMenu(ref: ref);
   }
 }
 
@@ -55,7 +46,10 @@ class _NotificationMenu extends StatelessWidget {
                 top: -7,
                 child: Container(
                   constraints: const BoxConstraints(minWidth: 17),
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.orange,
                     borderRadius: BorderRadius.circular(10),
@@ -152,7 +146,10 @@ class _NotificationMenu extends StatelessWidget {
                 if (snapshot.items.isEmpty) {
                   return const [
                     Padding(
-                      padding: EdgeInsets.symmetric(vertical: 26, horizontal: 18),
+                      padding: EdgeInsets.symmetric(
+                        vertical: 26,
+                        horizontal: 18,
+                      ),
                       child: Column(
                         children: [
                           Icon(
@@ -162,7 +159,10 @@ class _NotificationMenu extends StatelessWidget {
                           SizedBox(height: 8),
                           Text(
                             "You're all caught up.",
-                            style: TextStyle(color: AppColors.muted, fontSize: 12),
+                            style: TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 12,
+                            ),
                           ),
                         ],
                       ),
@@ -224,116 +224,6 @@ class _NotificationMenu extends StatelessWidget {
     if (context.mounted) {
       context.push('/notifications?selected=${Uri.encodeComponent(item.id)}');
     }
-  }
-}
-
-class _ProfileMenu extends StatelessWidget {
-  const _ProfileMenu({required this.ref, required this.user});
-
-  final WidgetRef ref;
-  final AppUser? user;
-
-  @override
-  Widget build(BuildContext context) {
-    final auth = ref.watch(authControllerProvider);
-
-    return AnchoredMenu(
-      width: 288,
-      triggerBuilder: (context, isOpen, toggle) => _HeaderActionButton(
-        tooltip: 'Account menu',
-        onTap: toggle,
-        child: _ProfileAvatar(user: user, radius: 16),
-      ),
-      menuBuilder: (context, close) {
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 13),
-              child: Row(
-                children: [
-                  _ProfileAvatar(user: user, radius: 23),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          user?.fullName ?? 'Travla customer',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppColors.ink,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          user?.email ?? '',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppColors.muted,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-              child: Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  _StatusPill(
-                    icon: user?.isVerified == true
-                        ? Icons.verified_user_outlined
-                        : Icons.info_outline_rounded,
-                    label: user?.isVerified == true
-                        ? 'Account verified'
-                        : 'Verification pending',
-                    isPositive: user?.isVerified == true,
-                  ),
-                  if ((user?.phone ?? '').isNotEmpty)
-                    _StatusPill(
-                      icon: Icons.phone_outlined,
-                      label: user!.phone,
-                      isPositive: true,
-                    ),
-                ],
-              ),
-            ),
-            const MenuDivider(),
-            const SizedBox(height: 6),
-            PremiumMenuItem(
-              icon: Icons.manage_accounts_outlined,
-              label: 'Account & security',
-              onTap: () {
-                close();
-                context.go('/more/profile');
-              },
-            ),
-            PremiumMenuItem(
-              icon: Icons.logout_rounded,
-              label: auth.isSubmitting ? 'Signing out…' : 'Sign out',
-              danger: true,
-              onTap: () {
-                if (auth.isSubmitting) return;
-                close();
-                ref.read(authControllerProvider.notifier).logout();
-              },
-            ),
-            const SizedBox(height: 6),
-          ],
-        );
-      },
-    );
   }
 }
 
@@ -448,101 +338,6 @@ class _HeaderActionButton extends StatelessWidget {
           onTap: onTap,
           child: SizedBox.square(dimension: 40, child: Center(child: child)),
         ),
-      ),
-    );
-  }
-}
-
-class _ProfileAvatar extends StatelessWidget {
-  const _ProfileAvatar({required this.user, required this.radius});
-
-  final AppUser? user;
-  final double radius;
-
-  @override
-  Widget build(BuildContext context) {
-    final imageUrl = user?.profileImageUrl?.trim() ?? '';
-    final size = radius * 2;
-
-    return ClipOval(
-      child: Container(
-        width: size,
-        height: size,
-        color: AppColors.forest100,
-        child: imageUrl.isEmpty
-            ? _Initials(name: user?.fullName, fontSize: radius * .72)
-            : Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    _Initials(name: user?.fullName, fontSize: radius * .72),
-              ),
-      ),
-    );
-  }
-}
-
-class _Initials extends StatelessWidget {
-  const _Initials({required this.name, required this.fontSize});
-
-  final String? name;
-  final double fontSize;
-
-  @override
-  Widget build(BuildContext context) {
-    final words = (name ?? '').trim().split(RegExp(r'\s+'));
-    final initials = words
-        .where((word) => word.isNotEmpty)
-        .take(2)
-        .map((word) => word[0].toUpperCase())
-        .join();
-    return Center(
-      child: Text(
-        initials.isEmpty ? 'T' : initials,
-        style: TextStyle(
-          color: AppColors.forest800,
-          fontSize: fontSize,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({
-    required this.icon,
-    required this.label,
-    required this.isPositive,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool isPositive;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isPositive ? AppColors.forest700 : AppColors.orangeDark;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: isPositive ? AppColors.forest50 : AppColors.orangeSoft,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 9,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
       ),
     );
   }

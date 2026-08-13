@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:travla_customer_app/shared/widgets/travla_app_bar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
@@ -9,14 +8,17 @@ import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/news/data/news_repository.dart';
 import 'package:travla_customer_app/features/news/domain/news_models.dart';
 
-class NewsScreen extends ConsumerStatefulWidget {
-  const NewsScreen({super.key});
+/// The "Blogs" tab inside Car Talk — the Travla newsroom feed. Headless (no
+/// Scaffold/AppBar of its own) so it can live inside CarTalkScreen's
+/// TabBarView; the sort control moved inline into the header card.
+class NewsFeedTab extends ConsumerStatefulWidget {
+  const NewsFeedTab({super.key});
 
   @override
-  ConsumerState<NewsScreen> createState() => _NewsScreenState();
+  ConsumerState<NewsFeedTab> createState() => _NewsFeedTabState();
 }
 
-class _NewsScreenState extends ConsumerState<NewsScreen> {
+class _NewsFeedTabState extends ConsumerState<NewsFeedTab> {
   final _search = TextEditingController();
   Timer? _debounce;
   String _query = '';
@@ -69,124 +71,115 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
     final meta = ref.watch(newsMetaProvider);
     final feed = ref.watch(newsFeedProvider(_feedQuery));
 
-    return Scaffold(
-      appBar: TravlaAppBar(
-        actions: [
-          PopupMenuButton<String>(
-            tooltip: 'Sort news',
-            initialValue: _sort,
-            onSelected: (value) => setState(() {
-              _sort = value;
-              _page = 1;
-            }),
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: 'latest', child: Text('Latest first')),
-              PopupMenuItem(value: 'popular', child: Text('Most read')),
-              PopupMenuItem(value: 'oldest', child: Text('Oldest first')),
-            ],
-            icon: const Icon(Icons.swap_vert_rounded),
+    return RefreshIndicator(
+      color: AppColors.forest600,
+      onRefresh: _refresh,
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverToBoxAdapter(
+            child: _NewsHeader(
+              controller: _search,
+              onChanged: _searchChanged,
+              sort: _sort,
+              onSortChanged: (value) => setState(() {
+                _sort = value;
+                _page = 1;
+              }),
+            ),
           ),
-          const SizedBox(width: 4),
-        ],
-      ),
-      body: RefreshIndicator(
-        color: AppColors.forest600,
-        onRefresh: _refresh,
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverToBoxAdapter(
-              child: _NewsHeader(
-                controller: _search,
-                onChanged: _searchChanged,
+          SliverToBoxAdapter(
+            child: meta.when(
+              loading: () => const _CategoryLoading(),
+              error: (_, _) => const SizedBox(height: 10),
+              data: (value) => _CategoryStrip(
+                categories: value.categories,
+                selected: _category,
+                onSelected: (category) => setState(() {
+                  _category = category;
+                  _page = 1;
+                }),
               ),
             ),
+          ),
+          if (_query.isEmpty && _category.isEmpty && _page == 1)
             SliverToBoxAdapter(
               child: meta.when(
-                loading: () => const _CategoryLoading(),
-                error: (_, _) => const SizedBox(height: 10),
-                data: (value) => _CategoryStrip(
-                  categories: value.categories,
-                  selected: _category,
-                  onSelected: (category) => setState(() {
-                    _category = category;
-                    _page = 1;
-                  }),
+                data: (value) => value.featured == null
+                    ? const SizedBox.shrink()
+                    : Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
+                        child: _FeaturedArticle(article: value.featured!),
+                      ),
+                loading: () => const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 6, 16, 16),
+                  child: _FeaturedLoading(),
                 ),
+                error: (_, _) => const SizedBox.shrink(),
               ),
             ),
-            if (_query.isEmpty && _category.isEmpty && _page == 1)
-              SliverToBoxAdapter(
-                child: meta.when(
-                  data: (value) => value.featured == null
-                      ? const SizedBox.shrink()
-                      : Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
-                          child: _FeaturedArticle(article: value.featured!),
-                        ),
-                  loading: () => const Padding(
-                    padding: EdgeInsets.fromLTRB(16, 6, 16, 16),
-                    child: _FeaturedLoading(),
-                  ),
-                  error: (_, _) => const SizedBox.shrink(),
-                ),
+          feed.when(
+            loading: () => const SliverPadding(
+              padding: EdgeInsets.fromLTRB(16, 2, 16, 30),
+              sliver: SliverToBoxAdapter(child: _FeedLoading()),
+            ),
+            error: (error, _) => SliverFillRemaining(
+              hasScrollBody: false,
+              child: _NewsError(
+                message: error is ApiFailure
+                    ? error.message
+                    : 'The Travla newsroom could not be loaded.',
+                onRetry: () => ref.invalidate(newsFeedProvider(_feedQuery)),
               ),
-            feed.when(
-              loading: () => const SliverPadding(
-                padding: EdgeInsets.fromLTRB(16, 2, 16, 30),
-                sliver: SliverToBoxAdapter(child: _FeedLoading()),
-              ),
-              error: (error, _) => SliverFillRemaining(
-                hasScrollBody: false,
-                child: _NewsError(
-                  message: error is ApiFailure
-                      ? error.message
-                      : 'The Travla newsroom could not be loaded.',
-                  onRetry: () => ref.invalidate(newsFeedProvider(_feedQuery)),
-                ),
-              ),
-              data: (page) => page.articles.isEmpty
-                  ? SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: _EmptyNews(
-                        hasFilters: _query.isNotEmpty || _category.isNotEmpty,
-                        onClear: _clearFilters,
-                      ),
-                    )
-                  : SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 2, 16, 30),
-                      sliver: SliverList.separated(
-                        itemCount: page.articles.length + 1,
-                        separatorBuilder: (_, _) => const SizedBox(height: 10),
-                        itemBuilder: (context, index) {
-                          if (index == page.articles.length) {
-                            return _Pagination(
-                              page: page,
-                              onPrevious: page.currentPage > 1
-                                  ? () => setState(() => _page--)
-                                  : null,
-                              onNext: page.currentPage < page.lastPage
-                                  ? () => setState(() => _page++)
-                                  : null,
-                            );
-                          }
-                          return _ArticleCard(article: page.articles[index]);
-                        },
-                      ),
+            ),
+            data: (page) => page.articles.isEmpty
+                ? SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: _EmptyNews(
+                      hasFilters: _query.isNotEmpty || _category.isNotEmpty,
+                      onClear: _clearFilters,
                     ),
-            ),
-          ],
-        ),
+                  )
+                : SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 2, 16, 30),
+                    sliver: SliverList.separated(
+                      itemCount: page.articles.length + 1,
+                      separatorBuilder: (_, _) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        if (index == page.articles.length) {
+                          return _Pagination(
+                            page: page,
+                            onPrevious: page.currentPage > 1
+                                ? () => setState(() => _page--)
+                                : null,
+                            onNext: page.currentPage < page.lastPage
+                                ? () => setState(() => _page++)
+                                : null,
+                          );
+                        }
+                        return _ArticleCard(article: page.articles[index]);
+                      },
+                    ),
+                  ),
+          ),
+        ],
       ),
     );
   }
 }
 
 class _NewsHeader extends StatelessWidget {
-  const _NewsHeader({required this.controller, required this.onChanged});
+  const _NewsHeader({
+    required this.controller,
+    required this.onChanged,
+    required this.sort,
+    required this.onSortChanged,
+  });
 
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
+  final String sort;
+  final ValueChanged<String> onSortChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -204,14 +197,36 @@ class _NewsHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'TRAVLA NEWSROOM',
-            style: TextStyle(
-              color: Color(0xFF75DFB8),
-              fontSize: 9,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.2,
-            ),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'TRAVLA NEWSROOM',
+                  style: TextStyle(
+                    color: Color(0xFF75DFB8),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+              PopupMenuButton<String>(
+                tooltip: 'Sort news',
+                initialValue: sort,
+                onSelected: onSortChanged,
+                itemBuilder: (context) => const [
+                  PopupMenuItem(value: 'latest', child: Text('Latest first')),
+                  PopupMenuItem(value: 'popular', child: Text('Most read')),
+                  PopupMenuItem(value: 'oldest', child: Text('Oldest first')),
+                ],
+                icon: const Icon(
+                  Icons.swap_vert_rounded,
+                  color: Colors.white,
+                  size: 19,
+                ),
+                padding: EdgeInsets.zero,
+              ),
+            ],
           ),
           const SizedBox(height: 7),
           Text(
