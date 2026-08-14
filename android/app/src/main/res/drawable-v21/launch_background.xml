@@ -12,6 +12,6 @@
     <item>
         <bitmap
             android:gravity="center"
-            android:src="@drawable/travla_launch_logo" />
+            android:src="@drawable/travla_splash_mark" />
     </item>
 </layer-list>

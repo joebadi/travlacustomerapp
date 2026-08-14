@@ -12,8 +12,7 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  late final Animation<double> _markFade;
-  late final Animation<double> _markScale;
+  late final Animation<double> _backgroundFade;
   late final Animation<double> _wordmarkFade;
   late final Animation<Offset> _wordmarkSlide;
 
@@ -24,15 +23,9 @@ class _SplashScreenState extends State<SplashScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1150),
     );
-    _markFade = CurvedAnimation(
+    _backgroundFade = CurvedAnimation(
       parent: _controller,
-      curve: const Interval(0, .55, curve: Curves.easeOut),
-    );
-    _markScale = Tween<double>(begin: .86, end: 1).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0, .68, curve: Curves.easeOutBack),
-      ),
+      curve: const Interval(0, .4, curve: Curves.easeOut),
     );
     _wordmarkFade = CurvedAnimation(
       parent: _controller,
@@ -61,36 +54,44 @@ class _SplashScreenState extends State<SplashScreen>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppColors.forest950,
-                  Color(0xFF07523B),
-                  AppColors.forest900,
-                  Color(0xFF031F17),
-                ],
-                stops: [0, .4, .73, 1],
-              ),
-            ),
-          ),
-          const CustomPaint(painter: _SplashRoadPainter()),
-          Positioned(
-            top: -165,
-            right: -135,
-            child: _GlowCircle(
-              size: 360,
-              color: AppColors.forest600.withValues(alpha: .18),
-            ),
-          ),
-          Positioned(
-            bottom: -210,
-            left: -180,
-            child: _GlowCircle(
-              size: 430,
-              color: AppColors.orange.withValues(alpha: .055),
+          FadeTransition(
+            opacity: _backgroundFade,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                const DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppColors.forest950,
+                        Color(0xFF07523B),
+                        AppColors.forest900,
+                        Color(0xFF031F17),
+                      ],
+                      stops: [0, .4, .73, 1],
+                    ),
+                  ),
+                ),
+                const CustomPaint(painter: _SplashRoadPainter()),
+                Positioned(
+                  top: -165,
+                  right: -135,
+                  child: _GlowCircle(
+                    size: 360,
+                    color: AppColors.forest600.withValues(alpha: .18),
+                  ),
+                ),
+                Positioned(
+                  bottom: -210,
+                  left: -180,
+                  child: _GlowCircle(
+                    size: 430,
+                    color: AppColors.orange.withValues(alpha: .055),
+                  ),
+                ),
+              ],
             ),
           ),
           SafeArea(
@@ -115,19 +116,13 @@ class _SplashScreenState extends State<SplashScreen>
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          FadeTransition(
-                            opacity: _markFade,
-                            child: ScaleTransition(
-                              scale: _markScale,
-                              child: Image.asset(
-                                'assets/brand/travla-mark-white.png',
-                                width: 150,
-                                height: 150,
-                                fit: BoxFit.contain,
-                                filterQuality: FilterQuality.high,
-                                semanticLabel: 'Travla road logo',
-                              ),
-                            ),
+                          Image.asset(
+                            'assets/brand/travla-mark-white.png',
+                            width: 150,
+                            height: 150,
+                            fit: BoxFit.contain,
+                            filterQuality: FilterQuality.high,
+                            semanticLabel: 'Travla road logo',
                           ),
                           const SizedBox(height: 14),
                           FadeTransition(

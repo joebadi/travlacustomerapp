@@ -127,7 +127,7 @@ Items may be progressively enabled, but disabled placeholders must clearly say
 | Area | Build status | Device QA | Notes |
 |---|---:|---:|---|
 | Flutter project and native shells | ✅ | 🧪 | Android/iOS scaffolds and production API configuration exist. |
-| Brand, splash and app icon | ✅ | 🧪 | White Travla road mark on a green-gradient adaptive icon; native and animated splash screens use the transparent road mark above the full TRAVLA wordmark. |
+| Brand, splash and app icon | ✅ | 🧪 | Android 12+ no longer substitutes the rounded adaptive launcher tile: native launch and Flutter's first frame share the transparent white road mark on Travla green, then the full TRAVLA wordmark animates in. |
 | First-launch onboarding | ✅ | 🧪 | Persistent onboarding-completed state is implemented. |
 | Login/session/logout | ✅ | 🧪 | Sanctum bearer token and secure storage are implemented. |
 | Registration/OTP/admin gate/reCAPTCHA | ✅ | 🧪 | Mirrors registration availability settings and OTP flow. |
