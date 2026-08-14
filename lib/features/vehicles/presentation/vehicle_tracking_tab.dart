@@ -58,13 +58,7 @@ class VehicleTrackingTab extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               if (data.sources.isEmpty)
-                _EmptyTrackingHero(
-                  onPhone: () => context.push(
-                    '/more/tracking/phone?vehicle=${vehicle.id}',
-                  ),
-                  onDevice: () => _addSource(context, ref),
-                  onOrder: onOrderTracker,
-                )
+                _PreferHardwareCard(onTap: onOrderTracker)
               else ...[
                 Row(
                   children: [
@@ -381,10 +375,9 @@ class _TrackingMapWorkspace extends StatelessWidget {
                     Row(
                       children: [
                         Expanded(
-                          child: OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.white,
-                              side: const BorderSide(color: Color(0x55FFFFFF)),
+                          child: FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.orange,
                               visualDensity: VisualDensity.compact,
                             ),
                             onPressed: onPhone,
@@ -398,9 +391,12 @@ class _TrackingMapWorkspace extends StatelessWidget {
                         if (positionedSource != null) ...[
                           const SizedBox(width: 8),
                           Expanded(
-                            child: FilledButton.icon(
-                              style: FilledButton.styleFrom(
-                                backgroundColor: AppColors.orange,
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.white,
+                                side: const BorderSide(
+                                  color: Color(0x55FFFFFF),
+                                ),
                                 visualDensity: VisualDensity.compact,
                               ),
                               onPressed: () => _openMap(
@@ -416,6 +412,20 @@ class _TrackingMapWorkspace extends StatelessWidget {
                           ),
                         ],
                       ],
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.white,
+                          side: const BorderSide(color: Color(0x55FFFFFF)),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        onPressed: onAddSource,
+                        icon: const Icon(Icons.gps_fixed_rounded, size: 16),
+                        label: const Text('Add a GPS device'),
+                      ),
                     ),
                   ],
                 ),
@@ -626,151 +636,51 @@ class _SourceCard extends StatelessWidget {
   );
 }
 
-/// Premium empty state for an untracked vehicle: explains live tracking and
-/// offers the two ways to begin (this phone / a GPS device) plus an install
-/// option — all in one clean card.
-class _EmptyTrackingHero extends StatelessWidget {
-  const _EmptyTrackingHero({
-    required this.onPhone,
-    required this.onDevice,
-    required this.onOrder,
-  });
+/// The "Prefer hardware?" install prompt — the one piece preserved from the
+/// old empty-state hero (which is gone; the "Use this phone / Add a GPS
+/// device" actions now live on the map panel above).
+class _PreferHardwareCard extends StatelessWidget {
+  const _PreferHardwareCard({required this.onTap});
 
-  final VoidCallback onPhone;
-  final VoidCallback onDevice;
-  final VoidCallback onOrder;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 18),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.forest950.withValues(alpha: .06),
-            blurRadius: 22,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Center(
-            child: Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [AppColors.forest700, AppColors.forest950],
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.forest50,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.build_circle_outlined,
+              color: AppColors.forest700,
+              size: 22,
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Prefer hardware? Order a Tracker/Installation via Travla.',
+                style: TextStyle(
+                  color: AppColors.forest800,
+                  fontSize: 12.5,
+                  height: 1.35,
+                  fontWeight: FontWeight.w700,
                 ),
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.forest700.withValues(alpha: .3),
-                    blurRadius: 14,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.my_location_rounded,
-                color: Colors.white,
-                size: 30,
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Track this vehicle live',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppColors.ink,
-              fontWeight: FontWeight.w900,
-              fontSize: 17,
+            const Icon(
+              Icons.arrow_forward_rounded,
+              color: AppColors.forest700,
+              size: 18,
             ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'See its position on the map. Turn this phone into a live tracker, or connect a GPS device.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppColors.muted,
-              fontSize: 12.5,
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: onPhone,
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.orange,
-              minimumSize: const Size.fromHeight(50),
-            ),
-            icon: const Icon(Icons.my_location_rounded, size: 19),
-            label: const Text(
-              'Use this phone',
-              style: TextStyle(fontWeight: FontWeight.w800),
-            ),
-          ),
-          const SizedBox(height: 10),
-          OutlinedButton.icon(
-            onPressed: onDevice,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.forest700,
-              side: const BorderSide(color: AppColors.border),
-              minimumSize: const Size.fromHeight(50),
-            ),
-            icon: const Icon(Icons.gps_fixed_rounded, size: 19),
-            label: const Text(
-              'Add a GPS device',
-              style: TextStyle(fontWeight: FontWeight.w800),
-            ),
-          ),
-          const SizedBox(height: 14),
-          InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: onOrder,
-            child: Container(
-              padding: const EdgeInsets.all(13),
-              decoration: BoxDecoration(
-                color: AppColors.forest50,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.build_circle_outlined,
-                    color: AppColors.forest700,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 11),
-                  const Expanded(
-                    child: Text(
-                      'Prefer hardware? Order a tracker installed by Travla.',
-                      style: TextStyle(
-                        color: AppColors.forest800,
-                        fontSize: 11.5,
-                        height: 1.35,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  const Icon(
-                    Icons.arrow_forward_rounded,
-                    color: AppColors.forest700,
-                    size: 18,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

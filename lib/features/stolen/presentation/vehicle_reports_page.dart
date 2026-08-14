@@ -278,7 +278,9 @@ class _VehicleReportsPageState extends ConsumerState<VehicleReportsPage> {
           child: ListView(
             key: const PageStorageKey('vehicle-reports-scroll'),
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(14, 2, 14, 104),
+            // No horizontal padding here — the "Vehicle Security" hero runs
+            // edge-to-edge; the section content below keeps its own inset.
+            padding: const EdgeInsets.only(bottom: 104),
             children: [
               _SecurityHero(
                 section: _section,
@@ -293,10 +295,15 @@ class _VehicleReportsPageState extends ConsumerState<VehicleReportsPage> {
                 onSighting: (id) => context.push('/more/stolen/$id/sighting'),
               ),
               const SizedBox(height: 12),
-              if (_section == _ReportsSection.registry)
-                ..._registryWidgets()
-              else
-                ..._personalWidgets(),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: _section == _ReportsSection.registry
+                      ? _registryWidgets()
+                      : _personalWidgets(),
+                ),
+              ),
             ],
           ),
         ),
@@ -430,14 +437,14 @@ class _SecurityHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      gradient: const LinearGradient(
+    padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [AppColors.forest950, AppColors.forest700],
       ),
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,

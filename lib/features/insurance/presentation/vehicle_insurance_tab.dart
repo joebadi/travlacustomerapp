@@ -205,7 +205,10 @@ class _InsuranceCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                // Demarcate the "Policies" heading from the results below.
+                const SizedBox(height: 12),
+                const Divider(height: 1),
+                const SizedBox(height: 12),
                 if (policies.isEmpty)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 10),
@@ -462,68 +465,48 @@ class _PolicyRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Header: name + status, then coverage/source chips underneath so
-        // the row groups cleanly instead of one crowded line.
+        // Insurer / source name on its own line.
+        Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: AppColors.ink,
+            fontWeight: FontWeight.w900,
+            fontSize: 13.5,
+          ),
+        ),
+        const SizedBox(height: 6),
+        // Coverage type stays on the left; the "Verified" and status
+        // ("Active") labels sit together on the right of the same line.
         Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppColors.ink,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 13.5,
-                ),
-              ),
+              child: policy.coverageLabel != null
+                  ? Text(
+                      policy.coverageLabel!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    )
+                  : const SizedBox.shrink(),
             ),
             const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: tone.$2,
-                borderRadius: BorderRadius.circular(30),
+            if (!policy.isPending && policy.isVerified) ...[
+              _miniTag(
+                'Verified',
+                AppColors.forest700,
+                const Color(0xFFDDF2E8),
               ),
-              child: Text(
-                policy.statusLabel,
-                style: TextStyle(
-                  color: tone.$1,
-                  fontSize: 9.5,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
+              const SizedBox(width: 6),
+            ],
+            _miniTag(policy.statusLabel, tone.$1, tone.$2),
           ],
         ),
-        if (policy.coverageLabel != null || !policy.isPending) ...[
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              if (policy.coverageLabel != null)
-                _miniTag(
-                  policy.coverageLabel!,
-                  AppColors.muted,
-                  AppColors.canvas,
-                ),
-              if (!policy.isPending)
-                policy.isVerified
-                    ? _miniTag(
-                        'Verified',
-                        AppColors.forest700,
-                        const Color(0xFFDDF2E8),
-                      )
-                    : _miniTag(
-                        'Manual entry',
-                        AppColors.muted,
-                        AppColors.canvas,
-                      ),
-            ],
-          ),
-        ],
         const SizedBox(height: 10),
         if (policy.isPending)
           Container(
