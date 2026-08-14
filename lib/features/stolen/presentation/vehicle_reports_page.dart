@@ -251,65 +251,51 @@ class _VehicleReportsPageState extends ConsumerState<VehicleReportsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(
-      key: const ValueKey('vehicle-reports-page'),
-      color: AppColors.canvas,
-      child: RefreshIndicator(
-        color: AppColors.forest700,
-        onRefresh: _refresh,
-        child: ListView(
-          key: const PageStorageKey('vehicle-reports-scroll'),
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(14, 2, 14, 104),
-          children: [
-            _SecurityHero(
-              section: _section,
-              onSectionChanged: (section) => setState(() => _section = section),
-            ),
-            const SizedBox(height: 12),
-            if (_section == _ReportsSection.registry)
-              ..._registryWidgets()
-            else
-              ..._personalWidgets(),
-          ],
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      floatingActionButton: FloatingActionButton.extended(
+        key: const ValueKey('report-stolen-action'),
+        onPressed: _reportStolen,
+        backgroundColor: AppColors.danger,
+        icon: const Icon(Icons.campaign_outlined),
+        label: const Text('Report stolen'),
+      ),
+      body: ColoredBox(
+        key: const ValueKey('vehicle-reports-page'),
+        color: AppColors.canvas,
+        child: RefreshIndicator(
+          color: AppColors.forest700,
+          onRefresh: _refresh,
+          child: ListView(
+            key: const PageStorageKey('vehicle-reports-scroll'),
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(14, 2, 14, 104),
+            children: [
+              _SecurityHero(
+                section: _section,
+                onSectionChanged: (section) =>
+                    setState(() => _section = section),
+                plateController: _plate,
+                checkingPlate: _checkingPlate,
+                plateResult: _plateResult,
+                plateError: _plateError,
+                onCheckPlate: _checkPlate,
+                onOpenReport: (id) => context.push('/more/stolen/$id'),
+                onSighting: (id) => context.push('/more/stolen/$id/sighting'),
+              ),
+              const SizedBox(height: 12),
+              if (_section == _ReportsSection.registry)
+                ..._registryWidgets()
+              else
+                ..._personalWidgets(),
+            ],
+          ),
         ),
       ),
     );
   }
 
   List<Widget> _registryWidgets() => [
-    _PlatePanel(
-      controller: _plate,
-      checking: _checkingPlate,
-      result: _plateResult,
-      error: _plateError,
-      onCheck: _checkPlate,
-      onOpenReport: (id) => context.push('/more/stolen/$id'),
-      onSighting: (id) => context.push('/more/stolen/$id/sighting'),
-    ),
-    const SizedBox(height: 10),
-    Row(
-      children: [
-        Expanded(
-          child: FilledButton.icon(
-            key: const ValueKey('report-stolen-action'),
-            onPressed: _reportStolen,
-            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
-            icon: const Icon(Icons.campaign_outlined, size: 18),
-            label: const Text('Report stolen'),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: () => setState(() => _section = _ReportsSection.mine),
-            icon: const Icon(Icons.folder_open_outlined, size: 18),
-            label: const Text('My reports'),
-          ),
-        ),
-      ],
-    ),
-    const SizedBox(height: 18),
     FutureBuilder<_LoadResult<StolenStats>>(
       future: _statsFuture,
       builder: (context, snapshot) => _StatsPanel(snapshot: snapshot),
@@ -433,10 +419,27 @@ class _VehicleReportsPageState extends ConsumerState<VehicleReportsPage> {
 }
 
 class _SecurityHero extends StatelessWidget {
-  const _SecurityHero({required this.section, required this.onSectionChanged});
+  const _SecurityHero({
+    required this.section,
+    required this.onSectionChanged,
+    required this.plateController,
+    required this.checkingPlate,
+    required this.plateResult,
+    required this.plateError,
+    required this.onCheckPlate,
+    required this.onOpenReport,
+    required this.onSighting,
+  });
 
   final _ReportsSection section;
   final ValueChanged<_ReportsSection> onSectionChanged;
+  final TextEditingController plateController;
+  final bool checkingPlate;
+  final StolenCheckResult? plateResult;
+  final String? plateError;
+  final VoidCallback onCheckPlate;
+  final ValueChanged<String> onOpenReport;
+  final ValueChanged<String> onSighting;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -477,6 +480,56 @@ class _SecurityHero extends StatelessWidget {
             height: 1.4,
           ),
         ),
+        const SizedBox(height: 11),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                key: const ValueKey('reports-plate-field'),
+                controller: plateController,
+                textCapitalization: TextCapitalization.characters,
+                textInputAction: TextInputAction.search,
+                onSubmitted: (_) => onCheckPlate(),
+                decoration: const InputDecoration(
+                  hintText: 'LAG-123-XY',
+                  prefixIcon: Icon(Icons.pin_outlined),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 100,
+              height: 50,
+              child: FilledButton(
+                onPressed: checkingPlate ? null : onCheckPlate,
+                child: checkingPlate
+                    ? const SizedBox.square(
+                        dimension: 17,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Check'),
+              ),
+            ),
+          ],
+        ),
+        if (plateError != null) ...[
+          const SizedBox(height: 9),
+          Text(
+            plateError!,
+            style: const TextStyle(color: Color(0xFFFF9C8C)),
+          ),
+        ],
+        if (plateResult != null) ...[
+          const SizedBox(height: 9),
+          _CheckResult(
+            result: plateResult!,
+            onOpenReport: onOpenReport,
+            onSighting: onSighting,
+          ),
+        ],
         const SizedBox(height: 14),
         Row(
           children: [
@@ -532,93 +585,6 @@ class _SectionButton extends StatelessWidget {
           ),
         ),
       ),
-    ),
-  );
-}
-
-class _PlatePanel extends StatelessWidget {
-  const _PlatePanel({
-    required this.controller,
-    required this.checking,
-    required this.result,
-    required this.error,
-    required this.onCheck,
-    required this.onOpenReport,
-    required this.onSighting,
-  });
-
-  final TextEditingController controller;
-  final bool checking;
-  final StolenCheckResult? result;
-  final String? error;
-  final VoidCallback onCheck;
-  final ValueChanged<String> onOpenReport;
-  final ValueChanged<String> onSighting;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(15),
-    decoration: BoxDecoration(
-      color: AppColors.white,
-      borderRadius: BorderRadius.circular(17),
-      border: Border.all(color: AppColors.border),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Instant plate check',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-        ),
-        const SizedBox(height: 3),
-        const Text(
-          'Verify a plate against active Travla theft reports.',
-          style: TextStyle(color: AppColors.muted, fontSize: 11),
-        ),
-        const SizedBox(height: 11),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                key: const ValueKey('reports-plate-field'),
-                controller: controller,
-                textCapitalization: TextCapitalization.characters,
-                textInputAction: TextInputAction.search,
-                onSubmitted: (_) => onCheck(),
-                decoration: const InputDecoration(
-                  hintText: 'LAG-123-XY',
-                  prefixIcon: Icon(Icons.pin_outlined),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            SizedBox(
-              height: 50,
-              child: FilledButton(
-                onPressed: checking ? null : onCheck,
-                child: checking
-                    ? const SizedBox.square(
-                        dimension: 17,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Check'),
-              ),
-            ),
-          ],
-        ),
-        if (error != null) ...[
-          const SizedBox(height: 9),
-          Text(error!, style: const TextStyle(color: AppColors.danger)),
-        ],
-        if (result != null) ...[
-          const SizedBox(height: 9),
-          _CheckResult(
-            result: result!,
-            onOpenReport: onOpenReport,
-            onSighting: onSighting,
-          ),
-        ],
-      ],
     ),
   );
 }
