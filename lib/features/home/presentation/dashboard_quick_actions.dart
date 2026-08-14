@@ -18,23 +18,23 @@ class DashboardQuickActions extends StatelessWidget {
     final actions = <_DashboardAction>[
       _DashboardAction(
         icon: Icons.event_repeat_rounded,
-        label: 'Renew papers',
+        label: 'Renew Vehicle papers',
         color: AppColors.forest700,
         background: AppColors.forest50,
         onTap: () => _openVehicleFlow(
           context,
-          title: 'Renew papers for',
+          title: 'Renew vehicle papers for',
           pathFor: (id) => '/more/renewals/new?vehicle=$id',
         ),
       ),
       _DashboardAction(
         icon: Icons.report_gmailerrorred_rounded,
-        label: 'Report accident',
+        label: 'File a Vehicle Claim',
         color: AppColors.orangeDark,
         background: const Color(0xFFFBE9DE),
         onTap: () => _openVehicleFlow(
           context,
-          title: 'Report an accident for',
+          title: 'File a vehicle claim for',
           pathFor: (id) => '/more/claims/new?vehicle=$id',
         ),
       ),
@@ -51,7 +51,7 @@ class DashboardQuickActions extends StatelessWidget {
       ),
       _DashboardAction(
         icon: Icons.gpp_maybe_outlined,
-        label: 'Report stolen',
+        label: 'Report a stolen vehicle',
         color: AppColors.danger,
         background: const Color(0xFFFCE7E5),
         onTap: () => _openVehicleFlow(
@@ -62,17 +62,17 @@ class DashboardQuickActions extends StatelessWidget {
       ),
       _DashboardAction(
         icon: Icons.badge_outlined,
-        label: "Driver's licence",
+        label: "Manage Driver's license",
         color: const Color(0xFF7B4FB3),
         background: const Color(0xFFF0E9F8),
         onTap: () => context.push('/more/drivers-license'),
       ),
       _DashboardAction(
-        icon: Icons.corporate_fare_rounded,
-        label: 'Fleet',
+        icon: Icons.storefront_outlined,
+        label: 'Go to Marketplace',
         color: AppColors.forest900,
         background: AppColors.forest100,
-        onTap: () => context.push('/more/fleet'),
+        onTap: () => context.push('/more/marketplace'),
       ),
     ];
 
@@ -93,12 +93,12 @@ class DashboardQuickActions extends StatelessWidget {
               ),
             ),
             TextButton(
-              onPressed: () => context.push('/more/marketplace'),
+              onPressed: () => context.push('/more/fleet'),
               style: TextButton.styleFrom(
                 visualDensity: VisualDensity.compact,
                 padding: const EdgeInsets.symmetric(horizontal: 2),
               ),
-              child: const Text('Marketplace →'),
+              child: const Text('Explore Fleet →'),
             ),
           ],
         ),

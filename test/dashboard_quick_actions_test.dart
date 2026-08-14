@@ -24,6 +24,16 @@ void main() {
           builder: (context, state) =>
               const Scaffold(body: Text('Driver licence destination')),
         ),
+        GoRoute(
+          path: '/more/marketplace',
+          builder: (context, state) =>
+              const Scaffold(body: Text('Marketplace destination')),
+        ),
+        GoRoute(
+          path: '/more/fleet',
+          builder: (context, state) =>
+              const Scaffold(body: Text('Fleet destination')),
+        ),
       ],
     );
     addTearDown(router.dispose);
@@ -31,16 +41,29 @@ void main() {
     await tester.pumpWidget(MaterialApp.router(routerConfig: router));
     await tester.pumpAndSettle();
 
-    expect(find.text('Renew papers'), findsOneWidget);
-    expect(find.text('Report accident'), findsOneWidget);
+    expect(find.text('Renew Vehicle papers'), findsOneWidget);
+    expect(find.text('File a Vehicle Claim'), findsOneWidget);
     expect(find.text('Change ownership'), findsOneWidget);
-    expect(find.text('Report stolen'), findsOneWidget);
-    expect(find.text("Driver's licence"), findsOneWidget);
-    expect(find.text('Fleet'), findsOneWidget);
+    expect(find.text('Report a stolen vehicle'), findsOneWidget);
+    expect(find.text("Manage Driver's license"), findsOneWidget);
+    expect(find.text('Go to Marketplace'), findsOneWidget);
+    expect(find.text('Explore Fleet →'), findsOneWidget);
 
-    await tester.tap(find.text("Driver's licence"));
+    await tester.tap(find.text("Manage Driver's license"));
     await tester.pumpAndSettle();
     expect(find.text('Driver licence destination'), findsOneWidget);
+
+    router.go('/');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Go to Marketplace'));
+    await tester.pumpAndSettle();
+    expect(find.text('Marketplace destination'), findsOneWidget);
+
+    router.go('/');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Explore Fleet →'));
+    await tester.pumpAndSettle();
+    expect(find.text('Fleet destination'), findsOneWidget);
   });
 
   testWidgets('vehicle-bound action asks which vehicle when garage has many', (
@@ -73,10 +96,10 @@ void main() {
 
     await tester.pumpWidget(MaterialApp.router(routerConfig: router));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Renew papers'));
+    await tester.tap(find.text('Renew Vehicle papers'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Renew papers for'), findsOneWidget);
+    expect(find.text('Renew vehicle papers for'), findsOneWidget);
     expect(find.text('Honda Pilot'), findsOneWidget);
     expect(find.text('Toyota Camry'), findsOneWidget);
 

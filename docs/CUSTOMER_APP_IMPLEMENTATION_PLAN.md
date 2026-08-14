@@ -229,7 +229,7 @@ immediate paths to the highest-value actions.
 - [x] Wallet balance summary.
 - [x] Garage/readiness summary from real vehicle data.
 - [x] Empty-garage onboarding actions.
-- [x] Six dashboard quick actions: paper renewal, accident claim, ownership transfer, stolen report, driver's licence and Fleet.
+- [x] Six dashboard quick actions: vehicle-paper renewal, vehicle claim, ownership transfer, stolen report, driver's licence and Marketplace; Fleet remains a dedicated header link.
 - [x] Retired the duplicate navigation flyout; dashboard, vehicle workspace and bottom navigation are the canonical entry points.
 - [x] Pending incoming-transfer alert from garage data.
 - [ ] Post-registration guided tour focused on adding/registering a first vehicle.
