@@ -43,21 +43,25 @@ class VehicleTrackingTab extends ConsumerWidget {
               ref.invalidate(vehicleTrackingWorkspaceProvider(vehicle.id)),
         ),
         data: (data) {
-          final hasPosition =
-              data.latest?.hasPosition == true || data.trail.isNotEmpty;
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (hasPosition) ...[
-                _TrackingMiniMap(workspace: data),
-                const SizedBox(height: 13),
-                _LivePositionCard(vehicle: vehicle, workspace: data),
-                const SizedBox(height: 16),
-              ],
+              _TrackingMapWorkspace(
+                vehicle: vehicle,
+                workspace: data,
+                onRefresh: () => ref.invalidate(
+                  vehicleTrackingWorkspaceProvider(vehicle.id),
+                ),
+                onPhone: () =>
+                    context.push('/more/tracking/phone?vehicle=${vehicle.id}'),
+                onAddSource: () => _addSource(context, ref),
+              ),
+              const SizedBox(height: 16),
               if (data.sources.isEmpty)
                 _EmptyTrackingHero(
-                  onPhone: () => context
-                      .push('/more/tracking/phone?vehicle=${vehicle.id}'),
+                  onPhone: () => context.push(
+                    '/more/tracking/phone?vehicle=${vehicle.id}',
+                  ),
                   onDevice: () => _addSource(context, ref),
                   onOrder: onOrderTracker,
                 )
@@ -197,12 +201,23 @@ class VehicleTrackingTab extends ConsumerWidget {
   }
 }
 
-/// In-app map of the vehicle's latest position and recent trail — so the
-/// Tracking tab reflects the live tracking for this vehicle without leaving the app.
-class _TrackingMiniMap extends StatelessWidget {
-  const _TrackingMiniMap({required this.workspace});
+/// Full map workspace merged from the retired standalone Vehicle Tracking
+/// page. The map is the visual background; status, live facts, refresh and
+/// tracker controls float above it so this tab is now the complete experience.
+class _TrackingMapWorkspace extends StatelessWidget {
+  const _TrackingMapWorkspace({
+    required this.vehicle,
+    required this.workspace,
+    required this.onRefresh,
+    required this.onPhone,
+    required this.onAddSource,
+  });
 
+  final VehicleDetail vehicle;
   final VehicleTrackingWorkspace workspace;
+  final VoidCallback onRefresh;
+  final VoidCallback onPhone;
+  final VoidCallback onAddSource;
 
   @override
   Widget build(BuildContext context) {
@@ -210,53 +225,201 @@ class _TrackingMiniMap extends StatelessWidget {
         .map((p) => LatLng(p.latitude, p.longitude))
         .toList(growable: false);
     final latest = workspace.latest;
-    final latestPoint = latest?.hasPosition == true
-        ? LatLng(latest!.lastLatitude!, latest.lastLongitude!)
+    final positionedSource = latest?.hasPosition == true ? latest : null;
+    final latestPoint = positionedSource != null
+        ? LatLng(
+            positionedSource.lastLatitude!,
+            positionedSource.lastLongitude!,
+          )
         : (trail.isNotEmpty ? trail.last : null);
-    if (latestPoint == null) return const SizedBox.shrink();
+    const nigeriaCenter = LatLng(9.0820, 8.6753);
+    final mapCenter = latestPoint ?? nigeriaCenter;
+    final hasPosition = latestPoint != null;
+    final stale =
+        latest?.lastPositionAt == null ||
+        DateTime.now().difference(latest!.lastPositionAt!.toLocal()).inMinutes >
+            10;
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(22),
       child: SizedBox(
-        height: 200,
-        child: FlutterMap(
-          options: MapOptions(
-            initialCenter: latestPoint,
-            initialZoom: 15,
-            interactionOptions: const InteractionOptions(
-              flags: InteractiveFlag.pinchZoom | InteractiveFlag.drag,
-            ),
-          ),
+        height: 430,
+        child: Stack(
           children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'ng.com.travla.customer',
-            ),
-            if (trail.length >= 2)
-              PolylineLayer(
-                polylines: [
-                  Polyline(points: trail, strokeWidth: 4, color: AppColors.orange),
-                ],
-              ),
-            MarkerLayer(
-              markers: [
-                Marker(
-                  point: latestPoint,
-                  width: 40,
-                  height: 40,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.forest700,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 3),
-                      boxShadow: [
-                        BoxShadow(color: Colors.black.withValues(alpha: .3), blurRadius: 6, offset: const Offset(0, 2)),
-                      ],
-                    ),
-                    child: const Icon(Icons.directions_car_filled_rounded, color: Colors.white, size: 18),
+            Positioned.fill(
+              child: FlutterMap(
+                options: MapOptions(
+                  initialCenter: mapCenter,
+                  initialZoom: hasPosition ? 15 : 5.5,
+                  interactionOptions: const InteractionOptions(
+                    flags:
+                        InteractiveFlag.pinchZoom |
+                        InteractiveFlag.drag |
+                        InteractiveFlag.doubleTapZoom,
                   ),
                 ),
-              ],
+                children: [
+                  TileLayer(
+                    urlTemplate:
+                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'ng.com.travla.customer',
+                  ),
+                  if (trail.length >= 2)
+                    PolylineLayer(
+                      polylines: [
+                        Polyline(
+                          points: trail,
+                          strokeWidth: 4,
+                          color: AppColors.orange.withValues(alpha: .9),
+                        ),
+                      ],
+                    ),
+                  if (latestPoint != null)
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: latestPoint,
+                          width: 50,
+                          height: 58,
+                          alignment: Alignment.topCenter,
+                          child: const _TrackedVehicleMarker(),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+            Positioned(
+              left: 12,
+              right: 12,
+              top: 12,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _MapGlassPanel(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      child: Row(
+                        children: [
+                          _LivePill(stale: stale, hasPosition: hasPosition),
+                          const SizedBox(width: 9),
+                          Expanded(
+                            child: Text(
+                              vehicle.displayName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: AppColors.white,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _MapIconButton(
+                    tooltip: 'Refresh location',
+                    icon: Icons.refresh_rounded,
+                    onTap: onRefresh,
+                  ),
+                  const SizedBox(width: 8),
+                  _MapIconButton(
+                    tooltip: 'Add tracking source',
+                    icon: Icons.add_location_alt_outlined,
+                    accent: true,
+                    onTap: onAddSource,
+                  ),
+                ],
+              ),
+            ),
+            Positioned(
+              left: 12,
+              right: 12,
+              bottom: 12,
+              child: _MapGlassPanel(
+                padding: const EdgeInsets.fromLTRB(14, 13, 14, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      positionedSource != null
+                          ? '${positionedSource.lastLatitude!.toStringAsFixed(5)}, ${positionedSource.lastLongitude!.toStringAsFixed(5)}'
+                          : 'Waiting for a live position',
+                      style: const TextStyle(
+                        color: AppColors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      positionedSource != null
+                          ? '${_relative(positionedSource.lastPositionAt)} · ${positionedSource.typeLabel}${positionedSource.lastSpeed == null ? '' : ' · ${positionedSource.lastSpeed!.toStringAsFixed(0)} km/h'}'
+                          : 'Connect this phone or a GPS source to place the vehicle on the map.',
+                      style: const TextStyle(
+                        color: Color(0xBFFFFFFF),
+                        fontSize: 10.5,
+                        height: 1.35,
+                      ),
+                    ),
+                    if (workspace.trail.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        '${workspace.trail.length} recent trail points',
+                        style: const TextStyle(
+                          color: Color(0x88FFFFFF),
+                          fontSize: 9,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 11),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.white,
+                              side: const BorderSide(color: Color(0x55FFFFFF)),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            onPressed: onPhone,
+                            icon: const Icon(
+                              Icons.my_location_rounded,
+                              size: 16,
+                            ),
+                            label: const Text('Use this phone'),
+                          ),
+                        ),
+                        if (positionedSource != null) ...[
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.orange,
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              onPressed: () => _openMap(
+                                positionedSource.lastLatitude!,
+                                positionedSource.lastLongitude!,
+                              ),
+                              icon: const Icon(
+                                Icons.open_in_new_rounded,
+                                size: 16,
+                              ),
+                              label: const Text('Open in Maps'),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
@@ -265,115 +428,102 @@ class _TrackingMiniMap extends StatelessWidget {
   }
 }
 
-class _LivePositionCard extends StatelessWidget {
-  const _LivePositionCard({required this.vehicle, required this.workspace});
-
-  final VehicleDetail vehicle;
-  final VehicleTrackingWorkspace workspace;
+class _TrackedVehicleMarker extends StatelessWidget {
+  const _TrackedVehicleMarker();
 
   @override
-  Widget build(BuildContext context) {
-    final latest = workspace.latest;
-    final stale =
-        latest?.lastPositionAt == null ||
-        DateTime.now().difference(latest!.lastPositionAt!).inMinutes > 10;
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.forest950,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 43,
-                height: 43,
-                decoration: BoxDecoration(
-                  color: AppColors.orange,
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: const Icon(
-                  Icons.near_me_outlined,
-                  color: AppColors.white,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'LIVE VEHICLE POSITION',
-                      style: TextStyle(
-                        color: AppColors.orange,
-                        fontSize: 8,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: .8,
-                      ),
-                    ),
-                    Text(
-                      vehicle.displayName,
-                      style: const TextStyle(
-                        color: AppColors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              _LivePill(stale: stale, hasPosition: latest?.hasPosition == true),
-            ],
-          ),
-          const SizedBox(height: 16),
-          if (latest?.hasPosition == true) ...[
-            Text(
-              '${latest!.lastLatitude!.toStringAsFixed(5)}, ${latest.lastLongitude!.toStringAsFixed(5)}',
-              style: const TextStyle(
-                color: AppColors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 5),
-            Text(
-              '${_relative(latest.lastPositionAt)} · ${latest.typeLabel}${latest.lastSpeed == null ? '' : ' · ${latest.lastSpeed!.toStringAsFixed(0)} km/h'}',
-              style: const TextStyle(color: Color(0x99FFFFFF), fontSize: 10),
-            ),
-            const SizedBox(height: 13),
-            OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.white,
-                side: const BorderSide(color: Color(0x44FFFFFF)),
-              ),
-              onPressed: () =>
-                  _openMap(latest.lastLatitude!, latest.lastLongitude!),
-              icon: const Icon(Icons.map_outlined),
-              label: const Text('Open live position in Maps'),
-            ),
-          ] else
-            const Text(
-              'No position received yet. Connect a tracking source below or have Travla install a GPS tracker.',
-              style: TextStyle(
-                color: Color(0xAFFFFFFF),
-                fontSize: 11,
-                height: 1.5,
-              ),
-            ),
-          if (workspace.trail.isNotEmpty) ...[
-            const SizedBox(height: 13),
-            Text(
-              '${workspace.trail.length} recent location points retained in this live trail.',
-              style: const TextStyle(color: Color(0x77FFFFFF), fontSize: 9),
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          color: AppColors.forest700,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: 3),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x55000000),
+              blurRadius: 8,
+              offset: Offset(0, 3),
             ),
           ],
-        ],
+        ),
+        child: const Icon(
+          Icons.directions_car_filled_rounded,
+          color: Colors.white,
+          size: 20,
+        ),
       ),
-    );
-  }
+      Transform.translate(
+        offset: const Offset(0, -5),
+        child: const Icon(
+          Icons.arrow_drop_down,
+          color: AppColors.forest700,
+          size: 24,
+        ),
+      ),
+    ],
+  );
+}
+
+class _MapGlassPanel extends StatelessWidget {
+  const _MapGlassPanel({required this.child, required this.padding});
+
+  final Widget child;
+  final EdgeInsets padding;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: padding,
+    decoration: BoxDecoration(
+      color: AppColors.forest950.withValues(alpha: .92),
+      borderRadius: BorderRadius.circular(15),
+      border: Border.all(color: const Color(0x33FFFFFF)),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x33000000),
+          blurRadius: 16,
+          offset: Offset(0, 6),
+        ),
+      ],
+    ),
+    child: child,
+  );
+}
+
+class _MapIconButton extends StatelessWidget {
+  const _MapIconButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onTap,
+    this.accent = false,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool accent;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: tooltip,
+    child: Material(
+      color: accent
+          ? AppColors.orange
+          : AppColors.forest950.withValues(alpha: .92),
+      borderRadius: BorderRadius.circular(13),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(13),
+        onTap: onTap,
+        child: SizedBox.square(
+          dimension: 42,
+          child: Icon(icon, color: AppColors.white, size: 19),
+        ),
+      ),
+    ),
+  );
 }
 
 class _SourceCard extends StatelessWidget {
@@ -437,7 +587,7 @@ class _SourceCard extends StatelessWidget {
               ),
               Switch.adaptive(
                 value: source.isActive,
-                onChanged: (_) => onToggle,
+                onChanged: (_) => onToggle(),
               ),
             ],
           ),
@@ -528,20 +678,32 @@ class _EmptyTrackingHero extends StatelessWidget {
                   ),
                 ],
               ),
-              child: const Icon(Icons.my_location_rounded, color: Colors.white, size: 30),
+              child: const Icon(
+                Icons.my_location_rounded,
+                color: Colors.white,
+                size: 30,
+              ),
             ),
           ),
           const SizedBox(height: 16),
           const Text(
             'Track this vehicle live',
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.ink, fontWeight: FontWeight.w900, fontSize: 17),
+            style: TextStyle(
+              color: AppColors.ink,
+              fontWeight: FontWeight.w900,
+              fontSize: 17,
+            ),
           ),
           const SizedBox(height: 6),
           const Text(
             'See its position on the map. Turn this phone into a live tracker, or connect a GPS device.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.muted, fontSize: 12.5, height: 1.5),
+            style: TextStyle(
+              color: AppColors.muted,
+              fontSize: 12.5,
+              height: 1.5,
+            ),
           ),
           const SizedBox(height: 20),
           FilledButton.icon(
@@ -551,7 +713,10 @@ class _EmptyTrackingHero extends StatelessWidget {
               minimumSize: const Size.fromHeight(50),
             ),
             icon: const Icon(Icons.my_location_rounded, size: 19),
-            label: const Text('Use this phone', style: TextStyle(fontWeight: FontWeight.w800)),
+            label: const Text(
+              'Use this phone',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
           ),
           const SizedBox(height: 10),
           OutlinedButton.icon(
@@ -562,7 +727,10 @@ class _EmptyTrackingHero extends StatelessWidget {
               minimumSize: const Size.fromHeight(50),
             ),
             icon: const Icon(Icons.gps_fixed_rounded, size: 19),
-            label: const Text('Add a GPS device', style: TextStyle(fontWeight: FontWeight.w800)),
+            label: const Text(
+              'Add a GPS device',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
           ),
           const SizedBox(height: 14),
           InkWell(
@@ -576,15 +744,28 @@ class _EmptyTrackingHero extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.build_circle_outlined, color: AppColors.forest700, size: 20),
+                  const Icon(
+                    Icons.build_circle_outlined,
+                    color: AppColors.forest700,
+                    size: 20,
+                  ),
                   const SizedBox(width: 11),
                   const Expanded(
                     child: Text(
                       'Prefer hardware? Order a tracker installed by Travla.',
-                      style: TextStyle(color: AppColors.forest800, fontSize: 11.5, height: 1.35, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: AppColors.forest800,
+                        fontSize: 11.5,
+                        height: 1.35,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                  const Icon(Icons.arrow_forward_rounded, color: AppColors.forest700, size: 18),
+                  const Icon(
+                    Icons.arrow_forward_rounded,
+                    color: AppColors.forest700,
+                    size: 18,
+                  ),
                 ],
               ),
             ),

@@ -34,7 +34,7 @@ class _CarTalkScreenState extends State<CarTalkScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.canvas,
-      appBar: const TravlaAppBar(showMenuButton: true),
+      appBar: const TravlaAppBar(),
       body: Column(
         children: [
           _CarTalkNavigation(

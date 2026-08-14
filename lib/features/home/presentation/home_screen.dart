@@ -2,13 +2,13 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:travla_customer_app/app/router/customer_shell.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/auth/auth_controller.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/drivers_license/data/drivers_license_repository.dart';
 import 'package:travla_customer_app/features/drivers_license/domain/drivers_license.dart';
 import 'package:travla_customer_app/features/home/presentation/dashboard_header_actions.dart';
+import 'package:travla_customer_app/features/home/presentation/dashboard_quick_actions.dart';
 import 'package:travla_customer_app/features/insurance/data/insurance_repository.dart';
 import 'package:travla_customer_app/features/insurance/domain/insurance_models.dart';
 import 'package:travla_customer_app/features/notifications/data/notification_repository.dart';
@@ -84,6 +84,12 @@ class HomeScreen extends ConsumerWidget {
                   if (snapshot != null && snapshot.vehicles.isNotEmpty)
                     _ReadinessSection(snapshot: snapshot),
 
+                  if (snapshot != null && snapshot.vehicles.isNotEmpty)
+                    const SizedBox(height: 22),
+                  DashboardQuickActions(
+                    vehicles: snapshot?.vehicles ?? const [],
+                  ),
+
                   const SizedBox(height: 22),
                   _NeedsAttentionCard(
                     snapshot: snapshot,
@@ -152,17 +158,9 @@ class _Hero extends StatelessWidget {
         children: [
           Row(
             children: [
-              IconButton(
-                tooltip: 'Menu',
-                onPressed: openAppDrawer,
-                icon: const Icon(Icons.menu_rounded, color: Colors.white),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-              const SizedBox(width: 6),
               const TravlaLogo(onDark: true, width: 116),
               const Spacer(),
-              const DashboardHeaderActions(),
+              const DashboardHeaderActions(showWallet: true),
             ],
           ),
           const SizedBox(height: 30),

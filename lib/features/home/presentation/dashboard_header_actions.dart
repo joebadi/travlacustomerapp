@@ -4,16 +4,82 @@ import 'package:go_router/go_router.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/features/notifications/data/notification_repository.dart';
 import 'package:travla_customer_app/features/notifications/domain/app_notification.dart';
+import 'package:travla_customer_app/features/wallet/data/wallet_repository.dart';
 import 'package:travla_customer_app/shared/widgets/anchored_menu.dart';
 
-/// Top-right dashboard action — just the notification bell now; the account
-/// menu moved to the bottom-nav Profile tab (see ProfileAvatar there).
+/// Compact top-right actions shared by the dashboard-style headers.
 class DashboardHeaderActions extends ConsumerWidget {
-  const DashboardHeaderActions({super.key});
+  const DashboardHeaderActions({super.key, this.showWallet = false});
+
+  final bool showWallet;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return _NotificationMenu(ref: ref);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (showWallet) ...[
+          const _WalletBalanceAction(),
+          const SizedBox(width: 7),
+        ],
+        _NotificationMenu(ref: ref),
+      ],
+    );
+  }
+}
+
+class _WalletBalanceAction extends ConsumerWidget {
+  const _WalletBalanceAction();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final wallet = ref.watch(walletWorkspaceProvider);
+    final balance = wallet.asData?.value.wallet.balanceNaira;
+    final label = balance == null ? '₦—' : '₦${_compactMoney(balance)}';
+
+    return Tooltip(
+      message: 'Open Transactions',
+      child: Material(
+        color: Colors.white.withValues(alpha: .1),
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => context.push('/more/transactions'),
+          child: Container(
+            constraints: const BoxConstraints(minWidth: 82, maxWidth: 112),
+            height: 40,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0x26FFFFFF)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.account_balance_wallet_outlined,
+                  color: AppColors.orange,
+                  size: 17,
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.white,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -370,4 +436,16 @@ String notificationTimeLabel(DateTime? value) {
   if (difference.inDays < 7) return '${difference.inDays}d ago';
   final local = value.toLocal();
   return '${local.day}/${local.month}/${local.year}';
+}
+
+String _compactMoney(String value) {
+  final amount = double.tryParse(value.replaceAll(',', ''));
+  if (amount == null) return value;
+  if (amount >= 1000000) {
+    final millions = amount / 1000000;
+    return '${millions.toStringAsFixed(millions >= 10 ? 0 : 1)}m';
+  }
+  if (amount >= 100000) return '${(amount / 1000).toStringAsFixed(0)}k';
+  final whole = amount == amount.roundToDouble();
+  return amount.toStringAsFixed(whole ? 0 : 2);
 }

@@ -16,7 +16,7 @@ class JourneysScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
-      appBar: const TravlaAppBar(showMenuButton: true),
+      appBar: const TravlaAppBar(),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: AppColors.orange,
         onPressed: () => context.push('/journeys/record'),

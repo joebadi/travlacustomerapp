@@ -132,7 +132,7 @@ Items may be progressively enabled, but disabled placeholders must clearly say
 | Login/session/logout | ✅ | 🧪 | Sanctum bearer token and secure storage are implemented. |
 | Registration/OTP/admin gate/reCAPTCHA | ✅ | 🧪 | Mirrors registration availability settings and OTP flow. |
 | Five-tab customer shell | ✅ | 🧪 | The custom flat bottom bar uses an elevated, branded Journeys control as its visual anchor. |
-| Dashboard wallet/garage/quick actions | ✅ | 🧪 | Real customer and garage data. |
+| Dashboard wallet/garage/quick actions | ✅ | 🧪 | Live wallet shortcut, real readiness data and six service actions with safe vehicle selection. |
 | Dashboard notification/profile menus | ✅ | 🧪 | Live unread count, recent items, account summary and logout. |
 | Notifications centre | ✅ | 🧪 | Read state, mark-all, polling and pull-to-refresh. |
 | Latest News list/article reading | ✅ | 🧪 | Public newsroom content is available in-app. |
@@ -150,7 +150,7 @@ Items may be progressively enabled, but disabled placeholders must clearly say
 | Car Talk forum | 🧪 | — | Category filter + sort + thread list, thread detail with replies/like/delete, reply composer, new-thread create. (`lib/features/forum/`) |
 | Stolen vehicle registry | ✅ | 🧪 | The rebuilt Car Talk Reports page mounts directly without nested TabBarView/offstage state; includes plate checks, complete filters, verified theft reports, GPS/photo/anonymous sightings, owner moderation and recovery/closure actions. (`lib/features/stolen/`) |
 | Insurance and claims | 🧪 | — | Insurance: policies, add-with-doc, NIID verify, buy+renew, cert download. Claims: rollout gate, list+timeline, file draft, evidence, submit (fee), messages, disputes+NAICOM. Combined-checkout + geolocation remain. |
-| Vehicle tracking/live map | 🧪 | — | Live map (flutter_map/OSM) of all vehicles' latest positions, selected-vehicle trail overlay, phone-as-tracker with **background** foreground-service streaming, and Traccar-device add (from hub + per-vehicle tab). |
+| Vehicle tracking/live map | 🧪 | — | The vehicle Tracking tab is the canonical map workspace: map background, latest position/freshness, trail, phone-as-tracker with **background** foreground-service streaming, and tracker-source management. |
 | Support/profile/security | 🟡 | 🧪 | Full profile, avatar, personal/NIN editing, Paystack bank verification and password change are coded; support and legal/preferences pages remain. |
 | Push notifications and deep links | 🧪 | — | FCM wired end-to-end (client register/tap-route + backend HTTP v1 sender from NotificationService); needs on-device QA. iOS needs an APNs key; foreground-Android banner + richer per-screen deep links are follow-ups. |
 | Release hardening/store submission | ⬜ | — | Privacy, signing, QA, telemetry and store assets remain. |
@@ -223,13 +223,14 @@ immediate paths to the highest-value actions.
 #### Navigation and dashboard
 
 - [x] Five-destination bottom navigation.
-- [x] Marketplace moved under More.
+- [x] Marketplace remains reachable from the vehicle/marketplace flows without a duplicate flyout.
 - [x] News retained as a primary destination.
 - [x] Compact green-gradient dashboard header.
 - [x] Wallet balance summary.
 - [x] Garage/readiness summary from real vehicle data.
 - [x] Empty-garage onboarding actions.
-- [x] Quick actions for renewals, transfers, journeys and registration.
+- [x] Six dashboard quick actions: paper renewal, accident claim, ownership transfer, stolen report, driver's licence and Fleet.
+- [x] Retired the duplicate navigation flyout; dashboard, vehicle workspace and bottom navigation are the canonical entry points.
 - [x] Pending incoming-transfer alert from garage data.
 - [ ] Post-registration guided tour focused on adding/registering a first vehicle.
 - [ ] Dashboard consolidated action desk for expired papers, pending payments,
@@ -525,10 +526,10 @@ The detailed behavioral source is `../../docs/JOURNEYS.md`.
 
 #### Vehicle tracking
 
-- [ ] Latest vehicle position and position freshness.
-- [ ] Position history/trail.
-- [ ] Phone-as-tracker start/stop controls and visible privacy state.
-- [ ] Tracker-source management and one-time key handling.
+- [x] Latest vehicle position and position freshness.
+- [x] Position history/trail.
+- [x] Phone-as-tracker start/stop controls and visible privacy state.
+- [x] Tracker-source management and one-time key handling.
 - [ ] Active stolen-report live-location integration.
 - [ ] Geofence/idle alerts when backend capability is added.
 

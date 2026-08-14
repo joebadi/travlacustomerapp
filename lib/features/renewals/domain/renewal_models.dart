@@ -124,6 +124,12 @@ class RenewalQuote {
   /// summary count and to tell an empty quote apart from a priced one.
   int get itemCount => items.length + insuranceItems.length;
 
+  /// A quote can proceed only when every server-priced document and insurance
+  /// line remains eligible. Empty collections are neutral, matching `every`.
+  bool get allEligible =>
+      items.every((item) => item.eligible) &&
+      insuranceItems.every((item) => item.eligible);
+
   factory RenewalQuote.fromJson(Map<String, dynamic> json) {
     final rawItems = json['items'];
     final rawInsuranceItems = json['insurance_items'];

@@ -15,7 +15,6 @@ import 'package:travla_customer_app/features/claims/presentation/claim_detail_sc
 import 'package:travla_customer_app/features/claims/presentation/claims_screen.dart';
 import 'package:travla_customer_app/features/claims/presentation/new_claim_screen.dart';
 import 'package:travla_customer_app/features/home/presentation/home_screen.dart';
-import 'package:travla_customer_app/features/tracking/presentation/live_map_screen.dart';
 import 'package:travla_customer_app/features/tracking/presentation/phone_tracker_screen.dart';
 import 'package:travla_customer_app/features/stolen/presentation/report_stolen_screen.dart';
 import 'package:travla_customer_app/features/stolen/presentation/stolen_report_detail_screen.dart';
@@ -211,8 +210,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                // The Profile bottom-nav tab lands here directly — the old
-                // MoreScreen grid is retired in favour of the AppDrawer.
+                // The Profile bottom-nav tab lands here directly. Service
+                // entry points now live on the dashboard and vehicle workspace.
                 path: '/more',
                 builder: (context, state) => const ProfileScreen(),
                 routes: [
@@ -418,7 +417,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   ),
                   GoRoute(
                     path: 'tracking',
-                    builder: (context, state) => const LiveMapScreen(),
+                    // The standalone fleet-style map has been consolidated
+                    // into each vehicle's Tracking tab. Keep this redirect so
+                    // old bookmarks still land on the garage, while the phone
+                    // tracker child route remains available from that tab.
+                    redirect: (context, state) =>
+                        state.matchedLocation == state.uri.path
+                        ? '/vehicles'
+                        : null,
                     routes: [
                       GoRoute(
                         path: 'phone',

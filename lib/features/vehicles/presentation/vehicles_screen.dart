@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:travla_customer_app/app/router/customer_shell.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/home/presentation/dashboard_header_actions.dart';
@@ -135,14 +134,6 @@ class _Header extends StatelessWidget {
       ),
       child: Row(
         children: [
-          IconButton(
-            tooltip: 'Menu',
-            onPressed: openAppDrawer,
-            icon: const Icon(Icons.menu_rounded, color: Colors.white),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-          ),
-          const SizedBox(width: 6),
           const TravlaLogo(onDark: true, width: 108),
           const Spacer(),
           const DashboardHeaderActions(),
