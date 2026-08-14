@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/insurance/data/insurance_repository.dart';
 import 'package:travla_customer_app/features/insurance/domain/insurance_models.dart';
 import 'package:travla_customer_app/features/insurance/presentation/insurance_widgets.dart';
+import 'package:travla_customer_app/features/vehicles/presentation/document_viewer_screen.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/vehicle_quick_actions.dart';
 
 /// The Insurance tab inside the vehicle workspace — the SINGLE place for a
@@ -47,10 +47,19 @@ class _VehicleInsuranceTabState extends ConsumerState<VehicleInsuranceTab> {
     }
   }
 
-  Future<void> _openDoc(String? url) async {
-    final uri = url == null ? null : Uri.tryParse(url);
+  void _openDoc(String? url) {
+    final value = url?.trim();
+    if (value == null || value.isEmpty) return;
+    final uri = Uri.tryParse(value);
     if (uri == null || !uri.hasScheme) return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    // Open the certificate INSIDE the app (native PDF/image viewer) rather
+    // than handing off to the device browser.
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            DocumentViewerScreen(url: value, title: 'Insurance certificate'),
+      ),
+    );
   }
 
   @override
@@ -229,6 +238,9 @@ class _InsuranceCard extends StatelessWidget {
                       policy: policies[i],
                       onViewDocument: () =>
                           onViewDocument(policies[i].documentUrl),
+                      // Uploading a certificate uses the same policy form
+                      // (it has a file picker) as Edit.
+                      onUpload: () => onEditPolicy(policies[i]),
                       onEdit: () => onEditPolicy(policies[i]),
                       onRenew: policies[i].canRenew
                           ? () => onRenewPolicy(policies[i])
@@ -433,12 +445,14 @@ class _PolicyRow extends StatelessWidget {
   const _PolicyRow({
     required this.policy,
     required this.onViewDocument,
+    required this.onUpload,
     required this.onEdit,
     required this.onRenew,
   });
 
   final InsurancePolicy policy;
   final VoidCallback onViewDocument;
+  final VoidCallback onUpload;
   final VoidCallback onEdit;
   final VoidCallback? onRenew;
 
@@ -457,9 +471,12 @@ class _PolicyRow extends StatelessWidget {
       ),
       _ => const (AppColors.forest700, Color(0xFFDDF2E8)),
     };
-    final title = policy.provider?.isNotEmpty == true
-        ? policy.provider!
-        : (policy.sourceLabel ?? 'Insurance policy');
+    // Drop the backend's "Verified via NIID" placeholder insurer name — the
+    // "Verified" label already conveys that. Fall back to a neutral title.
+    final provider = policy.provider?.trim() ?? '';
+    final title = (provider.isNotEmpty && provider != 'Verified via NIID')
+        ? provider
+        : 'Insurance policy';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -576,9 +593,24 @@ class _PolicyRow extends StatelessWidget {
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  icon: const Icon(Icons.open_in_new_rounded, size: 14),
+                  icon: const Icon(Icons.visibility_outlined, size: 14),
                   label: const Text(
                     'Certificate',
+                    style: TextStyle(fontSize: 11.5),
+                  ),
+                )
+              else
+                TextButton.icon(
+                  onPressed: onUpload,
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.forest700,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  icon: const Icon(Icons.upload_file_outlined, size: 14),
+                  label: const Text(
+                    'Upload Certificate',
                     style: TextStyle(fontSize: 11.5),
                   ),
                 ),
