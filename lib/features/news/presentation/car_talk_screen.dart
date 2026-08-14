@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/features/forum/presentation/forum_screen.dart';
 import 'package:travla_customer_app/features/news/presentation/news_screen.dart';
-import 'package:travla_customer_app/features/stolen/presentation/reports_tab.dart';
+import 'package:travla_customer_app/features/stolen/presentation/vehicle_reports_page.dart';
 import 'package:travla_customer_app/shared/widgets/travla_app_bar.dart';
 
 /// Mobile Car Talk workspace.
@@ -58,7 +58,7 @@ class _CarTalkScreenState extends State<CarTalkScreen> {
   Widget _selectedSection() {
     return switch (_sectionIndex) {
       1 => const ForumFeedTab(key: ValueKey('car-talk-forum')),
-      2 => const ReportsFeedTab(key: ValueKey('car-talk-reports')),
+      2 => const VehicleReportsPage(key: ValueKey('car-talk-reports')),
       _ => const NewsFeedTab(key: ValueKey('car-talk-blogs')),
     };
   }

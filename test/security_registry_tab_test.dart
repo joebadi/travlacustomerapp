@@ -4,10 +4,11 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:travla_customer_app/core/auth/secure_token_store.dart';
 import 'package:travla_customer_app/core/network/api_client.dart';
+import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/news/presentation/car_talk_screen.dart';
 import 'package:travla_customer_app/features/stolen/data/stolen_repository.dart';
 import 'package:travla_customer_app/features/stolen/domain/stolen_models.dart';
-import 'package:travla_customer_app/features/stolen/presentation/reports_tab.dart';
+import 'package:travla_customer_app/features/stolen/presentation/vehicle_reports_page.dart';
 
 void main() {
   testWidgets('security tab separates the public registry and personal cases', (
@@ -18,17 +19,17 @@ void main() {
         overrides: [
           stolenRepositoryProvider.overrideWithValue(_FakeStolenRepository()),
         ],
-        child: const MaterialApp(home: Scaffold(body: ReportsFeedTab())),
+        child: const MaterialApp(home: Scaffold(body: VehicleReportsPage())),
       ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Vehicle Reports'), findsOneWidget);
-    expect(find.text('Is this vehicle reported?'), findsOneWidget);
-    expect(find.text('Reported vehicles'), findsOneWidget);
+    expect(find.text('Vehicle Security'), findsOneWidget);
+    expect(find.text('Instant plate check'), findsOneWidget);
+    expect(find.text('Reported stolen vehicles'), findsOneWidget);
     expect(find.text('Report stolen'), findsOneWidget);
 
-    await tester.tap(find.text('My reports (0)'));
+    await tester.tap(find.text('My reports').first);
     await tester.pumpAndSettle();
 
     expect(find.text('Your vehicle reports'), findsOneWidget);
@@ -57,8 +58,40 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Reports'), findsOneWidget);
-    expect(find.text('Vehicle Reports'), findsOneWidget);
-    expect(find.text('Is this vehicle reported?'), findsOneWidget);
+    expect(find.text('Vehicle Security'), findsOneWidget);
+    expect(find.text('Instant plate check'), findsOneWidget);
+  });
+
+  testWidgets('Reports never blanks when every request fails', (tester) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          stolenRepositoryProvider.overrideWithValue(
+            _FailingStolenRepository(),
+          ),
+        ],
+        child: const MaterialApp(home: CarTalkScreen(initialIndex: 2)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('vehicle-reports-page')), findsOneWidget);
+    expect(find.text('Vehicle Security'), findsOneWidget);
+    expect(find.text('Instant plate check'), findsOneWidget);
+
+    await tester.tap(find.text('My reports').first);
+    await tester.pumpAndSettle();
+    await tester.drag(
+      find.byKey(const PageStorageKey('vehicle-reports-scroll')),
+      const Offset(0, -260),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Personal reports unavailable for test.'), findsOneWidget);
   });
 }
 
@@ -94,4 +127,23 @@ class _FakeStolenRepository extends StolenRepository {
   @override
   Future<StolenCheckResult> checkPlate(String plate) async =>
       StolenCheckResult(plate: plate, isStolen: false, report: null);
+}
+
+class _FailingStolenRepository extends StolenRepository {
+  _FailingStolenRepository()
+    : super(ApiClient(SecureTokenStore(const FlutterSecureStorage())));
+
+  @override
+  Future<StolenDirectoryPage> directory({
+    StolenDirectoryFilters filters = const StolenDirectoryFilters(),
+    int page = 1,
+  }) => throw const ApiFailure('Registry unavailable for test.');
+
+  @override
+  Future<List<StolenReport>> mine() =>
+      throw const ApiFailure('Personal reports unavailable for test.');
+
+  @override
+  Future<StolenStats> stats() =>
+      throw const ApiFailure('Statistics unavailable for test.');
 }
