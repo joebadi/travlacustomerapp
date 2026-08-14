@@ -34,6 +34,52 @@ void main() {
     expect(find.text('Theft reports and sightings'), findsOneWidget);
     expect(find.text('No theft reports'), findsOneWidget);
   });
+
+  testWidgets('security tab renders inside a compact Car Talk TabBarView', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 740);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          stolenRepositoryProvider.overrideWithValue(_FakeStolenRepository()),
+        ],
+        child: MaterialApp(
+          home: DefaultTabController(
+            length: 3,
+            child: Scaffold(
+              appBar: AppBar(
+                bottom: TabBar(
+                  tabs: [
+                    Tab(text: 'Blogs'),
+                    Tab(text: 'Forum'),
+                    Tab(text: 'Reports'),
+                  ],
+                ),
+              ),
+              body: TabBarView(
+                children: [
+                  SizedBox.expand(),
+                  SizedBox.expand(),
+                  StolenFeedTab(),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Reports'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Vehicle Security'), findsOneWidget);
+    expect(find.text('Verify before you transact.'), findsOneWidget);
+  });
 }
 
 class _FakeStolenRepository extends StolenRepository {

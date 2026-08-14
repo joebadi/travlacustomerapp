@@ -20,7 +20,8 @@ class StolenFeedTab extends ConsumerStatefulWidget {
   ConsumerState<StolenFeedTab> createState() => _StolenFeedTabState();
 }
 
-class _StolenFeedTabState extends ConsumerState<StolenFeedTab> {
+class _StolenFeedTabState extends ConsumerState<StolenFeedTab>
+    with AutomaticKeepAliveClientMixin {
   final _plateController = TextEditingController();
   final _registrySearchController = TextEditingController();
   final _scrollController = ScrollController();
@@ -39,8 +40,16 @@ class _StolenFeedTabState extends ConsumerState<StolenFeedTab> {
   @override
   void initState() {
     super.initState();
-    _loadDirectory();
+    // TabBarView constructs adjacent pages offstage. Starting the request on
+    // the first rendered frame avoids mutating state during that nested page
+    // setup, which can otherwise leave a release build with an empty surface.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadDirectory();
+    });
   }
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void dispose() {
@@ -110,8 +119,14 @@ class _StolenFeedTabState extends ConsumerState<StolenFeedTab> {
               )
             : page;
       });
-    } on ApiFailure catch (failure) {
-      if (mounted) setState(() => _directoryError = failure.message);
+    } catch (error) {
+      if (mounted) {
+        setState(
+          () => _directoryError = error is ApiFailure
+              ? error.message
+              : 'The security registry could not be loaded. Pull down to retry.',
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -134,8 +149,14 @@ class _StolenFeedTabState extends ConsumerState<StolenFeedTab> {
     try {
       final result = await ref.read(stolenRepositoryProvider).checkPlate(plate);
       if (mounted) setState(() => _plateResult = result);
-    } on ApiFailure catch (failure) {
-      if (mounted) setState(() => _plateError = failure.message);
+    } catch (error) {
+      if (mounted) {
+        setState(
+          () => _plateError = error is ApiFailure
+              ? error.message
+              : 'The plate check could not be completed. Please try again.',
+        );
+      }
     } finally {
       if (mounted) setState(() => _checkingPlate = false);
     }
@@ -340,30 +361,34 @@ class _StolenFeedTabState extends ConsumerState<StolenFeedTab> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final stats = ref.watch(stolenStatsProvider);
     final mine = ref.watch(myStolenReportsProvider);
     final mineCount = mine.asData?.value.length;
 
-    return RefreshIndicator(
-      color: AppColors.forest700,
-      onRefresh: _refresh,
-      child: ListView(
-        key: PageStorageKey(_view),
-        controller: _scrollController,
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 96),
-        children: [
-          _SecurityHeader(
-            selected: _view,
-            reportsCount: mineCount,
-            onSelected: _selectView,
-          ),
-          const SizedBox(height: 16),
-          if (_view == _SecurityView.registry)
-            ..._registryContent(stats)
-          else
-            ..._myReportsContent(mine),
-        ],
+    return ColoredBox(
+      color: AppColors.canvas,
+      child: RefreshIndicator(
+        color: AppColors.forest700,
+        onRefresh: _refresh,
+        child: ListView(
+          key: PageStorageKey(_view),
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 96),
+          children: [
+            _SecurityHeader(
+              selected: _view,
+              reportsCount: mineCount,
+              onSelected: _selectView,
+            ),
+            const SizedBox(height: 16),
+            if (_view == _SecurityView.registry)
+              ..._registryContent(stats)
+            else
+              ..._myReportsContent(mine),
+          ],
+        ),
       ),
     );
   }
@@ -632,12 +657,16 @@ class _ViewButton extends StatelessWidget {
                 color: selected ? AppColors.forest700 : AppColors.muted,
               ),
               const SizedBox(width: 7),
-              Text(
-                label,
-                style: TextStyle(
-                  color: selected ? AppColors.forest900 : AppColors.muted,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 12,
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: selected ? AppColors.forest900 : AppColors.muted,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
                 ),
               ),
             ],
