@@ -81,21 +81,8 @@ class HomeScreen extends ConsumerWidget {
                     const SizedBox(height: 16),
                   ],
 
-                  // KPI tiles — mirrors the web's Vehicles / Papers to review /
-                  // Active renewals / Driver's licences row.
-                  _StatGrid(
-                    vehicleCount: snapshot?.vehicles.length ?? 0,
-                    papersToReview:
-                        (snapshot?.expiringCount ?? 0) +
-                        (snapshot?.expiredCount ?? 0),
-                    activeRenewals: activeRenewals?.length ?? 0,
-                    licenseCount: licenseList?.length ?? 0,
-                  ),
-
-                  if (snapshot != null && snapshot.vehicles.isNotEmpty) ...[
-                    const SizedBox(height: 22),
+                  if (snapshot != null && snapshot.vehicles.isNotEmpty)
                     _ReadinessSection(snapshot: snapshot),
-                  ],
 
                   const SizedBox(height: 22),
                   _NeedsAttentionCard(
@@ -111,6 +98,20 @@ class HomeScreen extends ConsumerWidget {
                     snapshot: notifications.asData?.value,
                     isLoading: notifications.isLoading,
                   ),
+
+                  // KPI tiles — mirrors the web's Vehicles / Papers to review /
+                  // Active renewals / Driver's licences row. Kept near the
+                  // bottom, right before the Fleet cross-sell.
+                  const SizedBox(height: 22),
+                  _StatGrid(
+                    vehicleCount: snapshot?.vehicles.length ?? 0,
+                    papersToReview:
+                        (snapshot?.expiringCount ?? 0) +
+                        (snapshot?.expiredCount ?? 0),
+                    activeRenewals: activeRenewals?.length ?? 0,
+                    licenseCount: licenseList?.length ?? 0,
+                  ),
+
                   const SizedBox(height: 22),
                   const _FleetCtaBanner(),
                 ],
@@ -479,36 +480,13 @@ class _ReadinessSectionState extends State<_ReadinessSection> {
                 if (vehicles.isNotEmpty) ...[
                   Align(
                     alignment: Alignment.centerRight,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _VehicleFilterDropdown(
-                          vehicles: vehicles,
-                          selectedId: _selectedVehicleId,
-                          onSelect: (id) =>
-                              setState(() => _selectedVehicleId = id),
-                        ),
-                        const SizedBox(height: 6),
-                        InkWell(
-                          onTap: () => context.go('/vehicles'),
-                          borderRadius: BorderRadius.circular(8),
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 2),
-                            child: Text(
-                              'Manage vehicles →',
-                              style: TextStyle(
-                                color: AppColors.forest700,
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                    child: _VehicleFilterDropdown(
+                      vehicles: vehicles,
+                      selectedId: _selectedVehicleId,
+                      onSelect: (id) => setState(() => _selectedVehicleId = id),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                 ],
                 if (total == 0)
                   const Padding(
@@ -523,15 +501,15 @@ class _ReadinessSectionState extends State<_ReadinessSection> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       SizedBox(
-                        width: 108,
-                        height: 108,
+                        width: 132,
+                        height: 132,
                         child: Stack(
                           alignment: Alignment.center,
                           children: [
                             PieChart(
                               PieChartData(
                                 sectionsSpace: 2,
-                                centerSpaceRadius: 34,
+                                centerSpaceRadius: 42,
                                 startDegreeOffset: -90,
                                 sections: [
                                   if (valid > 0)
@@ -539,21 +517,21 @@ class _ReadinessSectionState extends State<_ReadinessSection> {
                                       value: valid.toDouble(),
                                       color: AppColors.forest600,
                                       showTitle: false,
-                                      radius: 18,
+                                      radius: 24,
                                     ),
                                   if (expiring > 0)
                                     PieChartSectionData(
                                       value: expiring.toDouble(),
                                       color: AppColors.orange,
                                       showTitle: false,
-                                      radius: 18,
+                                      radius: 24,
                                     ),
                                   if (expired > 0)
                                     PieChartSectionData(
                                       value: expired.toDouble(),
                                       color: AppColors.danger,
                                       showTitle: false,
-                                      radius: 18,
+                                      radius: 24,
                                     ),
                                 ],
                               ),
@@ -565,7 +543,7 @@ class _ReadinessSectionState extends State<_ReadinessSection> {
                                   '$total',
                                   style: const TextStyle(
                                     color: AppColors.ink,
-                                    fontSize: 20,
+                                    fontSize: 26,
                                     fontWeight: FontWeight.w900,
                                   ),
                                 ),
@@ -573,7 +551,7 @@ class _ReadinessSectionState extends State<_ReadinessSection> {
                                   'papers',
                                   style: TextStyle(
                                     color: AppColors.muted,
-                                    fontSize: 9.5,
+                                    fontSize: 10,
                                   ),
                                 ),
                               ],
@@ -581,7 +559,7 @@ class _ReadinessSectionState extends State<_ReadinessSection> {
                           ],
                         ),
                       ),
-                      const SizedBox(width: 18),
+                      const SizedBox(width: 20),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -591,13 +569,13 @@ class _ReadinessSectionState extends State<_ReadinessSection> {
                               label: 'Up to date',
                               value: valid,
                             ),
-                            const SizedBox(height: 9),
+                            const SizedBox(height: 11),
                             _LegendRow(
                               color: AppColors.orange,
                               label: 'Expiring',
                               value: expiring,
                             ),
-                            const SizedBox(height: 9),
+                            const SizedBox(height: 11),
                             _LegendRow(
                               color: AppColors.danger,
                               label: 'Expired',
@@ -608,6 +586,28 @@ class _ReadinessSectionState extends State<_ReadinessSection> {
                       ),
                     ],
                   ),
+                // "Manage vehicles" anchored to the bottom-right of the card,
+                // beneath the legend — leaving the top clear so the (bigger)
+                // donut sits higher and reads as the focal point on the left.
+                const SizedBox(height: 14),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: InkWell(
+                    onTap: () => context.go('/vehicles'),
+                    borderRadius: BorderRadius.circular(8),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+                      child: Text(
+                        'Manage vehicles →',
+                        style: TextStyle(
+                          color: AppColors.forest700,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
