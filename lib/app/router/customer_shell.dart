@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:travla_customer_app/app/theme/app_colors.dart';
+import 'package:travla_customer_app/core/auth/auth_controller.dart';
 import 'package:travla_customer_app/features/more/presentation/app_drawer.dart';
 import 'package:travla_customer_app/features/support/presentation/support_floating_widget.dart';
 import 'package:travla_customer_app/shared/widgets/profile_avatar.dart';
-import 'package:travla_customer_app/core/auth/auth_controller.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// The single Scaffold that owns the app's navigation drawer — every tab
 /// root lives inside [navigationShell] as its body, and each of them opens
@@ -38,38 +39,232 @@ class CustomerShell extends ConsumerWidget {
       key: customerShellScaffoldKey,
       drawer: const AppDrawer(),
       body: Stack(children: [navigationShell, const SupportFloatingWidget()]),
-      bottomNavigationBar: SafeArea(
+      bottomNavigationBar: _CustomerBottomBar(
+        selectedIndex: navigationShell.currentIndex,
+        onSelected: _selectDestination,
+        profile: ProfileAvatar(user: user, radius: 12),
+      ),
+    );
+  }
+}
+
+class _CustomerBottomBar extends StatelessWidget {
+  const _CustomerBottomBar({
+    required this.selectedIndex,
+    required this.onSelected,
+    required this.profile,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
+  final Widget profile;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        color: AppColors.white,
+        border: Border(top: BorderSide(color: AppColors.border)),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x14021B13),
+            blurRadius: 20,
+            offset: Offset(0, -5),
+          ),
+        ],
+      ),
+      child: SafeArea(
         top: false,
-        child: NavigationBar(
-          selectedIndex: navigationShell.currentIndex,
-          onDestinationSelected: _selectDestination,
-          destinations: [
-            const NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home_rounded),
-              label: 'Home',
+        child: SizedBox(
+          height: 74,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _BottomDestination(
+                label: 'Home',
+                icon: Icons.home_outlined,
+                selectedIcon: Icons.home_rounded,
+                selected: selectedIndex == 0,
+                onTap: () => onSelected(0),
+              ),
+              _BottomDestination(
+                label: 'Vehicles',
+                icon: Icons.directions_car_outlined,
+                selectedIcon: Icons.directions_car_filled_rounded,
+                selected: selectedIndex == 1,
+                onTap: () => onSelected(1),
+              ),
+              _JourneyDestination(
+                selected: selectedIndex == 2,
+                onTap: () => onSelected(2),
+              ),
+              _BottomDestination(
+                label: 'Car Talk',
+                icon: Icons.forum_outlined,
+                selectedIcon: Icons.forum_rounded,
+                selected: selectedIndex == 3,
+                onTap: () => onSelected(3),
+              ),
+              _BottomDestination(
+                label: 'Profile',
+                iconWidget: profile,
+                selected: selectedIndex == 4,
+                onTap: () => onSelected(4),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BottomDestination extends StatelessWidget {
+  const _BottomDestination({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.icon,
+    this.selectedIcon,
+    this.iconWidget,
+  });
+
+  final String label;
+  final IconData? icon;
+  final IconData? selectedIcon;
+  final Widget? iconWidget;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? AppColors.orange : AppColors.muted;
+    final displayedIcon =
+        iconWidget ??
+        Icon(selected ? selectedIcon ?? icon : icon, size: 21, color: color);
+
+    return Expanded(
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: label,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(3, 8, 3, 7),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    curve: Curves.easeOutCubic,
+                    width: 38,
+                    height: 32,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? AppColors.orangeSoft
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(11),
+                      border: iconWidget != null && selected
+                          ? Border.all(color: AppColors.orange, width: 1.5)
+                          : null,
+                    ),
+                    child: displayedIcon,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: selected ? AppColors.forest900 : AppColors.muted,
+                      fontSize: 9,
+                      fontWeight: selected ? FontWeight.w900 : FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const NavigationDestination(
-              icon: Icon(Icons.directions_car_outlined),
-              selectedIcon: Icon(Icons.directions_car_filled_rounded),
-              label: 'Vehicles',
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _JourneyDestination extends StatelessWidget {
+  const _JourneyDestination({required this.selected, required this.onTap});
+
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: 'Journeys',
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.topCenter,
+              children: [
+                Positioned(
+                  top: -15,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOutBack,
+                    width: selected ? 58 : 54,
+                    height: selected ? 58 : 54,
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [AppColors.forest600, AppColors.forest950],
+                      ),
+                      border: Border.all(
+                        color: selected ? AppColors.orange : AppColors.white,
+                        width: selected ? 2.5 : 3,
+                      ),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x38021B13),
+                          blurRadius: 14,
+                          offset: Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Image.asset(
+                      'assets/brand/travla-mark-white.png',
+                      fit: BoxFit.contain,
+                      filterQuality: FilterQuality.high,
+                      semanticLabel: 'Travla Journeys',
+                    ),
+                  ),
+                ),
+                Positioned(
+                  bottom: 8,
+                  child: Text(
+                    'Journeys',
+                    style: TextStyle(
+                      color: selected ? AppColors.orange : AppColors.forest900,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const NavigationDestination(
-              icon: Icon(Icons.route_outlined),
-              selectedIcon: Icon(Icons.route_rounded),
-              label: 'Journeys',
-            ),
-            const NavigationDestination(
-              icon: Icon(Icons.forum_outlined),
-              selectedIcon: Icon(Icons.forum_rounded),
-              label: 'Car Talk',
-            ),
-            NavigationDestination(
-              icon: ProfileAvatar(user: user, radius: 12),
-              selectedIcon: ProfileAvatar(user: user, radius: 12),
-              label: 'Profile',
-            ),
-          ],
+          ),
         ),
       ),
     );

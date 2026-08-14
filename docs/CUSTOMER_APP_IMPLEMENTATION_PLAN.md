@@ -127,11 +127,11 @@ Items may be progressively enabled, but disabled placeholders must clearly say
 | Area | Build status | Device QA | Notes |
 |---|---:|---:|---|
 | Flutter project and native shells | ✅ | 🧪 | Android/iOS scaffolds and production API configuration exist. |
-| Brand, splash and app icon | ✅ | 🧪 | White Travla road mark on a green-gradient adaptive icon, Android themed icon and branded splash are present. |
+| Brand, splash and app icon | ✅ | 🧪 | White Travla road mark on a green-gradient adaptive icon; native and animated splash screens use the transparent road mark above the full TRAVLA wordmark. |
 | First-launch onboarding | ✅ | 🧪 | Persistent onboarding-completed state is implemented. |
 | Login/session/logout | ✅ | 🧪 | Sanctum bearer token and secure storage are implemented. |
 | Registration/OTP/admin gate/reCAPTCHA | ✅ | 🧪 | Mirrors registration availability settings and OTP flow. |
-| Five-tab customer shell | ✅ | 🧪 | Home, Vehicles, Journeys, News and More. |
+| Five-tab customer shell | ✅ | 🧪 | The custom flat bottom bar uses an elevated, branded Journeys control as its visual anchor. |
 | Dashboard wallet/garage/quick actions | ✅ | 🧪 | Real customer and garage data. |
 | Dashboard notification/profile menus | ✅ | 🧪 | Live unread count, recent items, account summary and logout. |
 | Notifications centre | ✅ | 🧪 | Read state, mark-all, polling and pull-to-refresh. |
@@ -148,7 +148,7 @@ Items may be progressively enabled, but disabled placeholders must clearly say
 | Fleet | 🟡 | — | Individual/fleet mode toggle (persisted) + fleet home (companies, invites accept, create company) + org overview (dashboard KPIs, members, vehicles). Deep management (invite member, assign vehicle/driver, fuel funding, cards, regions/drivers CRUD) still to build. (`lib/features/fleet/`) |
 | Journeys | 🧪 | — | Journeys list, record (live map + GPS stream + batched point upload + distance/duration/speed), replay detail (trail polyline + stats + delete), and community road-report submission during recording. (`lib/features/journeys/`) |
 | Car Talk forum | 🧪 | — | Category filter + sort + thread list, thread detail with replies/like/delete, reply composer, new-thread create. (`lib/features/forum/`) |
-| Stolen vehicle registry | 🧪 | — | Report a theft, my-reports, report detail with owner actions (recover/close) + sightings (verify/dismiss), public plate check, and report-a-sighting (with photos). (`lib/features/stolen/`) |
+| Stolen vehicle registry | ✅ | 🧪 | Mobile security hub separates the public registry and personal cases; includes plate checks, complete filters, verified theft reports, GPS/photo/anonymous sightings, owner moderation and recovery/closure actions. (`lib/features/stolen/`) |
 | Insurance and claims | 🧪 | — | Insurance: policies, add-with-doc, NIID verify, buy+renew, cert download. Claims: rollout gate, list+timeline, file draft, evidence, submit (fee), messages, disputes+NAICOM. Combined-checkout + geolocation remain. |
 | Vehicle tracking/live map | 🧪 | — | Live map (flutter_map/OSM) of all vehicles' latest positions, selected-vehicle trail overlay, phone-as-tracker with **background** foreground-service streaming, and Traccar-device add (from hub + per-vehicle tab). |
 | Support/profile/security | 🟡 | 🧪 | Full profile, avatar, personal/NIN editing, Paystack bank verification and password change are coded; support and legal/preferences pages remain. |
@@ -466,16 +466,16 @@ exposing buyer contact details by default.
 
 #### Stolen vehicle registry
 
-- [ ] Plate/identity search and safety guidance.
-- [ ] Public report directory and filters.
-- [ ] Report one of the user’s vehicles stolen.
-- [ ] Police reference, timestamps, evidence and reward fields.
-- [ ] Map-based last-known location.
-- [ ] Report a sighting with optional anonymous identity.
-- [ ] Sighting location, direction, time and photos.
-- [ ] Owner sighting moderation.
-- [ ] Mark recovered/closed.
-- [ ] Clear warning never to pursue or confront a suspected stolen vehicle.
+- [x] Plate/identity search and safety guidance.
+- [x] Public report directory and filters.
+- [x] Report one of the user’s vehicles stolen.
+- [x] Police reference, timestamps, evidence and reward fields.
+- [x] Map-based last-known location.
+- [x] Report a sighting with optional anonymous identity.
+- [x] Sighting location, direction, time and photos.
+- [x] Owner sighting moderation.
+- [x] Mark recovered/closed.
+- [x] Clear warning never to pursue or confront a suspected stolen vehicle.
 
 ### Phase 9 — Fleet organisations
 

@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@color/travla_launch_background" />
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="135"
+                android:centerColor="#07523B"
+                android:endColor="#031F17"
+                android:startColor="#021B13" />
+        </shape>
+    </item>
     <item>
         <bitmap
             android:gravity="center"

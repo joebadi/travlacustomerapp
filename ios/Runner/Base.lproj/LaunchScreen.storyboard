@@ -23,8 +23,8 @@
                         <constraints>
                             <constraint firstItem="YRO-k0-Ey4" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="1a2-6s-vTC"/>
                             <constraint firstItem="YRO-k0-Ey4" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" id="4X2-HB-R7a"/>
-                            <constraint firstItem="YRO-k0-Ey4" firstAttribute="width" constant="210" id="Dg7-sP-u6Q"/>
-                            <constraint firstItem="YRO-k0-Ey4" firstAttribute="height" constant="42" id="Ff1-bV-a9K"/>
+                            <constraint firstItem="YRO-k0-Ey4" firstAttribute="width" constant="220" id="Dg7-sP-u6Q"/>
+                            <constraint firstItem="YRO-k0-Ey4" firstAttribute="height" constant="220" id="Ff1-bV-a9K"/>
                         </constraints>
                     </view>
                 </viewController>
@@ -34,6 +34,6 @@
         </scene>
     </scenes>
     <resources>
-        <image name="LaunchImage" width="168" height="185"/>
+        <image name="LaunchImage" width="220" height="220"/>
     </resources>
 </document>

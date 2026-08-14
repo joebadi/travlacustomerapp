@@ -99,8 +99,9 @@ class _ReportSightingScreenState extends ConsumerState<ReportSightingScreen> {
     if (result != null) {
       setState(() {
         for (final f in result.files) {
-          if (_photos.length < 5 && !_photos.any((p) => p.name == f.name))
+          if (_photos.length < 5 && !_photos.any((p) => p.name == f.name)) {
             _photos.add(f);
+          }
         }
       });
     }
