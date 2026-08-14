@@ -191,59 +191,68 @@ class _VehicleReportsPageState extends ConsumerState<VehicleReportsPage> {
       return;
     }
 
-    final selected = vehicles.length == 1
-        ? vehicles.first
-        : await showModalBottomSheet<VehicleSummary>(
-            context: context,
-            showDragHandle: true,
-            builder: (sheetContext) => SafeArea(
-              top: false,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
-                    child: Text(
-                      'Which vehicle is missing?',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                  Flexible(
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: vehicles.length,
-                      separatorBuilder: (_, _) => const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        final vehicle = vehicles[index];
-                        return ListTile(
-                          leading: const CircleAvatar(
-                            backgroundColor: AppColors.forest50,
-                            child: Icon(
-                              Icons.directions_car_outlined,
-                              color: AppColors.forest700,
-                            ),
-                          ),
-                          title: Text(
-                            vehicle.displayName,
-                            style: const TextStyle(fontWeight: FontWeight.w800),
-                          ),
-                          subtitle: vehicle.plateNumber?.isNotEmpty == true
-                              ? Text(vehicle.plateNumber!)
-                              : null,
-                          trailing: const Icon(Icons.chevron_right_rounded),
-                          onTap: () => Navigator.of(sheetContext).pop(vehicle),
-                        );
-                      },
-                    ),
-                  ),
-                ],
+    // Always confirm the vehicle in a picker — even with a single vehicle —
+    // so the reporter can see exactly which vehicle the report is filed for.
+    final selected = await showModalBottomSheet<VehicleSummary>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+              child: Text(
+                vehicles.length == 1
+                    ? 'Confirm the vehicle'
+                    : 'Which vehicle is missing?',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ),
-          );
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Text(
+                'This is the vehicle the theft report will be filed for.',
+                style: TextStyle(color: AppColors.muted, fontSize: 12),
+              ),
+            ),
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: vehicles.length,
+                separatorBuilder: (_, _) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final vehicle = vehicles[index];
+                  return ListTile(
+                    leading: const CircleAvatar(
+                      backgroundColor: AppColors.forest50,
+                      child: Icon(
+                        Icons.directions_car_outlined,
+                        color: AppColors.forest700,
+                      ),
+                    ),
+                    title: Text(
+                      vehicle.displayName,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    subtitle: vehicle.plateNumber?.isNotEmpty == true
+                        ? Text(vehicle.plateNumber!)
+                        : null,
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => Navigator.of(sheetContext).pop(vehicle),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
     if (selected != null && mounted) {
       context.push('/more/stolen/report?vehicle=${selected.id}');
     }
@@ -372,28 +381,6 @@ class _VehicleReportsPageState extends ConsumerState<VehicleReportsPage> {
   ];
 
   List<Widget> _personalWidgets() => [
-    Row(
-      children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: () =>
-                setState(() => _section = _ReportsSection.registry),
-            icon: const Icon(Icons.arrow_back_rounded, size: 17),
-            label: const Text('Registry'),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: FilledButton.icon(
-            onPressed: _reportStolen,
-            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('New report'),
-          ),
-        ),
-      ],
-    ),
-    const SizedBox(height: 20),
     const Text(
       'Your vehicle reports',
       style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
@@ -517,10 +504,7 @@ class _SecurityHero extends StatelessWidget {
         ),
         if (plateError != null) ...[
           const SizedBox(height: 9),
-          Text(
-            plateError!,
-            style: const TextStyle(color: Color(0xFFFF9C8C)),
-          ),
+          Text(plateError!, style: const TextStyle(color: Color(0xFFFF9C8C))),
         ],
         if (plateResult != null) ...[
           const SizedBox(height: 9),
@@ -568,7 +552,7 @@ class _SectionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: selected ? AppColors.white : Colors.white.withValues(alpha: .08),
+    color: selected ? AppColors.orange : Colors.white.withValues(alpha: .08),
     borderRadius: BorderRadius.circular(11),
     child: InkWell(
       onTap: onTap,
@@ -578,8 +562,8 @@ class _SectionButton extends StatelessWidget {
         child: Text(
           label,
           textAlign: TextAlign.center,
-          style: TextStyle(
-            color: selected ? AppColors.forest900 : Colors.white,
+          style: const TextStyle(
+            color: Colors.white,
             fontSize: 11,
             fontWeight: FontWeight.w900,
           ),

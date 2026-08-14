@@ -25,9 +25,15 @@ class SupportFloatingWidget extends ConsumerStatefulWidget {
 }
 
 class _SupportFloatingWidgetState extends ConsumerState<SupportFloatingWidget> {
+  static const double _btn = 56;
+
   bool _open = false;
   _SupportView _view = _SupportView.list;
   String? _threadId;
+
+  // Top-left offset of the launcher button. Null until first laid out, then
+  // it defaults to the bottom-left corner. The user can drag it anywhere.
+  Offset? _pos;
 
   Timer? _unreadTimer;
   Timer? _openTimer;
@@ -107,26 +113,67 @@ class _SupportFloatingWidgetState extends ConsumerState<SupportFloatingWidget> {
       orElse: () => 0,
     );
 
-    return Positioned(
-      left: 16,
-      bottom: 16,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (_open) ...[
-            _Panel(
-              view: _view,
-              threadId: _threadId,
-              onBack: _backToList,
-              onOpenThread: _openThread,
-              onStartNew: () => setState(() => _view = _SupportView.newTicket),
-              onCreated: _openThread,
-            ),
-            const SizedBox(height: 12),
-          ],
-          _LaunchButton(open: _open, unread: unread, onTap: _toggle),
-        ],
+    // Fill the shell's Stack so the button's offset maps to the whole screen.
+    return Positioned.fill(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final w = constraints.maxWidth;
+          final h = constraints.maxHeight;
+          final safe = MediaQuery.paddingOf(context);
+          const margin = 12.0;
+
+          // Default resting spot: bottom-left, above the bottom safe area.
+          final pos = _pos ?? Offset(margin, h - _btn - margin - safe.bottom);
+          final clamped = Offset(
+            pos.dx.clamp(margin, w - _btn - margin),
+            pos.dy.clamp(margin + safe.top, h - _btn - margin - safe.bottom),
+          );
+
+          final inBottomHalf = clamped.dy > h / 2;
+          final onLeft = clamped.dx < w / 2;
+          final panelWidth = (w - 2 * margin).clamp(280.0, 360.0);
+          final panelLeft = onLeft
+              ? clamped.dx
+              : (clamped.dx + _btn - panelWidth);
+          final spaceAbove = clamped.dy - margin - safe.top;
+          final spaceBelow = h - (clamped.dy + _btn) - margin - safe.bottom;
+
+          return Stack(
+            children: [
+              if (_open)
+                Positioned(
+                  left: panelLeft.clamp(margin, w - panelWidth - margin),
+                  top: inBottomHalf ? null : clamped.dy + _btn + 12,
+                  bottom: inBottomHalf ? (h - clamped.dy + 12) : null,
+                  width: panelWidth,
+                  child: _Panel(
+                    maxHeight: (inBottomHalf ? spaceAbove : spaceBelow) - 12,
+                    view: _view,
+                    threadId: _threadId,
+                    onBack: _backToList,
+                    onOpenThread: _openThread,
+                    onStartNew: () =>
+                        setState(() => _view = _SupportView.newTicket),
+                    onCreated: _openThread,
+                  ),
+                ),
+              Positioned(
+                left: clamped.dx,
+                top: clamped.dy,
+                child: GestureDetector(
+                  onPanUpdate: (details) {
+                    setState(() => _pos = clamped + details.delta);
+                  },
+                  child: _LaunchButton(
+                    open: _open,
+                    unread: unread,
+                    onTap: _toggle,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -201,6 +248,7 @@ class _Panel extends ConsumerWidget {
     required this.onOpenThread,
     required this.onStartNew,
     required this.onCreated,
+    this.maxHeight = double.infinity,
   });
 
   final _SupportView view;
@@ -209,12 +257,20 @@ class _Panel extends ConsumerWidget {
   final ValueChanged<String> onOpenThread;
   final VoidCallback onStartNew;
   final ValueChanged<String> onCreated;
+  final double maxHeight;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final availability = ref.watch(supportAvailabilityProvider);
     final screenHeight = MediaQuery.of(context).size.height;
-    final width = MediaQuery.of(context).size.width - 32;
+
+    // Never taller than the space available beside the (movable) button.
+    final height = (screenHeight * .62)
+        .clamp(360.0, 520.0)
+        .clamp(
+          220.0,
+          maxHeight.isFinite ? maxHeight.clamp(220.0, double.infinity) : 520.0,
+        );
 
     return Material(
       color: AppColors.white,
@@ -222,8 +278,7 @@ class _Panel extends ConsumerWidget {
       elevation: 10,
       clipBehavior: Clip.antiAlias,
       child: SizedBox(
-        width: width.clamp(280, 360),
-        height: (screenHeight * .62).clamp(360, 520),
+        height: height,
         child: Column(
           children: [
             Container(
