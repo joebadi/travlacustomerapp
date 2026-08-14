@@ -4,9 +4,10 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:travla_customer_app/core/auth/secure_token_store.dart';
 import 'package:travla_customer_app/core/network/api_client.dart';
+import 'package:travla_customer_app/features/news/presentation/car_talk_screen.dart';
 import 'package:travla_customer_app/features/stolen/data/stolen_repository.dart';
 import 'package:travla_customer_app/features/stolen/domain/stolen_models.dart';
-import 'package:travla_customer_app/features/stolen/presentation/security_registry_tab.dart';
+import 'package:travla_customer_app/features/stolen/presentation/reports_tab.dart';
 
 void main() {
   testWidgets('security tab separates the public registry and personal cases', (
@@ -17,25 +18,24 @@ void main() {
         overrides: [
           stolenRepositoryProvider.overrideWithValue(_FakeStolenRepository()),
         ],
-        child: const MaterialApp(home: Scaffold(body: StolenFeedTab())),
+        child: const MaterialApp(home: Scaffold(body: ReportsFeedTab())),
       ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Vehicle Security'), findsOneWidget);
-    expect(find.text('Verify before you transact.'), findsOneWidget);
-    expect(find.text('Reported stolen vehicles'), findsOneWidget);
+    expect(find.text('Vehicle Reports'), findsOneWidget);
+    expect(find.text('Is this vehicle reported?'), findsOneWidget);
+    expect(find.text('Reported vehicles'), findsOneWidget);
     expect(find.text('Report stolen'), findsOneWidget);
 
-    await tester.tap(find.text('My reports  0'));
+    await tester.tap(find.text('My reports (0)'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Your security cases'), findsOneWidget);
-    expect(find.text('Theft reports and sightings'), findsOneWidget);
-    expect(find.text('No theft reports'), findsOneWidget);
+    expect(find.text('Your vehicle reports'), findsOneWidget);
+    expect(find.text('No reports created'), findsOneWidget);
   });
 
-  testWidgets('security tab renders inside a compact Car Talk TabBarView', (
+  testWidgets('Reports renders inside the real compact Car Talk screen', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(360, 740);
@@ -48,37 +48,17 @@ void main() {
         overrides: [
           stolenRepositoryProvider.overrideWithValue(_FakeStolenRepository()),
         ],
-        child: MaterialApp(
-          home: DefaultTabController(
-            length: 3,
-            child: Scaffold(
-              appBar: AppBar(
-                bottom: TabBar(
-                  tabs: [
-                    Tab(text: 'Blogs'),
-                    Tab(text: 'Forum'),
-                    Tab(text: 'Reports'),
-                  ],
-                ),
-              ),
-              body: TabBarView(
-                children: [
-                  SizedBox.expand(),
-                  SizedBox.expand(),
-                  StolenFeedTab(),
-                ],
-              ),
-            ),
-          ),
-        ),
+        child: const MaterialApp(home: CarTalkScreen()),
       ),
     );
 
+    await tester.pump();
     await tester.tap(find.text('Reports'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Vehicle Security'), findsOneWidget);
-    expect(find.text('Verify before you transact.'), findsOneWidget);
+    expect(find.text('Reports'), findsOneWidget);
+    expect(find.text('Vehicle Reports'), findsOneWidget);
+    expect(find.text('Is this vehicle reported?'), findsOneWidget);
   });
 }
 
