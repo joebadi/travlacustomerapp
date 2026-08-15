@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,13 +14,23 @@ import 'package:travla_customer_app/features/vehicles/presentation/add_vehicle_d
 import 'package:travla_customer_app/features/vehicles/presentation/edit_vehicle_sheet.dart';
 import 'package:travla_customer_app/features/insurance/data/insurance_repository.dart';
 import 'package:travla_customer_app/features/insurance/presentation/vehicle_insurance_tab.dart';
+import 'package:travla_customer_app/features/checkpoint/data/checkpoint_repository.dart';
+import 'package:travla_customer_app/features/checkpoint/presentation/vehicle_checkpoint_tab.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/document_viewer_screen.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/vehicle_quick_actions.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/vehicle_services_tab.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/vehicle_tracking_tab.dart';
 import 'package:travla_customer_app/shared/widgets/travla_logo.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-enum VehicleDetailTab { overview, documents, insurance, tracking, services }
+enum VehicleDetailTab {
+  overview,
+  documents,
+  insurance,
+  checkpoint,
+  tracking,
+  services,
+}
 
 class VehicleDetailScreen extends ConsumerStatefulWidget {
   const VehicleDetailScreen({
@@ -137,6 +149,10 @@ class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
         key: const ValueKey('insurance'),
         vehicleId: vehicle.id,
       ),
+      VehicleDetailTab.checkpoint => VehicleCheckpointTab(
+        key: const ValueKey('checkpoint'),
+        vehicleId: vehicle.id,
+      ),
       VehicleDetailTab.tracking => VehicleTrackingTab(
         key: const ValueKey('tracking'),
         vehicle: vehicle,
@@ -172,6 +188,7 @@ class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
     ref.invalidate(vehicleServiceWorkspaceProvider(widget.vehicleId));
     ref.invalidate(vehicleTrackingWorkspaceProvider(widget.vehicleId));
     ref.invalidate(vehicleInsuranceProvider(widget.vehicleId));
+    ref.invalidate(checkpointProvider(widget.vehicleId));
     await ref.read(vehicleDetailProvider(widget.vehicleId).future);
   }
 
@@ -555,40 +572,50 @@ class _DetailTabSelector extends StatelessWidget {
         color: AppColors.white,
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
-      child: Row(
-        children: [
-          _DetailTabButton(
-            label: 'Overview',
-            icon: Icons.dashboard_outlined,
-            selected: selected == VehicleDetailTab.overview,
-            onTap: () => onChanged(VehicleDetailTab.overview),
-          ),
-          _DetailTabButton(
-            label: 'Documents',
-            icon: Icons.folder_copy_outlined,
-            badge: documentCount,
-            selected: selected == VehicleDetailTab.documents,
-            onTap: () => onChanged(VehicleDetailTab.documents),
-          ),
-          _DetailTabButton(
-            label: 'Insurance',
-            icon: Icons.shield_outlined,
-            selected: selected == VehicleDetailTab.insurance,
-            onTap: () => onChanged(VehicleDetailTab.insurance),
-          ),
-          _DetailTabButton(
-            label: 'Tracking',
-            icon: Icons.near_me_outlined,
-            selected: selected == VehicleDetailTab.tracking,
-            onTap: () => onChanged(VehicleDetailTab.tracking),
-          ),
-          _DetailTabButton(
-            label: 'Services',
-            icon: Icons.home_repair_service_outlined,
-            selected: selected == VehicleDetailTab.services,
-            onTap: () => onChanged(VehicleDetailTab.services),
-          ),
-        ],
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: Row(
+          children: [
+            _DetailTabButton(
+              label: 'Overview',
+              icon: Icons.dashboard_outlined,
+              selected: selected == VehicleDetailTab.overview,
+              onTap: () => onChanged(VehicleDetailTab.overview),
+            ),
+            _DetailTabButton(
+              label: 'Documents',
+              icon: Icons.folder_copy_outlined,
+              badge: documentCount,
+              selected: selected == VehicleDetailTab.documents,
+              onTap: () => onChanged(VehicleDetailTab.documents),
+            ),
+            _DetailTabButton(
+              label: 'Insurance',
+              icon: Icons.shield_outlined,
+              selected: selected == VehicleDetailTab.insurance,
+              onTap: () => onChanged(VehicleDetailTab.insurance),
+            ),
+            _DetailTabButton(
+              label: 'Checkpoint',
+              icon: Icons.qr_code_2_rounded,
+              selected: selected == VehicleDetailTab.checkpoint,
+              onTap: () => onChanged(VehicleDetailTab.checkpoint),
+            ),
+            _DetailTabButton(
+              label: 'Tracking',
+              icon: Icons.near_me_outlined,
+              selected: selected == VehicleDetailTab.tracking,
+              onTap: () => onChanged(VehicleDetailTab.tracking),
+            ),
+            _DetailTabButton(
+              label: 'Services',
+              icon: Icons.home_repair_service_outlined,
+              selected: selected == VehicleDetailTab.services,
+              onTap: () => onChanged(VehicleDetailTab.services),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -612,7 +639,8 @@ class _DetailTabButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = selected ? AppColors.forest700 : AppColors.muted;
-    return Expanded(
+    return SizedBox(
+      width: 86,
       child: InkWell(
         onTap: onTap,
         child: AnimatedContainer(
@@ -1269,6 +1297,7 @@ class _DocumentTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = _DocumentStatusStyle.from(document.status);
+    final verification = document.verification;
 
     return Material(
       color: AppColors.white,
@@ -1367,6 +1396,50 @@ class _DocumentTile extends StatelessWidget {
                               fontSize: 10.5,
                             ),
                           ),
+                          if (verification != null) ...[
+                            const SizedBox(height: 7),
+                            Row(
+                              children: [
+                                Icon(
+                                  verification.isPositive
+                                      ? Icons.verified_user_outlined
+                                      : verification.isNegative
+                                      ? Icons.gpp_bad_outlined
+                                      : Icons.manage_search_outlined,
+                                  size: 14,
+                                  color: _verificationColor(verification),
+                                ),
+                                const SizedBox(width: 5),
+                                Expanded(
+                                  child: Text(
+                                    verification.statusLabel,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: _verificationColor(verification),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: onView,
+                                  style: TextButton.styleFrom(
+                                    minimumSize: const Size(0, 28),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                    ),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: const Text(
+                                    'See more',
+                                    style: TextStyle(fontSize: 10),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                           // A thin rule separates identity from renewal
                           // status, so the row reads as two clear groups
                           // instead of one long stack of lines.
@@ -1747,6 +1820,14 @@ class _DocumentDetailsSheet extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (document.verification != null) ...[
+                  const SizedBox(height: 14),
+                  _VerificationEvidenceCard(
+                    vehicleId: vehicle.id,
+                    documentId: document.id,
+                    fallbackVerification: document.verification!,
+                  ),
+                ],
                 const SizedBox(height: 18),
                 Row(
                   children: [
@@ -1809,6 +1890,496 @@ class _DocumentDetailsSheet extends StatelessWidget {
                     ),
                   ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Color _verificationColor(DocumentVerificationSummary verification) {
+  if (verification.isPositive) return AppColors.forest700;
+  if (verification.isNegative) return AppColors.danger;
+  if (verification.isPending) return const Color(0xFF1769AA);
+  return AppColors.orangeDark;
+}
+
+class _VerificationEvidenceCard extends ConsumerStatefulWidget {
+  const _VerificationEvidenceCard({
+    required this.vehicleId,
+    required this.documentId,
+    required this.fallbackVerification,
+  });
+
+  final String vehicleId;
+  final String documentId;
+  final DocumentVerificationSummary fallbackVerification;
+
+  @override
+  ConsumerState<_VerificationEvidenceCard> createState() =>
+      _VerificationEvidenceCardState();
+}
+
+class _VerificationEvidenceCardState
+    extends ConsumerState<_VerificationEvidenceCard>
+    with WidgetsBindingObserver {
+  bool _rechecking = false;
+  bool _isForeground = true;
+  Timer? _pollTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _isForeground = state == AppLifecycleState.resumed;
+    if (!_isForeground) {
+      _pollTimer?.cancel();
+      _pollTimer = null;
+      return;
+    }
+    ref.invalidate(
+      documentVerificationProvider((
+        vehicleId: widget.vehicleId,
+        documentId: widget.documentId,
+      )),
+    );
+  }
+
+  void _syncPolling(bool shouldPoll) {
+    if (!shouldPoll || !_isForeground) {
+      _pollTimer?.cancel();
+      _pollTimer = null;
+      return;
+    }
+    if (_pollTimer?.isActive == true) return;
+    _pollTimer = Timer(const Duration(seconds: 4), () {
+      _pollTimer = null;
+      if (!mounted || !_isForeground) return;
+      ref.invalidate(
+        documentVerificationProvider((
+          vehicleId: widget.vehicleId,
+          documentId: widget.documentId,
+        )),
+      );
+    });
+  }
+
+  Future<void> _openManualSource(
+    BuildContext context,
+    DocumentVerificationSummary verification,
+  ) async {
+    final uri = Uri.tryParse(verification.manualUrl ?? '');
+    if (uri == null || uri.scheme != 'https') return;
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('The official source could not be opened.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _recheck() async {
+    if (_rechecking) return;
+    setState(() => _rechecking = true);
+    try {
+      await ref
+          .read(vehicleDetailRepositoryProvider)
+          .recheckDocument(
+            vehicleId: widget.vehicleId,
+            documentId: widget.documentId,
+          );
+      ref.invalidate(
+        documentVerificationProvider((
+          vehicleId: widget.vehicleId,
+          documentId: widget.documentId,
+        )),
+      );
+      ref.invalidate(vehicleDetailProvider(widget.vehicleId));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Document check queued.')));
+      }
+    } on ApiFailure catch (failure) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(failure.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _rechecking = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final verificationKey = (
+      vehicleId: widget.vehicleId,
+      documentId: widget.documentId,
+    );
+    final workspace = ref.watch(documentVerificationProvider(verificationKey));
+    final snapshot = workspace.asData?.value;
+    final detail = snapshot?.current;
+    final history = snapshot?.history ?? const [];
+    final verification = detail?.summary ?? widget.fallbackVerification;
+    final isOfflineSnapshot = snapshot?.isFromCache == true;
+    _syncPolling(verification.isPending && !isOfflineSnapshot);
+    final color = _verificationColor(verification);
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .055),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: .2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: .1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.verified_user_outlined,
+                  color: color,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'TRAVLA AUTHENTICITY CHECK',
+                      style: TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: .7,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      verification.statusLabel,
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (verification.isPending) ...[
+            const SizedBox(height: 12),
+            LinearProgressIndicator(
+              minHeight: 3,
+              color: color,
+              backgroundColor: color.withValues(alpha: .1),
+            ),
+          ],
+          if (isOfflineSnapshot) ...[
+            const SizedBox(height: 11),
+            Container(
+              padding: const EdgeInsets.all(11),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF4DD),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFF1D49A)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.cloud_off_outlined,
+                    color: AppColors.orangeDark,
+                    size: 17,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Offline snapshot saved ${_displaySnapshotTime(context, snapshot?.cachedAt)}. '
+                      '${snapshot?.isStale == true ? 'It may be out of date. ' : ''}'
+                      'Reconnect before relying on this result.',
+                      style: const TextStyle(
+                        color: AppColors.ink,
+                        fontSize: 9.5,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => ref.invalidate(
+                      documentVerificationProvider(verificationKey),
+                    ),
+                    child: const Text('Refresh'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (verification.message?.isNotEmpty == true) ...[
+            const SizedBox(height: 11),
+            Text(
+              verification.message!,
+              style: const TextStyle(
+                color: AppColors.ink,
+                fontSize: 11,
+                height: 1.45,
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          _DocumentFact(
+            label: 'Authority record',
+            value: verification.authorityRecordStatusLabel,
+          ),
+          _DocumentFact(
+            label: 'Evidence',
+            value: verification.evidenceLevelLabel,
+          ),
+          _DocumentFact(
+            label: 'Method',
+            value: verification.verificationMethodLabel,
+          ),
+          _DocumentFact(label: 'Authority', value: verification.authority),
+          if (verification.checkedAt != null)
+            _DocumentFact(
+              label: 'Checked',
+              value: _displayApiDate(verification.checkedAt),
+            ),
+          if (detail != null) ...[
+            _DocumentFact(
+              label: 'Official host',
+              value: detail.officialSourceHost,
+            ),
+            _DocumentFact(
+              label: 'Next check',
+              value: _displayApiDate(detail.nextCheckAt),
+            ),
+            if (detail.reference.isNotEmpty)
+              _DocumentFact(label: 'Reference', value: detail.reference),
+            if (detail.comparisons.isNotEmpty) ...[
+              const Divider(height: 20),
+              const Text(
+                'SAFE FIELD COMPARISON',
+                style: TextStyle(
+                  color: AppColors.muted,
+                  fontSize: 8.5,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: .7,
+                ),
+              ),
+              const SizedBox(height: 6),
+              ...detail.comparisons.map(
+                (comparison) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 5),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${comparison.label}${comparison.isCritical ? ' · required' : ''}',
+                          style: const TextStyle(
+                            color: AppColors.ink,
+                            fontSize: 10.5,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        comparison.outcome.replaceAll('_', ' '),
+                        style: TextStyle(
+                          color: comparison.outcome == 'MATCH'
+                              ? AppColors.forest700
+                              : AppColors.danger,
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ],
+          if (verification.reviewDisposition != null) ...[
+            const Divider(height: 20),
+            Text(
+              verification.reviewDisposition!.replaceAll('_', ' '),
+              style: const TextStyle(
+                color: AppColors.ink,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            if (verification.reviewReason?.isNotEmpty == true)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  verification.reviewReason!,
+                  style: const TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 10.5,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+          ],
+          if (verification.manualInstructions?.isNotEmpty == true ||
+              verification.manualUrl?.isNotEmpty == true) ...[
+            const Divider(height: 22),
+            const Text(
+              'VERIFY INDEPENDENTLY',
+              style: TextStyle(
+                color: AppColors.forest700,
+                fontSize: 8.5,
+                fontWeight: FontWeight.w900,
+                letterSpacing: .7,
+              ),
+            ),
+            if (verification.manualInstructions?.isNotEmpty == true)
+              Padding(
+                padding: const EdgeInsets.only(top: 5),
+                child: Text(
+                  verification.manualInstructions!,
+                  style: const TextStyle(
+                    color: AppColors.ink,
+                    fontSize: 10.5,
+                    height: 1.45,
+                  ),
+                ),
+              ),
+            if (verification.manualUrl?.isNotEmpty == true)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: TextButton.icon(
+                  onPressed: () => _openManualSource(context, verification),
+                  icon: const Icon(Icons.open_in_new_rounded, size: 14),
+                  label: const Text('Open official verification source'),
+                ),
+              ),
+          ],
+          if (history.isNotEmpty) ...[
+            const Divider(height: 22),
+            const Text(
+              'CHECK HISTORY',
+              style: TextStyle(
+                color: AppColors.muted,
+                fontSize: 8.5,
+                fontWeight: FontWeight.w900,
+                letterSpacing: .7,
+              ),
+            ),
+            const SizedBox(height: 6),
+            ...history
+                .take(5)
+                .map(
+                  (attempt) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          margin: const EdgeInsets.only(top: 4, right: 8),
+                          decoration: BoxDecoration(
+                            color: _verificationColor(attempt),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            '${attempt.statusLabel} · ${attempt.checkedAt == null ? 'In progress' : _displayApiDate(attempt.checkedAt)}',
+                            style: const TextStyle(
+                              color: AppColors.ink,
+                              fontSize: 10,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+          ],
+          if (workspace.hasError) ...[
+            const Divider(height: 22),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Latest evidence could not refresh. The last known status is still shown.',
+                    style: TextStyle(color: AppColors.muted, fontSize: 10),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => ref.invalidate(
+                    documentVerificationProvider((
+                      vehicleId: widget.vehicleId,
+                      documentId: widget.documentId,
+                    )),
+                  ),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed:
+                  verification.isPending || _rechecking || isOfflineSnapshot
+                  ? null
+                  : _recheck,
+              icon: _rechecking
+                  ? const SizedBox(
+                      width: 13,
+                      height: 13,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh_rounded, size: 16),
+              label: Text(
+                _rechecking
+                    ? 'Queuing check…'
+                    : isOfflineSnapshot
+                    ? 'Reconnect to check again'
+                    : verification.isPending
+                    ? 'Check in progress'
+                    : 'Check again',
+              ),
+            ),
+          ),
+          const Divider(height: 22),
+          Text(
+            verification.disclaimer,
+            style: const TextStyle(
+              color: AppColors.muted,
+              fontSize: 9.5,
+              height: 1.45,
             ),
           ),
         ],
@@ -2113,4 +2684,11 @@ String _displayApiDate(String? value) {
     'Dec',
   ];
   return '${date.day} ${months[date.month - 1]} ${date.year}';
+}
+
+String _displaySnapshotTime(BuildContext context, DateTime? value) {
+  if (value == null) return 'at an unknown time';
+  final local = value.toLocal();
+  final material = MaterialLocalizations.of(context);
+  return '${material.formatMediumDate(local)} at ${material.formatTimeOfDay(TimeOfDay.fromDateTime(local))}';
 }

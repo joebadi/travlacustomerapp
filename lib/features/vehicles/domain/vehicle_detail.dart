@@ -110,6 +110,7 @@ class VehicleDocument {
     required this.mimeType,
     required this.status,
     required this.statusLabel,
+    required this.verification,
     required this.autoRenew,
     required this.versions,
   });
@@ -128,6 +129,7 @@ class VehicleDocument {
   final String? mimeType;
   final String status;
   final String statusLabel;
+  final DocumentVerificationSummary? verification;
   final bool autoRenew;
   final List<DocumentVersion> versions;
 
@@ -176,6 +178,11 @@ class VehicleDocument {
       mimeType: json['mime_type']?.toString(),
       status: json['status']?.toString() ?? '',
       statusLabel: json['status_label']?.toString() ?? 'On file',
+      verification: json['verification'] is Map
+          ? DocumentVerificationSummary.fromJson(
+              Map<String, dynamic>.from(json['verification'] as Map),
+            )
+          : null,
       autoRenew: json['auto_renew'] == true,
       versions: rawVersions is List
           ? rawVersions
@@ -183,6 +190,197 @@ class VehicleDocument {
                 .map(DocumentVersion.fromJson)
                 .toList(growable: false)
           : const [],
+    );
+  }
+}
+
+class DocumentVerificationSummary {
+  const DocumentVerificationSummary({
+    required this.attemptId,
+    required this.status,
+    required this.statusLabel,
+    required this.authorityRecordStatusLabel,
+    required this.evidenceLevelLabel,
+    required this.verificationMethodLabel,
+    required this.checkedAt,
+    required this.nextCheckAt,
+    required this.message,
+    required this.authority,
+    required this.reviewDisposition,
+    required this.reviewReason,
+    required this.manualUrl,
+    required this.manualInstructions,
+    required this.disclaimer,
+  });
+
+  final String? attemptId;
+  final String status;
+  final String statusLabel;
+  final String? authorityRecordStatusLabel;
+  final String? evidenceLevelLabel;
+  final String? verificationMethodLabel;
+  final String? checkedAt;
+  final String? nextCheckAt;
+  final String? message;
+  final String? authority;
+  final String? reviewDisposition;
+  final String? reviewReason;
+  final String? manualUrl;
+  final String? manualInstructions;
+  final String disclaimer;
+
+  bool get isPending => status == 'QUEUED' || status == 'PROCESSING';
+  bool get isPositive => status == 'VERIFIED' || status == 'ADMIN_REVIEWED';
+  bool get isNegative =>
+      status == 'MISMATCH' ||
+      status == 'NO_RECORD' ||
+      status == 'SOURCE_REJECTED';
+
+  factory DocumentVerificationSummary.fromJson(Map<String, dynamic> json) {
+    final review = json['review'] is Map
+        ? Map<String, dynamic>.from(json['review'] as Map)
+        : const <String, dynamic>{};
+    final manual = json['manual_verification'] is Map
+        ? Map<String, dynamic>.from(json['manual_verification'] as Map)
+        : const <String, dynamic>{};
+    return DocumentVerificationSummary(
+      attemptId: json['attempt_id']?.toString(),
+      status: json['status']?.toString() ?? 'NOT_REQUESTED',
+      statusLabel: json['status_label']?.toString() ?? 'Not checked',
+      authorityRecordStatusLabel: json['authority_record_status_label']
+          ?.toString(),
+      evidenceLevelLabel: json['evidence_level_label']?.toString(),
+      verificationMethodLabel: json['verification_method_label']?.toString(),
+      checkedAt: json['checked_at']?.toString(),
+      nextCheckAt: json['next_check_at']?.toString(),
+      message: json['message']?.toString(),
+      authority: json['authority']?.toString(),
+      reviewDisposition: review['disposition']?.toString(),
+      reviewReason: review['reason']?.toString(),
+      manualUrl: manual['url']?.toString(),
+      manualInstructions: manual['instructions']?.toString(),
+      disclaimer:
+          json['disclaimer']?.toString() ??
+          'Travla does not replace the issuing authority or original papers.',
+    );
+  }
+}
+
+class DocumentVerificationComparisonResult {
+  const DocumentVerificationComparisonResult({
+    required this.field,
+    required this.label,
+    required this.outcome,
+    required this.comparison,
+    required this.isCritical,
+    required this.confidence,
+  });
+
+  final String field;
+  final String label;
+  final String outcome;
+  final String? comparison;
+  final bool isCritical;
+  final double? confidence;
+
+  factory DocumentVerificationComparisonResult.fromJson(
+    Map<String, dynamic> json,
+  ) {
+    return DocumentVerificationComparisonResult(
+      field: json['field']?.toString() ?? '',
+      label: json['label']?.toString() ?? 'Document field',
+      outcome: json['outcome']?.toString() ?? 'NOT_RETURNED',
+      comparison: json['comparison']?.toString(),
+      isCritical: json['is_critical'] == true,
+      confidence: (json['confidence'] as num?)?.toDouble(),
+    );
+  }
+}
+
+class DocumentVerificationDetail {
+  const DocumentVerificationDetail({
+    required this.summary,
+    required this.reference,
+    required this.officialSourceHost,
+    required this.nextCheckAt,
+    required this.comparisons,
+  });
+
+  final DocumentVerificationSummary summary;
+  final String reference;
+  final String? officialSourceHost;
+  final String? nextCheckAt;
+  final List<DocumentVerificationComparisonResult> comparisons;
+
+  factory DocumentVerificationDetail.fromJson(Map<String, dynamic> json) {
+    final rawSummary = json['summary'];
+    final rawComparisons = json['comparisons'];
+    return DocumentVerificationDetail(
+      summary: DocumentVerificationSummary.fromJson(
+        rawSummary is Map
+            ? Map<String, dynamic>.from(rawSummary)
+            : const <String, dynamic>{},
+      ),
+      reference: json['reference']?.toString() ?? '',
+      officialSourceHost: json['official_source_host']?.toString(),
+      nextCheckAt: json['next_check_at']?.toString(),
+      comparisons: rawComparisons is List
+          ? rawComparisons
+                .whereType<Map>()
+                .map(
+                  (item) => DocumentVerificationComparisonResult.fromJson(
+                    Map<String, dynamic>.from(item),
+                  ),
+                )
+                .toList(growable: false)
+          : const [],
+    );
+  }
+}
+
+class DocumentVerificationWorkspace {
+  const DocumentVerificationWorkspace({
+    required this.current,
+    required this.history,
+    required this.isFromCache,
+    required this.cachedAt,
+  });
+
+  final DocumentVerificationDetail? current;
+  final List<DocumentVerificationSummary> history;
+  final bool isFromCache;
+  final DateTime? cachedAt;
+
+  bool get isStale =>
+      isFromCache &&
+      (cachedAt == null ||
+          DateTime.now().difference(cachedAt!) > const Duration(minutes: 15));
+
+  factory DocumentVerificationWorkspace.fromJson(
+    Map<String, dynamic> json, {
+    bool isFromCache = false,
+    DateTime? cachedAt,
+  }) {
+    final rawCurrent = json['current'];
+    final rawHistory = json['history'];
+    return DocumentVerificationWorkspace(
+      current: rawCurrent is Map
+          ? DocumentVerificationDetail.fromJson(
+              Map<String, dynamic>.from(rawCurrent),
+            )
+          : null,
+      history: rawHistory is List
+          ? rawHistory
+                .whereType<Map>()
+                .map(
+                  (item) => DocumentVerificationSummary.fromJson(
+                    Map<String, dynamic>.from(item),
+                  ),
+                )
+                .toList(growable: false)
+          : const [],
+      isFromCache: isFromCache,
+      cachedAt: cachedAt,
     );
   }
 }
@@ -256,6 +454,38 @@ class AvailableDocumentType {
       category: json['document_category']?.toString() ?? 'OTHER',
       requiresUpload: json['requires_upload'] == true,
       alreadyAdded: json['already_added'] == true,
+    );
+  }
+}
+
+class IssuingAuthorityOption {
+  const IssuingAuthorityOption({
+    required this.id,
+    required this.code,
+    required this.name,
+    required this.shortName,
+    required this.jurisdiction,
+    required this.state,
+  });
+
+  final String id;
+  final String code;
+  final String name;
+  final String? shortName;
+  final String jurisdiction;
+  final String? state;
+
+  String get displayName =>
+      shortName?.isNotEmpty == true ? '$name ($shortName)' : name;
+
+  factory IssuingAuthorityOption.fromJson(Map<String, dynamic> json) {
+    return IssuingAuthorityOption(
+      id: json['id']?.toString() ?? '',
+      code: json['code']?.toString() ?? '',
+      name: json['name']?.toString() ?? 'Issuing authority',
+      shortName: json['short_name']?.toString(),
+      jurisdiction: json['jurisdiction']?.toString() ?? '',
+      state: json['state']?.toString(),
     );
   }
 }

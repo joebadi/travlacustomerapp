@@ -158,6 +158,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                       initialTab: switch (state.uri.queryParameters['tab']) {
                         'documents' => VehicleDetailTab.documents,
                         'insurance' => VehicleDetailTab.insurance,
+                        'checkpoint' => VehicleDetailTab.checkpoint,
                         'tracking' => VehicleDetailTab.tracking,
                         'services' => VehicleDetailTab.services,
                         _ => VehicleDetailTab.overview,

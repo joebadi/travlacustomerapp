@@ -21,6 +21,40 @@ void main() {
     });
   });
 
+  group('document verification offline snapshots', () {
+    test('a recently cached snapshot is not marked stale', () {
+      final workspace = DocumentVerificationWorkspace.fromJson(
+        const <String, dynamic>{'current': null, 'history': <dynamic>[]},
+        isFromCache: true,
+        cachedAt: DateTime.now().subtract(const Duration(minutes: 5)),
+      );
+
+      expect(workspace.isFromCache, isTrue);
+      expect(workspace.isStale, isFalse);
+    });
+
+    test('an older cached snapshot is explicitly marked stale', () {
+      final workspace = DocumentVerificationWorkspace.fromJson(
+        const <String, dynamic>{'current': null, 'history': <dynamic>[]},
+        isFromCache: true,
+        cachedAt: DateTime.now().subtract(const Duration(minutes: 16)),
+      );
+
+      expect(workspace.isFromCache, isTrue);
+      expect(workspace.isStale, isTrue);
+    });
+
+    test('live verification data is never marked stale', () {
+      final workspace = DocumentVerificationWorkspace.fromJson(
+        const <String, dynamic>{'current': null, 'history': <dynamic>[]},
+        cachedAt: DateTime.now().subtract(const Duration(days: 1)),
+      );
+
+      expect(workspace.isFromCache, isFalse);
+      expect(workspace.isStale, isFalse);
+    });
+  });
+
   test('vehicle detail separates renewable and other documents', () {
     final vehicle = VehicleDetail.fromJson({
       'id': 'vehicle-1',

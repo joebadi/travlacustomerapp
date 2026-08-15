@@ -48,10 +48,13 @@ class _AddVehicleDocumentSheetState
   final _authorityController = TextEditingController();
 
   String? _selectedTypeValue;
+  String? _selectedState;
+  String? _selectedAuthorityId;
   DateTime? _issuedDate;
   PlatformFile? _file;
   String? _error;
   bool _isSubmitting = false;
+  double? _uploadProgress;
 
   @override
   void dispose() {
@@ -65,6 +68,7 @@ class _AddVehicleDocumentSheetState
     final available = ref.watch(
       availableDocumentTypesProvider(widget.vehicleId),
     );
+    final states = ref.watch(vehicleDocumentStatesProvider);
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
     return AnimatedPadding(
@@ -94,6 +98,7 @@ class _AddVehicleDocumentSheetState
                 ),
                 data: (items) => _buildForm(
                   items.where(_matchesFilter).toList(growable: false),
+                  states,
                 ),
               ),
             ),
@@ -103,7 +108,10 @@ class _AddVehicleDocumentSheetState
     );
   }
 
-  Widget _buildForm(List<AvailableDocumentType> types) {
+  Widget _buildForm(
+    List<AvailableDocumentType> types,
+    AsyncValue<List<String>> states,
+  ) {
     final selected = types
         .where((type) => type.type == _selectedTypeValue)
         .firstOrNull;
@@ -111,6 +119,14 @@ class _AddVehicleDocumentSheetState
     final derivedExpiry = _issuedDate == null
         ? null
         : oneYearAfterNoOverflow(_issuedDate!);
+    final authorityCatalogue = selected != null && _selectedState != null
+        ? ref.watch(
+            issuingAuthoritiesProvider((
+              documentType: selected.type,
+              state: _selectedState!,
+            )),
+          )
+        : const AsyncValue<List<IssuingAuthorityOption>>.data([]);
 
     if (types.isEmpty) {
       return const Center(
@@ -195,6 +211,8 @@ class _AddVehicleDocumentSheetState
                         : (value) {
                             setState(() {
                               _selectedTypeValue = value;
+                              _selectedAuthorityId = null;
+                              _authorityController.clear();
                               _error = null;
                             });
                           },
@@ -262,24 +280,91 @@ class _AddVehicleDocumentSheetState
                               : null,
                         ),
                         const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _authorityController,
-                          enabled: !_isSubmitting,
-                          textCapitalization: TextCapitalization.words,
+                        DropdownButtonFormField<String>(
+                          initialValue: _selectedState,
+                          isExpanded: true,
                           decoration: InputDecoration(
                             labelText: isRenewable
-                                ? 'Issuing authority'
-                                : 'Issued by',
-                            hintText: isRenewable ? null : 'Optional',
-                            prefixIcon: const Icon(
-                              Icons.account_balance_outlined,
-                            ),
+                                ? 'Issuing state'
+                                : 'Issuing state · optional',
+                            prefixIcon: const Icon(Icons.location_on_outlined),
                           ),
-                          validator: (value) =>
-                              isRenewable && value!.trim().isEmpty
-                              ? 'Enter the issuing authority.'
+                          items: (states.asData?.value ?? const <String>[])
+                              .map(
+                                (state) => DropdownMenuItem(
+                                  value: state,
+                                  child: Text(state),
+                                ),
+                              )
+                              .toList(growable: false),
+                          onChanged: _isSubmitting || states.isLoading
+                              ? null
+                              : (value) {
+                                  setState(() {
+                                    _selectedState = value;
+                                    _selectedAuthorityId = null;
+                                    _authorityController.clear();
+                                    _error = null;
+                                  });
+                                },
+                          validator: (value) => isRenewable && value == null
+                              ? 'Select the issuing state.'
                               : null,
                         ),
+                        if (_selectedState != null) ...[
+                          const SizedBox(height: 12),
+                          authorityCatalogue.when(
+                            loading: () => const _AuthorityLoadingField(),
+                            error: (error, stackTrace) => _ManualAuthorityField(
+                              controller: _authorityController,
+                              enabled: !_isSubmitting,
+                              required: isRenewable,
+                            ),
+                            data: (authorities) => authorities.isEmpty
+                                ? _ManualAuthorityField(
+                                    controller: _authorityController,
+                                    enabled: !_isSubmitting,
+                                    required: isRenewable,
+                                  )
+                                : DropdownButtonFormField<String>(
+                                    initialValue: _selectedAuthorityId,
+                                    isExpanded: true,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Issuing authority',
+                                      prefixIcon: Icon(
+                                        Icons.account_balance_outlined,
+                                      ),
+                                    ),
+                                    items: authorities
+                                        .map(
+                                          (authority) => DropdownMenuItem(
+                                            value: authority.id,
+                                            child: Text(
+                                              authority.displayName,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        )
+                                        .toList(growable: false),
+                                    onChanged: _isSubmitting
+                                        ? null
+                                        : (value) => setState(
+                                            () => _selectedAuthorityId = value,
+                                          ),
+                                    validator: (value) =>
+                                        isRenewable && value == null
+                                        ? 'Select the issuing authority.'
+                                        : null,
+                                  ),
+                          ),
+                        ] else if (!isRenewable) ...[
+                          const SizedBox(height: 12),
+                          _ManualAuthorityField(
+                            controller: _authorityController,
+                            enabled: !_isSubmitting,
+                            required: false,
+                          ),
+                        ],
                         const SizedBox(height: 12),
                         _DateField(
                           label: isRenewable
@@ -323,6 +408,7 @@ class _AddVehicleDocumentSheetState
           if (selected != null)
             _SubmitBar(
               isSubmitting: _isSubmitting,
+              uploadProgress: _uploadProgress,
               isReplacement: selected.alreadyAdded,
               onSubmit: () => _submit(selected),
             ),
@@ -393,6 +479,18 @@ class _AddVehicleDocumentSheetState
       setState(() => _error = 'Select the issue date.');
       return;
     }
+    if (type.isRenewable && _selectedState == null) {
+      setState(() => _error = 'Select the issuing state.');
+      return;
+    }
+    if (type.isRenewable &&
+        _selectedAuthorityId == null &&
+        _authorityController.text.trim().isEmpty) {
+      setState(() {
+        _error = 'Select the issuing authority or wait for it to load.';
+      });
+      return;
+    }
     if (type.fileRequired && _file == null) {
       setState(() {
         _error = 'This document type requires a JPG, PNG or PDF file.';
@@ -400,7 +498,10 @@ class _AddVehicleDocumentSheetState
       return;
     }
 
-    setState(() => _isSubmitting = true);
+    setState(() {
+      _isSubmitting = true;
+      _uploadProgress = 0;
+    });
     try {
       await ref
           .read(vehicleDetailRepositoryProvider)
@@ -409,26 +510,97 @@ class _AddVehicleDocumentSheetState
             documentType: type.type,
             documentNumber: _numberController.text,
             issuingAuthority: _authorityController.text,
+            issuingAuthorityId: _selectedAuthorityId,
+            issuingState: _selectedState,
             issuedDate: _issuedDate,
             filePath: _file?.path,
             fileName: _file?.name,
+            onProgress: (sent, total) {
+              if (!mounted || total <= 0) return;
+              setState(() => _uploadProgress = (sent / total).clamp(0, 1));
+            },
           );
       ref.invalidate(vehicleDetailProvider(widget.vehicleId));
       ref.invalidate(availableDocumentTypesProvider(widget.vehicleId));
       if (mounted) Navigator.of(context).pop(true);
     } on ApiFailure catch (failure) {
-      if (mounted) setState(() => _error = failure.message);
+      if (mounted) {
+        setState(() {
+          _error = failure.message;
+          _uploadProgress = null;
+        });
+      }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
   }
 }
 
-class _SheetHeader extends StatelessWidget {
-  const _SheetHeader({
-    required this.title,
-    required this.onClose,
+class _AuthorityLoadingField extends StatelessWidget {
+  const _AuthorityLoadingField();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+      decoration: BoxDecoration(
+        color: AppColors.canvas,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: const Row(
+        children: [
+          SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Loading approved issuing authorities…',
+              style: TextStyle(color: AppColors.muted, fontSize: 11),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ManualAuthorityField extends StatelessWidget {
+  const _ManualAuthorityField({
+    required this.controller,
+    required this.enabled,
+    required this.required,
   });
+
+  final TextEditingController controller;
+  final bool enabled;
+  final bool required;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      enabled: enabled,
+      textCapitalization: TextCapitalization.words,
+      decoration: InputDecoration(
+        labelText: required ? 'Issuing authority' : 'Issued by',
+        hintText: required ? 'Enter the name exactly as printed' : 'Optional',
+        helperText:
+            'The authority catalogue is not configured for this paper yet.',
+        prefixIcon: const Icon(Icons.account_balance_outlined),
+      ),
+      validator: (value) => required && value!.trim().isEmpty
+          ? 'Enter the issuing authority.'
+          : null,
+    );
+  }
+}
+
+class _SheetHeader extends StatelessWidget {
+  const _SheetHeader({required this.title, required this.onClose});
 
   final String title;
   final VoidCallback? onClose;
@@ -731,11 +903,13 @@ class _SecureStorageNote extends StatelessWidget {
 class _SubmitBar extends StatelessWidget {
   const _SubmitBar({
     required this.isSubmitting,
+    required this.uploadProgress,
     required this.isReplacement,
     required this.onSubmit,
   });
 
   final bool isSubmitting;
+  final double? uploadProgress;
   final bool isReplacement;
   final VoidCallback onSubmit;
 
@@ -756,33 +930,70 @@ class _SubmitBar extends StatelessWidget {
       ),
       child: SafeArea(
         top: false,
-        child: FilledButton.icon(
-          onPressed: isSubmitting ? null : onSubmit,
-          style: FilledButton.styleFrom(
-            backgroundColor: AppColors.forest800,
-            foregroundColor: AppColors.white,
-            minimumSize: const Size.fromHeight(52),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(13),
-            ),
-          ),
-          icon: isSubmitting
-              ? const SizedBox.square(
-                  dimension: 18,
-                  child: CircularProgressIndicator(
-                    color: AppColors.white,
-                    strokeWidth: 2,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isSubmitting && uploadProgress != null) ...[
+              Row(
+                children: [
+                  const Text(
+                    'SECURE UPLOAD',
+                    style: TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: .7,
+                    ),
                   ),
-                )
-              : const Icon(Icons.cloud_upload_outlined, size: 19),
-          label: Text(
-            isSubmitting
-                ? 'Saving securely…'
-                : isReplacement
-                ? 'Replace saved document'
-                : 'Save to document vault',
-            style: const TextStyle(fontWeight: FontWeight.w900),
-          ),
+                  const Spacer(),
+                  Text(
+                    '${(uploadProgress! * 100).round()}%',
+                    style: const TextStyle(
+                      color: AppColors.forest700,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              LinearProgressIndicator(
+                value: uploadProgress,
+                minHeight: 3,
+                color: AppColors.forest600,
+                backgroundColor: AppColors.forest100,
+              ),
+              const SizedBox(height: 8),
+            ],
+            FilledButton.icon(
+              onPressed: isSubmitting ? null : onSubmit,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.forest800,
+                foregroundColor: AppColors.white,
+                minimumSize: const Size.fromHeight(52),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(13),
+                ),
+              ),
+              icon: isSubmitting
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(
+                        color: AppColors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(Icons.cloud_upload_outlined, size: 19),
+              label: Text(
+                isSubmitting
+                    ? 'Saving securely…'
+                    : isReplacement
+                    ? 'Replace saved document'
+                    : 'Save to document vault',
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+            ),
+          ],
         ),
       ),
     );
