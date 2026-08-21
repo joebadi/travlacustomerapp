@@ -1436,25 +1436,6 @@ class _DocumentTile extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 3,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: status.background,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  document.statusLabel,
-                                  style: TextStyle(
-                                    color: status.foreground,
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                              ),
                             ],
                           ),
                           const SizedBox(height: 4),
@@ -1469,50 +1450,48 @@ class _DocumentTile extends StatelessWidget {
                               fontSize: 10.5,
                             ),
                           ),
-                          if (verification != null) ...[
-                            const SizedBox(height: 7),
-                            Row(
-                              children: [
-                                Icon(
-                                  verification.isPositive
-                                      ? Icons.verified_user_outlined
-                                      : verification.isNegative
-                                      ? Icons.gpp_bad_outlined
-                                      : Icons.manage_search_outlined,
-                                  size: 14,
-                                  color: _verificationColor(verification),
-                                ),
-                                const SizedBox(width: 5),
-                                Expanded(
-                                  child: Text(
-                                    verification.statusLabel,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: _verificationColor(verification),
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w800,
-                                    ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 6,
+                            runSpacing: 5,
+                            children: [
+                              _CompactStatusPill(
+                                label: document.statusLabel,
+                                foreground: status.foreground,
+                                background: status.background,
+                              ),
+                              if (verification != null)
+                                _CompactStatusPill(
+                                  label: _customerVerificationTitle(
+                                    verification,
                                   ),
+                                  foreground: _verificationColor(verification),
+                                  background: _verificationColor(
+                                    verification,
+                                  ).withValues(alpha: .09),
                                 ),
+                              if (verification != null)
                                 TextButton(
                                   onPressed: onView,
                                   style: TextButton.styleFrom(
-                                    minimumSize: const Size(0, 28),
+                                    minimumSize: const Size(0, 26),
                                     padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
+                                      horizontal: 4,
                                     ),
                                     tapTargetSize:
                                         MaterialTapTargetSize.shrinkWrap,
                                   ),
                                   child: const Text(
-                                    'See more',
-                                    style: TextStyle(fontSize: 10),
+                                    'See verification result →',
+                                    style: TextStyle(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w800,
+                                    ),
                                   ),
                                 ),
-                              ],
-                            ),
-                          ],
+                            ],
+                          ),
                           // A thin rule separates identity from renewal
                           // status, so the row reads as two clear groups
                           // instead of one long stack of lines.
@@ -1898,6 +1877,7 @@ class _DocumentDetailsSheet extends StatelessWidget {
                   _VerificationEvidenceCard(
                     vehicleId: vehicle.id,
                     documentId: document.id,
+                    document: document,
                     fallbackVerification: document.verification!,
                   ),
                 ],
@@ -1982,11 +1962,13 @@ class _VerificationEvidenceCard extends ConsumerStatefulWidget {
   const _VerificationEvidenceCard({
     required this.vehicleId,
     required this.documentId,
+    required this.document,
     required this.fallbackVerification,
   });
 
   final String vehicleId;
   final String documentId;
+  final VehicleDocument document;
   final DocumentVerificationSummary fallbackVerification;
 
   @override
@@ -1997,7 +1979,7 @@ class _VerificationEvidenceCard extends ConsumerStatefulWidget {
 class _VerificationEvidenceCardState
     extends ConsumerState<_VerificationEvidenceCard>
     with WidgetsBindingObserver {
-  bool _rechecking = false;
+  bool _expanded = false;
   bool _isForeground = true;
   Timer? _pollTimer;
 
@@ -2065,39 +2047,6 @@ class _VerificationEvidenceCardState
     }
   }
 
-  Future<void> _recheck() async {
-    if (_rechecking) return;
-    setState(() => _rechecking = true);
-    try {
-      await ref
-          .read(vehicleDetailRepositoryProvider)
-          .recheckDocument(
-            vehicleId: widget.vehicleId,
-            documentId: widget.documentId,
-          );
-      ref.invalidate(
-        documentVerificationProvider((
-          vehicleId: widget.vehicleId,
-          documentId: widget.documentId,
-        )),
-      );
-      ref.invalidate(vehicleDetailProvider(widget.vehicleId));
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Document check queued.')));
-      }
-    } on ApiFailure catch (failure) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(failure.message)));
-      }
-    } finally {
-      if (mounted) setState(() => _rechecking = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final verificationKey = (
@@ -2106,353 +2055,325 @@ class _VerificationEvidenceCardState
     );
     final workspace = ref.watch(documentVerificationProvider(verificationKey));
     final snapshot = workspace.asData?.value;
-    final detail = snapshot?.current;
-    final history = snapshot?.history ?? const [];
-    final verification = detail?.summary ?? widget.fallbackVerification;
+    final verification =
+        snapshot?.current?.summary ?? widget.fallbackVerification;
     final isOfflineSnapshot = snapshot?.isFromCache == true;
     _syncPolling(verification.isPending && !isOfflineSnapshot);
     final color = _verificationColor(verification);
+    final title = _customerVerificationTitle(verification);
+    final message = _customerVerificationMessage(verification);
+
     return Container(
-      padding: const EdgeInsets.all(15),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: .055),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: .2)),
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.ink.withValues(alpha: .07),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: .1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  Icons.verified_user_outlined,
-                  color: color,
-                  size: 18,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => setState(() => _expanded = !_expanded),
+              child: IntrinsicHeight(
+                child: Row(
                   children: [
-                    const Text(
-                      'TRAVLA AUTHENTICITY CHECK',
-                      style: TextStyle(
-                        color: AppColors.muted,
-                        fontSize: 8.5,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: .7,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      verification.statusLabel,
-                      style: TextStyle(
-                        color: color,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
+                    Container(width: 4, color: color),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 15, 12, 15),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 42,
+                              height: 42,
+                              decoration: BoxDecoration(
+                                color: color.withValues(alpha: .09),
+                                borderRadius: BorderRadius.circular(13),
+                              ),
+                              child: Icon(
+                                verification.isPending
+                                    ? Icons.sync_rounded
+                                    : Icons.verified_user_outlined,
+                                color: color,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'DOCUMENT VERIFICATION',
+                                    style: TextStyle(
+                                      color: AppColors.muted,
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: .9,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    title,
+                                    style: const TextStyle(
+                                      color: AppColors.ink,
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                  if (message != null) ...[
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      message,
+                                      maxLines: _expanded ? null : 2,
+                                      overflow: _expanded
+                                          ? TextOverflow.visible
+                                          : TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: AppColors.muted,
+                                        fontSize: 9.5,
+                                        height: 1.35,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            AnimatedRotation(
+                              turns: _expanded ? .5 : 0,
+                              duration: const Duration(milliseconds: 220),
+                              child: Container(
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  color: AppColors.canvas,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: AppColors.border),
+                                ),
+                                child: const Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  color: AppColors.ink,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-            ],
-          ),
-          if (verification.isPending) ...[
-            const SizedBox(height: 12),
-            LinearProgressIndicator(
-              minHeight: 3,
-              color: color,
-              backgroundColor: color.withValues(alpha: .1),
             ),
-          ],
-          if (isOfflineSnapshot) ...[
-            const SizedBox(height: 11),
-            Container(
-              padding: const EdgeInsets.all(11),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF4DD),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFF1D49A)),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(
-                    Icons.cloud_off_outlined,
-                    color: AppColors.orangeDark,
-                    size: 17,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Offline snapshot saved ${_displaySnapshotTime(context, snapshot?.cachedAt)}. '
-                      '${snapshot?.isStale == true ? 'It may be out of date. ' : ''}'
-                      'Reconnect before relying on this result.',
-                      style: const TextStyle(
-                        color: AppColors.ink,
-                        fontSize: 9.5,
-                        height: 1.4,
-                      ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.easeOutCubic,
+            child: !_expanded
+                ? const SizedBox.shrink()
+                : Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                    decoration: const BoxDecoration(
+                      color: AppColors.canvas,
+                      border: Border(top: BorderSide(color: AppColors.border)),
                     ),
-                  ),
-                  TextButton(
-                    onPressed: () => ref.invalidate(
-                      documentVerificationProvider(verificationKey),
-                    ),
-                    child: const Text('Refresh'),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          if (verification.message?.isNotEmpty == true) ...[
-            const SizedBox(height: 11),
-            Text(
-              verification.message!,
-              style: const TextStyle(
-                color: AppColors.ink,
-                fontSize: 11,
-                height: 1.45,
-              ),
-            ),
-          ],
-          const SizedBox(height: 12),
-          _DocumentFact(
-            label: 'Authority record',
-            value: verification.authorityRecordStatusLabel,
-          ),
-          _DocumentFact(
-            label: 'Evidence',
-            value: verification.evidenceLevelLabel,
-          ),
-          _DocumentFact(
-            label: 'Method',
-            value: verification.verificationMethodLabel,
-          ),
-          _DocumentFact(label: 'Authority', value: verification.authority),
-          if (verification.checkedAt != null)
-            _DocumentFact(
-              label: 'Checked',
-              value: _displayApiDate(verification.checkedAt),
-            ),
-          if (detail != null) ...[
-            _DocumentFact(
-              label: 'Official host',
-              value: detail.officialSourceHost,
-            ),
-            _DocumentFact(
-              label: 'Next check',
-              value: _displayApiDate(detail.nextCheckAt),
-            ),
-            if (detail.reference.isNotEmpty)
-              _DocumentFact(label: 'Reference', value: detail.reference),
-            if (detail.comparisons.isNotEmpty) ...[
-              const Divider(height: 20),
-              const Text(
-                'SAFE FIELD COMPARISON',
-                style: TextStyle(
-                  color: AppColors.muted,
-                  fontSize: 8.5,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: .7,
-                ),
-              ),
-              const SizedBox(height: 6),
-              ...detail.comparisons.map(
-                (comparison) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 5),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '${comparison.label}${comparison.isCritical ? ' · required' : ''}',
-                          style: const TextStyle(
-                            color: AppColors.ink,
-                            fontSize: 10.5,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        comparison.outcome.replaceAll('_', ' '),
-                        style: TextStyle(
-                          color: comparison.outcome == 'MATCH'
-                              ? AppColors.forest700
-                              : AppColors.danger,
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ],
-          if (verification.reviewDisposition != null) ...[
-            const Divider(height: 20),
-            Text(
-              verification.reviewDisposition!.replaceAll('_', ' '),
-              style: const TextStyle(
-                color: AppColors.ink,
-                fontSize: 10.5,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            if (verification.reviewReason?.isNotEmpty == true)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  verification.reviewReason!,
-                  style: const TextStyle(
-                    color: AppColors.muted,
-                    fontSize: 10.5,
-                    height: 1.4,
-                  ),
-                ),
-              ),
-          ],
-          if (verification.manualInstructions?.isNotEmpty == true ||
-              verification.manualUrl?.isNotEmpty == true) ...[
-            const Divider(height: 22),
-            const Text(
-              'VERIFY INDEPENDENTLY',
-              style: TextStyle(
-                color: AppColors.forest700,
-                fontSize: 8.5,
-                fontWeight: FontWeight.w900,
-                letterSpacing: .7,
-              ),
-            ),
-            if (verification.manualInstructions?.isNotEmpty == true)
-              Padding(
-                padding: const EdgeInsets.only(top: 5),
-                child: Text(
-                  verification.manualInstructions!,
-                  style: const TextStyle(
-                    color: AppColors.ink,
-                    fontSize: 10.5,
-                    height: 1.45,
-                  ),
-                ),
-              ),
-            if (verification.manualUrl?.isNotEmpty == true)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: TextButton.icon(
-                  onPressed: () => _openManualSource(context, verification),
-                  icon: const Icon(Icons.open_in_new_rounded, size: 14),
-                  label: const Text('Open official verification source'),
-                ),
-              ),
-          ],
-          if (history.isNotEmpty) ...[
-            const Divider(height: 22),
-            const Text(
-              'CHECK HISTORY',
-              style: TextStyle(
-                color: AppColors.muted,
-                fontSize: 8.5,
-                fontWeight: FontWeight.w900,
-                letterSpacing: .7,
-              ),
-            ),
-            const SizedBox(height: 6),
-            ...history
-                .take(5)
-                .map(
-                  (attempt) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          margin: const EdgeInsets.only(top: 4, right: 8),
-                          decoration: BoxDecoration(
-                            color: _verificationColor(attempt),
-                            shape: BoxShape.circle,
+                        if (verification.checkedAt != null)
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.schedule_rounded,
+                                size: 15,
+                                color: AppColors.muted,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Last checked ${_displayApiDate(verification.checkedAt)}',
+                                style: const TextStyle(
+                                  color: AppColors.muted,
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        Expanded(
-                          child: Text(
-                            '${attempt.statusLabel} · ${attempt.checkedAt == null ? 'In progress' : _displayApiDate(attempt.checkedAt)}',
-                            style: const TextStyle(
-                              color: AppColors.ink,
-                              fontSize: 10,
-                              height: 1.35,
+                        if (verification.isPositive) ...[
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _VerifiedDateTile(
+                                  label: 'VERIFIED ISSUE DATE',
+                                  value: _displayApiDate(
+                                    widget.document.issuedDate,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 9),
+                              Expanded(
+                                child: _VerifiedDateTile(
+                                  label: 'VERIFIED EXPIRY DATE',
+                                  value: _displayApiDate(
+                                    widget.document.expiryDate,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                        if (verification.isPending) ...[
+                          const SizedBox(height: 12),
+                          LinearProgressIndicator(
+                            minHeight: 3,
+                            color: color,
+                            backgroundColor: color.withValues(alpha: .1),
+                          ),
+                        ],
+                        if (verification.manualUrl?.isNotEmpty == true ||
+                            verification.manualInstructions?.isNotEmpty ==
+                                true) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(13),
+                            decoration: BoxDecoration(
+                              color: AppColors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: AppColors.border),
                             ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'MANUAL CONFIRMATION',
+                                  style: TextStyle(
+                                    color: AppColors.muted,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: .8,
+                                  ),
+                                ),
+                                if (verification.manualUrl?.isNotEmpty == true)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 7),
+                                    child: OutlinedButton.icon(
+                                      onPressed: () => _openManualSource(
+                                        context,
+                                        verification,
+                                      ),
+                                      icon: const Icon(
+                                        Icons.open_in_new_rounded,
+                                        size: 14,
+                                      ),
+                                      label: const Text(
+                                        'Open official verification page',
+                                      ),
+                                    ),
+                                  ),
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 7),
+                                  child: Text(
+                                    verification
+                                                .manualInstructions
+                                                ?.isNotEmpty ==
+                                            true
+                                        ? verification.manualInstructions!
+                                        : 'Open the official verification page and follow its instructions to confirm this document yourself.',
+                                    style: const TextStyle(
+                                      color: AppColors.muted,
+                                      fontSize: 9.5,
+                                      height: 1.45,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+                        Text(
+                          verification.disclaimer,
+                          style: const TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 9,
+                            height: 1.45,
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
-          ],
-          if (workspace.hasError) ...[
-            const Divider(height: 22),
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Latest evidence could not refresh. The last known status is still shown.',
-                    style: TextStyle(color: AppColors.muted, fontSize: 10),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => ref.invalidate(
-                    documentVerificationProvider((
-                      vehicleId: widget.vehicleId,
-                      documentId: widget.documentId,
-                    )),
-                  ),
-                  child: const Text('Retry'),
-                ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed:
-                  verification.isPending || _rechecking || isOfflineSnapshot
-                  ? null
-                  : _recheck,
-              icon: _rechecking
-                  ? const SizedBox(
-                      width: 13,
-                      height: 13,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.refresh_rounded, size: 16),
-              label: Text(
-                _rechecking
-                    ? 'Queuing check…'
-                    : isOfflineSnapshot
-                    ? 'Reconnect to check again'
-                    : verification.isPending
-                    ? 'Check in progress'
-                    : 'Check again',
-              ),
-            ),
           ),
-          const Divider(height: 22),
+        ],
+      ),
+    );
+  }
+}
+
+String _customerVerificationTitle(DocumentVerificationSummary verification) {
+  if (verification.isPositive) return 'Document Verified';
+  if (verification.isNegative) return 'Document could not be confirmed';
+  if (verification.isPending) return 'Verification is in progress';
+  return 'Verification needs attention';
+}
+
+String? _customerVerificationMessage(DocumentVerificationSummary verification) {
+  if (verification.isPositive) return null;
+  if (verification.isNegative) {
+    return 'Travla could not confirm this document. Open the details to verify it manually.';
+  }
+  if (verification.isPending) {
+    return 'Travla is checking this document. The result will update automatically.';
+  }
+  return 'Travla could not complete an automatic confirmation. Open the details to verify it manually.';
+}
+
+class _VerifiedDateTile extends StatelessWidget {
+  const _VerifiedDateTile({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Text(
-            verification.disclaimer,
+            label,
             style: const TextStyle(
               color: AppColors.muted,
-              fontSize: 9.5,
-              height: 1.45,
+              fontSize: 7.5,
+              fontWeight: FontWeight.w900,
+              letterSpacing: .45,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            value,
+            style: const TextStyle(
+              color: AppColors.ink,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
             ),
           ),
         ],
@@ -2703,6 +2624,37 @@ class _VehicleStatusStyle {
   }
 }
 
+class _CompactStatusPill extends StatelessWidget {
+  const _CompactStatusPill({
+    required this.label,
+    required this.foreground,
+    required this.background,
+  });
+
+  final String label;
+  final Color foreground;
+  final Color background;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: foreground,
+          fontSize: 9,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
 class _DocumentStatusStyle {
   const _DocumentStatusStyle(this.foreground, this.background);
 
@@ -2761,11 +2713,4 @@ String _displayApiDate(String? value) {
     'Dec',
   ];
   return '${date.day} ${months[date.month - 1]} ${date.year}';
-}
-
-String _displaySnapshotTime(BuildContext context, DateTime? value) {
-  if (value == null) return 'at an unknown time';
-  final local = value.toLocal();
-  final material = MaterialLocalizations.of(context);
-  return '${material.formatMediumDate(local)} at ${material.formatTimeOfDay(TimeOfDay.fromDateTime(local))}';
 }

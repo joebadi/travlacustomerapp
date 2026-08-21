@@ -124,6 +124,86 @@ void main() {
     expect(document.displayVersions.single.isOriginal, isTrue);
   });
 
+  testWidgets(
+    'customer verification details are safe, collapsed by default and expandable',
+    (tester) async {
+      final vehicle = VehicleDetail.fromJson({
+        'id': 'verified-vehicle',
+        'make': 'Honda',
+        'model': 'CR-V',
+        'year': 2012,
+        'color': 'Silver',
+        'plate_number': 'SMK664DE',
+        'chassis_number': 'JHLRD78464C029487',
+        'engine_number': 'K24A13048250',
+        'has_valid_plate_number': true,
+        'is_tinted': false,
+        'category': {'value': 'suv', 'label': 'SUV'},
+        'documents': [
+          {
+            'id': 'verified-document',
+            'document_type': {
+              'type': 'VEHICLE_LICENCE',
+              'name': 'Vehicle Licence',
+              'document_category': 'RENEWABLE',
+            },
+            'issued_date': '2026-03-23',
+            'expiry_date': '2027-03-23',
+            'status': 'VALID',
+            'status_label': 'Valid',
+            'verification': {
+              'attempt_id': 'attempt-1',
+              'status': 'VERIFIED',
+              'status_label': 'Authority source checked',
+              'checked_at': '2026-08-21T20:15:00Z',
+              'manual_verification': {
+                'url': 'https://verify.evis.com.ng/',
+                'instructions':
+                    'Enter the plate number and compare the result.',
+              },
+              'disclaimer':
+                  'Travla verification is an additional check and does not replace official records.',
+            },
+          },
+        ],
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            vehicleDetailProvider(
+              'verified-vehicle',
+            ).overrideWith((ref) async => vehicle),
+          ],
+          child: const MaterialApp(
+            home: VehicleDetailScreen(vehicleId: 'verified-vehicle'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Documents'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Document Verified'), findsOneWidget);
+      await tester.tap(find.text('See verification result →'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Document Verified'), findsWidgets);
+      expect(find.text('VERIFIED ISSUE DATE'), findsNothing);
+      expect(find.text('Open official verification page'), findsNothing);
+
+      await tester.tap(find.text('Document Verified').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('VERIFIED ISSUE DATE'), findsOneWidget);
+      expect(find.text('VERIFIED EXPIRY DATE'), findsOneWidget);
+      expect(find.text('Open official verification page'), findsOneWidget);
+      expect(find.text('Check again'), findsNothing);
+      expect(find.textContaining('Authority record'), findsNothing);
+      expect(find.textContaining('Official host'), findsNothing);
+    },
+  );
+
   testWidgets('vehicle documents tab renders both document sections', (
     tester,
   ) async {
