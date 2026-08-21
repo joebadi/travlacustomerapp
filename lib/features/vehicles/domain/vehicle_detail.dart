@@ -15,6 +15,10 @@ class VehicleDetail {
     required this.hasValidPlateNumber,
     required this.status,
     required this.statusLabel,
+    this.documentsComplete = false,
+    this.requiredDocumentsCount = 3,
+    this.missingRequiredDocumentsCount = 0,
+    this.missingRequiredDocumentNames = const [],
     required this.expiredDocumentsCount,
     required this.expiringSoonCount,
     required this.images,
@@ -36,6 +40,10 @@ class VehicleDetail {
   final bool hasValidPlateNumber;
   final String? status;
   final String? statusLabel;
+  final bool documentsComplete;
+  final int requiredDocumentsCount;
+  final int missingRequiredDocumentsCount;
+  final List<String> missingRequiredDocumentNames;
   final int expiredDocumentsCount;
   final int expiringSoonCount;
   final List<String> images;
@@ -75,6 +83,12 @@ class VehicleDetail {
       hasValidPlateNumber: json['has_valid_plate_number'] == true,
       status: json['status']?.toString(),
       statusLabel: json['status_label']?.toString(),
+      documentsComplete: json['documents_complete'] == true,
+      requiredDocumentsCount:
+          (json['required_documents_count'] as num?)?.toInt() ?? 3,
+      missingRequiredDocumentsCount:
+          (json['missing_required_documents_count'] as num?)?.toInt() ?? 0,
+      missingRequiredDocumentNames: _missingRequiredDocumentNames(json),
       expiredDocumentsCount:
           (json['expired_documents_count'] as num?)?.toInt() ?? 0,
       expiringSoonCount: (json['expiring_soon_count'] as num?)?.toInt() ?? 0,
@@ -92,6 +106,16 @@ class VehicleDetail {
           : const [],
     );
   }
+}
+
+List<String> _missingRequiredDocumentNames(Map<String, dynamic> json) {
+  final documents = json['missing_required_documents'];
+  if (documents is! List) return const [];
+  return documents
+      .whereType<Map<String, dynamic>>()
+      .map((document) => document['name']?.toString() ?? '')
+      .where((name) => name.isNotEmpty)
+      .toList(growable: false);
 }
 
 class VehicleDocument {

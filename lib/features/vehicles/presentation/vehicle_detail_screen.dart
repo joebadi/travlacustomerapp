@@ -844,6 +844,8 @@ class _DocumentsTab extends StatelessWidget {
             vehicleId: vehicle.id,
             hasValidPlate: vehicle.hasValidPlateNumber,
             expiredCount: expiredCount,
+            missingDocumentNames: vehicle.missingRequiredDocumentNames,
+            isTinted: vehicle.isTinted,
             onAddAny: () => onAdd(DocumentTypeFilter.renewable),
           ),
           const SizedBox(height: 14),
@@ -896,12 +898,16 @@ class _DocumentsSummaryCard extends StatelessWidget {
     required this.vehicleId,
     required this.hasValidPlate,
     required this.expiredCount,
+    required this.missingDocumentNames,
+    required this.isTinted,
     required this.onAddAny,
   });
 
   final String vehicleId;
   final bool hasValidPlate;
   final int expiredCount;
+  final List<String> missingDocumentNames;
+  final bool isTinted;
   final VoidCallback onAddAny;
 
   @override
@@ -948,6 +954,73 @@ class _DocumentsSummaryCard extends StatelessWidget {
               height: 1.4,
             ),
           ),
+          if (missingDocumentNames.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(13),
+              decoration: BoxDecoration(
+                color: AppColors.orangeSoft,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFFC9B7)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${missingDocumentNames.length} required ${missingDocumentNames.length == 1 ? 'paper is' : 'papers are'} missing',
+                    style: const TextStyle(
+                      color: AppColors.orangeDark,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 7,
+                    runSpacing: 7,
+                    children: missingDocumentNames
+                        .map(
+                          (name) => Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 9,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: const Color(0xFFFFC9B7),
+                              ),
+                            ),
+                            child: Text(
+                              name,
+                              style: const TextStyle(
+                                color: AppColors.orangeDark,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 10.5,
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(growable: false),
+                  ),
+                  if (isTinted &&
+                      missingDocumentNames.contains('Tinted-Glass Permit')) ...[
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Tinted vehicles require this permit in addition to the three standard particulars.',
+                      style: TextStyle(
+                        color: AppColors.orangeDark,
+                        fontSize: 10.5,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
           if (!hasValidPlate) ...[
             const SizedBox(height: 14),
             Container(
@@ -2614,6 +2687,10 @@ class _VehicleStatusStyle {
         AppColors.forest100,
       ),
       'EXPIRING_SOON' => const _VehicleStatusStyle(
+        AppColors.orangeDark,
+        AppColors.orangeSoft,
+      ),
+      'MISSING_DOCUMENTS' => const _VehicleStatusStyle(
         AppColors.orangeDark,
         AppColors.orangeSoft,
       ),

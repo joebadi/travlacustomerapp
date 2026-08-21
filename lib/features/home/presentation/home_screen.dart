@@ -437,9 +437,11 @@ class _ReadinessSectionState extends State<_ReadinessSection> {
     final int valid;
     final int expiring;
     final int expired;
+    final int missing;
     if (selected != null) {
       expired = selected.expiredDocumentsCount;
       expiring = selected.expiringSoonCount;
+      missing = selected.missingRequiredDocumentsCount;
       valid = (selected.documentsCount - expired - expiring).clamp(
         0,
         selected.documentsCount,
@@ -448,8 +450,9 @@ class _ReadinessSectionState extends State<_ReadinessSection> {
       valid = widget.snapshot.validCount;
       expiring = widget.snapshot.expiringCount;
       expired = widget.snapshot.expiredCount;
+      missing = widget.snapshot.missingCount;
     }
-    final total = valid + expiring + expired;
+    final total = valid + expiring + expired + missing;
 
     return Container(
       decoration: BoxDecoration(
@@ -531,6 +534,13 @@ class _ReadinessSectionState extends State<_ReadinessSection> {
                                       showTitle: false,
                                       radius: 24,
                                     ),
+                                  if (missing > 0)
+                                    PieChartSectionData(
+                                      value: missing.toDouble(),
+                                      color: const Color(0xFF9A6700),
+                                      showTitle: false,
+                                      radius: 24,
+                                    ),
                                 ],
                               ),
                             ),
@@ -578,6 +588,12 @@ class _ReadinessSectionState extends State<_ReadinessSection> {
                               color: AppColors.danger,
                               label: 'Expired',
                               value: expired,
+                            ),
+                            const SizedBox(height: 11),
+                            _LegendRow(
+                              color: const Color(0xFF9A6700),
+                              label: 'Missing',
+                              value: missing,
                             ),
                           ],
                         ),

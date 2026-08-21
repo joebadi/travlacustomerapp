@@ -105,6 +105,8 @@ class _VehiclesScreenState extends ConsumerState<VehiclesScreen> {
       'EXPIRING_SOON' =>
         vehicles.where((v) => v.status == 'EXPIRING_SOON').toList(),
       'EXPIRED' => vehicles.where((v) => v.status == 'EXPIRED').toList(),
+      'MISSING_DOCUMENTS' =>
+        vehicles.where((v) => v.status == 'MISSING_DOCUMENTS').toList(),
       'NONE' => vehicles.where((v) => v.status == null).toList(),
       _ => vehicles,
     };
@@ -251,6 +253,11 @@ class _FilterRow extends StatelessWidget {
       (key: 'VALID', label: 'Valid', count: snapshot.validCount),
       (key: 'EXPIRING_SOON', label: 'Expiring', count: snapshot.expiringCount),
       (key: 'EXPIRED', label: 'Expired', count: snapshot.expiredCount),
+      (
+        key: 'MISSING_DOCUMENTS',
+        label: 'Missing',
+        count: snapshot.missingCount,
+      ),
       (key: 'NONE', label: 'No papers', count: noneCount),
     ];
 
@@ -1040,6 +1047,10 @@ class _StatusStyle {
     return switch (status) {
       'VALID' => const _StatusStyle(AppColors.forest700, Color(0xFFDDF2E8)),
       'EXPIRING_SOON' => const _StatusStyle(
+        AppColors.orangeDark,
+        Color(0xFFFFE9E1),
+      ),
+      'MISSING_DOCUMENTS' => const _StatusStyle(
         AppColors.orangeDark,
         Color(0xFFFFE9E1),
       ),
