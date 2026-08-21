@@ -210,6 +210,24 @@ void main() {
           availableDocumentTypesProvider(
             'vehicle-1',
           ).overrideWith((ref) async => types),
+          vehicleDocumentStatesProvider.overrideWith(
+            (ref) async => const ['Delta'],
+          ),
+          issuingAuthoritiesProvider((
+            documentType: 'VEHICLE_LICENCE',
+            state: 'Delta',
+          )).overrideWith(
+            (ref) async => const [
+              IssuingAuthorityOption(
+                id: 'authority-asaba',
+                code: 'ASABA_OFFICE',
+                name: 'Asaba Office',
+                shortName: null,
+                jurisdiction: 'STATE',
+                state: 'Delta',
+              ),
+            ],
+          ),
         ],
         child: const MaterialApp(
           home: Scaffold(
@@ -238,6 +256,34 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Record the details'), findsOneWidget);
+    expect(find.text('Document number · optional'), findsOneWidget);
+
+    final stateDropdown = find.byType(DropdownButtonFormField<String>).last;
+    await tester.ensureVisible(stateDropdown);
+    await tester.pumpAndSettle();
+    await tester.tap(stateDropdown);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delta').last);
+    await tester.pumpAndSettle();
+
+    final authorityDropdown = find.byKey(
+      const ValueKey('issuing-authority-dropdown'),
+    );
+    await tester.ensureVisible(authorityDropdown);
+    await tester.drag(find.byType(ListView).last, const Offset(0, 150));
+    await tester.pumpAndSettle();
+    await tester.tap(authorityDropdown);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Asaba Office'), findsOneWidget);
+    await tester.tap(find.text('Asaba Office'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'The authority catalogue is not configured for this paper yet.',
+      ),
+      findsNothing,
+    );
     await tester.drag(find.byType(ListView).last, const Offset(0, -520));
     await tester.pumpAndSettle();
     expect(find.text('Attach the secure copy'), findsOneWidget);

@@ -269,15 +269,11 @@ class _AddVehicleDocumentSheetState
                           textCapitalization: TextCapitalization.characters,
                           decoration: InputDecoration(
                             labelText: isRenewable
-                                ? 'Document number'
+                                ? 'Document number · optional'
                                 : 'Reference / document number',
-                            hintText: isRenewable ? null : 'Optional',
+                            hintText: 'Optional',
                             prefixIcon: const Icon(Icons.numbers_rounded),
                           ),
-                          validator: (value) =>
-                              isRenewable && value!.trim().isEmpty
-                              ? 'Enter the document number.'
-                              : null,
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
@@ -315,18 +311,26 @@ class _AddVehicleDocumentSheetState
                           const SizedBox(height: 12),
                           authorityCatalogue.when(
                             loading: () => const _AuthorityLoadingField(),
-                            error: (error, stackTrace) => _ManualAuthorityField(
-                              controller: _authorityController,
-                              enabled: !_isSubmitting,
-                              required: isRenewable,
+                            error: (error, stackTrace) => _AuthorityCatalogueNotice(
+                              message:
+                                  'We could not load the approved issuing authorities.',
+                              actionLabel: 'Try again',
+                              onAction: () => ref.invalidate(
+                                issuingAuthoritiesProvider((
+                                  documentType: selected.type,
+                                  state: _selectedState!,
+                                )),
+                              ),
                             ),
                             data: (authorities) => authorities.isEmpty
-                                ? _ManualAuthorityField(
-                                    controller: _authorityController,
-                                    enabled: !_isSubmitting,
-                                    required: isRenewable,
+                                ? _AuthorityCatalogueNotice(
+                                    message:
+                                        'No issuing authority has been configured by Travla for $_selectedState. Contact support before uploading this document.',
                                   )
                                 : DropdownButtonFormField<String>(
+                                    key: const ValueKey(
+                                      'issuing-authority-dropdown',
+                                    ),
                                     initialValue: _selectedAuthorityId,
                                     isExpanded: true,
                                     decoration: const InputDecoration(
@@ -483,11 +487,10 @@ class _AddVehicleDocumentSheetState
       setState(() => _error = 'Select the issuing state.');
       return;
     }
-    if (type.isRenewable &&
-        _selectedAuthorityId == null &&
-        _authorityController.text.trim().isEmpty) {
+    if (type.isRenewable && _selectedAuthorityId == null) {
       setState(() {
-        _error = 'Select the issuing authority or wait for it to load.';
+        _error =
+            'Select an issuing authority configured by Travla for this state.';
       });
       return;
     }
@@ -560,6 +563,72 @@ class _AuthorityLoadingField extends StatelessWidget {
             child: Text(
               'Loading approved issuing authorities…',
               style: TextStyle(color: AppColors.muted, fontSize: 11),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AuthorityCatalogueNotice extends StatelessWidget {
+  const _AuthorityCatalogueNotice({
+    required this.message,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7E8),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFF3D6A2)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.info_outline_rounded,
+            color: Color(0xFF9A5B00),
+            size: 18,
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  message,
+                  style: const TextStyle(
+                    color: Color(0xFF754800),
+                    fontSize: 10,
+                    height: 1.45,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (actionLabel != null && onAction != null) ...[
+                  const SizedBox(height: 7),
+                  TextButton.icon(
+                    onPressed: onAction,
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.forest800,
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(0, 30),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    icon: const Icon(Icons.refresh_rounded, size: 16),
+                    label: Text(actionLabel!),
+                  ),
+                ],
+              ],
             ),
           ),
         ],
