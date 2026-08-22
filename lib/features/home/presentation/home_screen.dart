@@ -434,25 +434,13 @@ class _ReadinessSectionState extends State<_ReadinessSection> {
       });
     }
 
-    final int valid;
-    final int expiring;
-    final int expired;
-    final int missing;
-    if (selected != null) {
-      expired = selected.expiredDocumentsCount;
-      expiring = selected.expiringSoonCount;
-      missing = selected.missingRequiredDocumentsCount;
-      valid = (selected.documentsCount - expired - expiring).clamp(
-        0,
-        selected.documentsCount,
-      );
-    } else {
-      valid = widget.snapshot.validCount;
-      expiring = widget.snapshot.expiringCount;
-      expired = widget.snapshot.expiredCount;
-      missing = widget.snapshot.missingCount;
-    }
-    final total = valid + expiring + expired + missing;
+    final readiness =
+        selected?.paperReadiness ?? widget.snapshot.paperReadiness;
+    final valid = readiness.upToDate;
+    final expiring = readiness.expiring;
+    final expired = readiness.expired;
+    final missing = readiness.missing;
+    final total = readiness.total;
 
     return Container(
       decoration: BoxDecoration(

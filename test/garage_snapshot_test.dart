@@ -62,4 +62,53 @@ void main() {
       'Proof of Ownership',
     ]);
   });
+
+  test('paper readiness aggregates every required slot across vehicles', () {
+    VehicleSummary vehicle({
+      required String id,
+      required int required,
+      required int missing,
+      required int expired,
+      required int expiring,
+    }) {
+      return VehicleSummary(
+        id: id,
+        make: 'Honda',
+        model: 'CR-V',
+        year: 2022,
+        color: 'Black',
+        plateNumber: 'ABC-123XY',
+        status: missing > 0 ? 'MISSING_DOCUMENTS' : 'VALID',
+        statusLabel: null,
+        requiredDocumentsCount: required,
+        missingRequiredDocumentsCount: missing,
+        expiredDocumentsCount: expired,
+        expiringSoonCount: expiring,
+        // Other vault files must not be counted as renewable paper slots.
+        documentsCount: 12,
+        images: const [],
+      );
+    }
+
+    final snapshot = GarageSnapshot(
+      vehicles: [
+        vehicle(
+          id: 'standard',
+          required: 3,
+          missing: 1,
+          expired: 1,
+          expiring: 0,
+        ),
+        vehicle(id: 'tinted', required: 4, missing: 1, expired: 0, expiring: 2),
+      ],
+      pendingTransfers: const [],
+      incomingVehicles: const [],
+    );
+
+    expect(snapshot.paperReadiness.total, 7);
+    expect(snapshot.paperReadiness.upToDate, 2);
+    expect(snapshot.paperReadiness.expiring, 2);
+    expect(snapshot.paperReadiness.expired, 1);
+    expect(snapshot.paperReadiness.missing, 2);
+  });
 }

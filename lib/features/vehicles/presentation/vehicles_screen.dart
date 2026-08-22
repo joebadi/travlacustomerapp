@@ -250,7 +250,7 @@ class _FilterRow extends StatelessWidget {
     final noneCount = snapshot.vehicles.where((v) => v.status == null).length;
     final chips = <({String key, String label, int count})>[
       (key: 'ALL', label: 'All', count: snapshot.vehicles.length),
-      (key: 'VALID', label: 'Valid', count: snapshot.validCount),
+      (key: 'VALID', label: 'Up-to-date', count: snapshot.validCount),
       (key: 'EXPIRING_SOON', label: 'Expiring', count: snapshot.expiringCount),
       (key: 'EXPIRED', label: 'Expired', count: snapshot.expiredCount),
       (
@@ -470,6 +470,8 @@ class _VehicleCard extends StatelessWidget {
                   child: _StatusPill(
                     label: vehicle.status == 'EXPIRED'
                         ? '${vehicle.expiredDocumentsCount} Expired'
+                        : vehicle.status == 'VALID'
+                        ? 'Up-to-date'
                         : vehicle.statusLabel ?? 'Papers not added',
                     style: status,
                   ),

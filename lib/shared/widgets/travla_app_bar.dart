@@ -35,7 +35,10 @@ class TravlaAppBar extends StatelessWidget implements PreferredSizeWidget {
       iconTheme: const IconThemeData(color: AppColors.white),
       surfaceTintColor: Colors.transparent,
       systemOverlayStyle: SystemUiOverlayStyle.light,
-      backgroundColor: Colors.transparent,
+      // A concrete fallback is intentional: some Android render paths can
+      // briefly omit flexibleSpace while a nested route is being composed.
+      // Without it the white logo/actions render against the scaffold canvas.
+      backgroundColor: AppColors.forest950,
       flexibleSpace: const DecoratedBox(
         decoration: BoxDecoration(
           gradient: LinearGradient(

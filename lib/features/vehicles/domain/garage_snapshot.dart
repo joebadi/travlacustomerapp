@@ -37,6 +37,27 @@ class VehicleSummary {
 
   String get displayName => '$make $model'.trim();
 
+  /// Paper-level readiness for the vehicle's required particulars. Missing
+  /// papers consume their own slots; the remaining uploaded required papers
+  /// are then divided into expired, expiring and up-to-date. This deliberately
+  /// uses [requiredDocumentsCount] rather than every file in the vault, so an
+  /// optional receipt or other document cannot inflate readiness.
+  VehiclePaperReadiness get paperReadiness {
+    final total = requiredDocumentsCount < 0 ? 0 : requiredDocumentsCount;
+    final missing = missingRequiredDocumentsCount.clamp(0, total).toInt();
+    final uploaded = total - missing;
+    final expired = expiredDocumentsCount.clamp(0, uploaded).toInt();
+    final afterExpired = uploaded - expired;
+    final expiring = expiringSoonCount.clamp(0, afterExpired).toInt();
+
+    return VehiclePaperReadiness(
+      upToDate: afterExpired - expiring,
+      expiring: expiring,
+      expired: expired,
+      missing: missing,
+    );
+  }
+
   factory VehicleSummary.fromJson(Map<String, dynamic> json) {
     final rawImages = json['images'];
     return VehicleSummary(
@@ -136,6 +157,46 @@ class GarageSnapshot {
       vehicles.where((vehicle) => vehicle.status == 'EXPIRED').length;
   int get missingCount =>
       vehicles.where((vehicle) => vehicle.status == 'MISSING_DOCUMENTS').length;
+
+  /// Aggregate paper readiness across every vehicle, not vehicle-status
+  /// counts. A fleet of two non-tinted vehicles therefore represents six
+  /// required paper slots, while a tinted vehicle contributes four.
+  VehiclePaperReadiness get paperReadiness => vehicles.fold(
+    VehiclePaperReadiness.zero,
+    (total, vehicle) => total + vehicle.paperReadiness,
+  );
+}
+
+class VehiclePaperReadiness {
+  const VehiclePaperReadiness({
+    required this.upToDate,
+    required this.expiring,
+    required this.expired,
+    required this.missing,
+  });
+
+  static const zero = VehiclePaperReadiness(
+    upToDate: 0,
+    expiring: 0,
+    expired: 0,
+    missing: 0,
+  );
+
+  final int upToDate;
+  final int expiring;
+  final int expired;
+  final int missing;
+
+  int get total => upToDate + expiring + expired + missing;
+
+  VehiclePaperReadiness operator +(VehiclePaperReadiness other) {
+    return VehiclePaperReadiness(
+      upToDate: upToDate + other.upToDate,
+      expiring: expiring + other.expiring,
+      expired: expired + other.expired,
+      missing: missing + other.missing,
+    );
+  }
 }
 
 List<String> _missingDocumentNames(Map<String, dynamic> json) {
