@@ -253,6 +253,10 @@ class _AddVehicleDocumentSheetState
                     ),
                   ),
                 ],
+                if (selected?.type == 'TINTED_PERMIT') ...[
+                  const SizedBox(height: 12),
+                  const _TintPermitInferenceNotice(),
+                ],
                 if (selected != null) ...[
                   const SizedBox(height: 14),
                   _FormSection(
@@ -536,6 +540,44 @@ class _AddVehicleDocumentSheetState
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
+  }
+}
+
+class _TintPermitInferenceNotice extends StatelessWidget {
+  const _TintPermitInferenceNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: AppColors.forest50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.forest100),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.auto_awesome_outlined,
+            color: AppColors.forest700,
+            size: 18,
+          ),
+          SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              'Uploading this permit automatically marks the vehicle as tinted and adds the permit to its required-paper readiness.',
+              style: TextStyle(
+                color: AppColors.forest800,
+                fontSize: 10.5,
+                height: 1.45,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

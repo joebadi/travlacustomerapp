@@ -373,4 +373,49 @@ void main() {
     );
     expect(find.text('Save to document vault'), findsOneWidget);
   });
+
+  testWidgets('Tint Permit explains automatic vehicle correction', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          availableDocumentTypesProvider('vehicle-1').overrideWith(
+            (ref) async => const [
+              AvailableDocumentType(
+                type: 'TINTED_PERMIT',
+                name: 'Tinted-Glass Permit',
+                description: 'Permit for a vehicle fitted with tinted glass.',
+                category: 'RENEWABLE',
+                requiresUpload: true,
+                alreadyAdded: false,
+              ),
+            ],
+          ),
+          vehicleDocumentStatesProvider.overrideWith(
+            (ref) async => const ['Delta'],
+          ),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: AddVehicleDocumentSheet(
+              vehicleId: 'vehicle-1',
+              filter: DocumentTypeFilter.renewable,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Tinted-Glass Permit').last);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('automatically marks the vehicle as tinted'),
+      findsOneWidget,
+    );
+  });
 }
