@@ -31,19 +31,9 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     final notifications = ref.watch(notificationsProvider);
-    final snapshot = notifications.value;
 
     return Scaffold(
-      appBar: TravlaAppBar(
-        actions: [
-          if ((snapshot?.unreadCount ?? 0) > 0)
-            TextButton(
-              onPressed: _isMarkingAll ? null : _markAllRead,
-              child: Text(_isMarkingAll ? 'Updating…' : 'Mark all read'),
-            ),
-          const SizedBox(width: 8),
-        ],
-      ),
+      appBar: const TravlaAppBar(showWallet: true),
       body: notifications.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stackTrace) => _NotificationError(
@@ -53,35 +43,52 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           onRetry: () => ref.invalidate(notificationsProvider),
         ),
         data: (data) {
-          if (data.items.isEmpty) return const _EmptyNotifications();
           return RefreshIndicator(
             onRefresh: () async {
               ref.invalidate(notificationsProvider);
               await ref.read(notificationsProvider.future);
             },
             child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 32),
-              itemCount: data.items.length + 1,
-              separatorBuilder: (context, index) => const SizedBox(height: 9),
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
+              itemCount: data.items.isEmpty ? 2 : data.items.length + 1,
+              separatorBuilder: (context, index) =>
+                  SizedBox(height: index == 0 ? 16 : 10),
               itemBuilder: (context, index) {
                 if (index == 0) {
-                  return const Padding(
-                    padding: EdgeInsets.fromLTRB(2, 4, 2, 9),
-                    child: Text(
-                      'Renewals, transfers, deliveries and account updates.',
-                      style: TextStyle(color: AppColors.muted, fontSize: 12),
+                  return Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 720),
+                      child: _NotificationsHeader(
+                        unreadCount: data.unreadCount,
+                        isMarkingAll: _isMarkingAll,
+                        onMarkAllRead: _markAllRead,
+                      ),
+                    ),
+                  );
+                }
+                if (data.items.isEmpty) {
+                  return Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 720),
+                      child: const _EmptyNotifications(),
                     ),
                   );
                 }
                 final item = data.items[index - 1];
                 final destination = nativeNotificationPath(item.actionUrl);
-                return _NotificationCard(
-                  item: item,
-                  isSelected: item.id == _selectedId,
-                  onTap: () => _select(item),
-                  onAction: destination == null
-                      ? null
-                      : () => context.push(destination),
+                return Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 720),
+                    child: _NotificationCard(
+                      item: item,
+                      isSelected: item.id == _selectedId,
+                      onTap: () => _select(item),
+                      onAction: destination == null
+                          ? null
+                          : () => context.push(destination),
+                    ),
+                  ),
                 );
               },
             ),
@@ -120,6 +127,115 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     } finally {
       if (mounted) setState(() => _isMarkingAll = false);
     }
+  }
+}
+
+class _NotificationsHeader extends StatelessWidget {
+  const _NotificationsHeader({
+    required this.unreadCount,
+    required this.isMarkingAll,
+    required this.onMarkAllRead,
+  });
+
+  final int unreadCount;
+  final bool isMarkingAll;
+  final VoidCallback onMarkAllRead;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 17, 16, 16),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D021B13),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppColors.forest50,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: const Icon(
+                  Icons.notifications_none_rounded,
+                  color: AppColors.forest700,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Notifications',
+                  style: TextStyle(
+                    color: AppColors.ink,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -.35,
+                  ),
+                ),
+              ),
+              if (unreadCount > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.orangeSoft,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '$unreadCount new',
+                    style: const TextStyle(
+                      color: AppColors.orangeDark,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Renewals, transfers, deliveries and important account updates in one place.',
+            style: TextStyle(
+              color: AppColors.muted,
+              fontSize: 12,
+              height: 1.45,
+            ),
+          ),
+          if (unreadCount > 0) ...[
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: isMarkingAll ? null : onMarkAllRead,
+                icon: isMarkingAll
+                    ? const SizedBox.square(
+                        dimension: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.done_all_rounded, size: 17),
+                label: Text(isMarkingAll ? 'Updating…' : 'Mark all as read'),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }
 

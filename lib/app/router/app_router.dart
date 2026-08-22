@@ -118,8 +118,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/notifications',
-        builder: (context, state) => NotificationsScreen(
-          selectedId: state.uri.queryParameters['selected'],
+        builder: (context, state) => CustomerStandaloneShell(
+          child: NotificationsScreen(
+            selectedId: state.uri.queryParameters['selected'],
+          ),
         ),
       ),
       StatefulShellRoute.indexedStack(

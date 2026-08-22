@@ -1,17 +1,28 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
+import 'package:travla_customer_app/core/auth/auth_controller.dart';
 import 'package:travla_customer_app/features/notifications/data/notification_repository.dart';
 import 'package:travla_customer_app/features/notifications/domain/app_notification.dart';
 import 'package:travla_customer_app/features/wallet/data/wallet_repository.dart';
 import 'package:travla_customer_app/shared/widgets/anchored_menu.dart';
+import 'package:travla_customer_app/shared/widgets/profile_avatar.dart';
 
 /// Compact top-right actions shared by the dashboard-style headers.
 class DashboardHeaderActions extends ConsumerWidget {
-  const DashboardHeaderActions({super.key, this.showWallet = false});
+  const DashboardHeaderActions({
+    super.key,
+    this.showWallet = false,
+    this.showNotifications = true,
+    this.showProfile = true,
+  });
 
   final bool showWallet;
+  final bool showNotifications;
+  final bool showProfile;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -22,8 +33,113 @@ class DashboardHeaderActions extends ConsumerWidget {
           const _WalletBalanceAction(),
           const SizedBox(width: 7),
         ],
-        _NotificationMenu(ref: ref),
+        if (showNotifications) _NotificationMenu(ref: ref),
+        if (showNotifications && showProfile) const SizedBox(width: 7),
+        if (showProfile) const _ProfileMenu(),
       ],
+    );
+  }
+}
+
+class _ProfileMenu extends ConsumerWidget {
+  const _ProfileMenu();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authControllerProvider).user;
+
+    return AnchoredMenu(
+      width: 272,
+      triggerBuilder: (context, isOpen, toggle) => _HeaderActionButton(
+        tooltip: 'Account menu',
+        onTap: toggle,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: isOpen ? AppColors.orange : const Color(0x66FFFFFF),
+              width: 1.5,
+            ),
+          ),
+          child: ProfileAvatar(user: user, radius: 13),
+        ),
+      ),
+      menuBuilder: (context, close) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 15, 16, 13),
+            child: Row(
+              children: [
+                ProfileAvatar(user: user, radius: 22),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        user?.fullName.trim().isNotEmpty == true
+                            ? user!.fullName
+                            : 'Travla customer',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.ink,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        user?.email ?? '',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 10.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const MenuDivider(),
+          PremiumMenuItem(
+            icon: Icons.person_outline_rounded,
+            label: 'Profile & security',
+            subtitle: 'Identity, bank details and account settings',
+            onTap: () {
+              close();
+              context.go('/more');
+            },
+          ),
+          PremiumMenuItem(
+            icon: Icons.receipt_long_outlined,
+            label: 'Transactions',
+            subtitle: 'Wallet funding and platform activity',
+            onTap: () {
+              close();
+              context.push('/more/transactions');
+            },
+          ),
+          const MenuDivider(),
+          PremiumMenuItem(
+            icon: Icons.logout_rounded,
+            label: 'Sign out',
+            danger: true,
+            onTap: () {
+              close();
+              unawaited(ref.read(authControllerProvider.notifier).logout());
+            },
+          ),
+          const SizedBox(height: 7),
+        ],
+      ),
     );
   }
 }

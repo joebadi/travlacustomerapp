@@ -24,7 +24,7 @@ class CustomerShell extends ConsumerWidget {
 
     return Scaffold(
       body: Stack(children: [navigationShell, const SupportFloatingWidget()]),
-      bottomNavigationBar: _CustomerBottomBar(
+      bottomNavigationBar: CustomerBottomBar(
         selectedIndex: navigationShell.currentIndex,
         onSelected: _selectDestination,
         profile: ProfileAvatar(user: user, radius: 12),
@@ -33,14 +33,47 @@ class CustomerShell extends ConsumerWidget {
   }
 }
 
-class _CustomerBottomBar extends StatelessWidget {
-  const _CustomerBottomBar({
+/// Gives authenticated pages that sit outside the indexed tab stacks the same
+/// persistent customer chrome. This is useful for global destinations such as
+/// Notifications: they should not lose the main navigation just because they
+/// are not one of the five primary tabs.
+class CustomerStandaloneShell extends ConsumerWidget {
+  const CustomerStandaloneShell({required this.child, super.key});
+
+  final Widget child;
+
+  static const _destinations = <String>[
+    '/home',
+    '/vehicles',
+    '/journeys',
+    '/news',
+    '/more',
+  ];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authControllerProvider).user;
+
+    return Scaffold(
+      body: Stack(children: [child, const SupportFloatingWidget()]),
+      bottomNavigationBar: CustomerBottomBar(
+        selectedIndex: null,
+        onSelected: (index) => context.go(_destinations[index]),
+        profile: ProfileAvatar(user: user, radius: 12),
+      ),
+    );
+  }
+}
+
+class CustomerBottomBar extends StatelessWidget {
+  const CustomerBottomBar({
     required this.selectedIndex,
     required this.onSelected,
     required this.profile,
+    super.key,
   });
 
-  final int selectedIndex;
+  final int? selectedIndex;
   final ValueChanged<int> onSelected;
   final Widget profile;
 
