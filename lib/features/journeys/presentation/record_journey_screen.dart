@@ -11,6 +11,7 @@ import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/journeys/data/journey_repository.dart';
 import 'package:travla_customer_app/features/journeys/domain/journey_models.dart';
+import 'package:travla_customer_app/features/journeys/domain/journey_track_filter.dart';
 
 class RecordJourneyScreen extends ConsumerStatefulWidget {
   const RecordJourneyScreen({
@@ -31,7 +32,6 @@ class RecordJourneyScreen extends ConsumerStatefulWidget {
 
 class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
   final _mapController = MapController();
-  final _distance = const Distance();
 
   late final TextEditingController _titleCtrl;
   late String _mode;
@@ -53,14 +53,16 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
   double _distanceM = 0;
   double? _speed;
 
-  // GPS quality gates — the OS emits jittery fixes even while parked, which
-  // otherwise pile up as fake movement. We reject low-accuracy fixes, ignore
-  // drift smaller than our own uncertainty, and discard impossible teleports.
-  static const double _maxAccuracyM = 30; // drop fixes worse than this
-  static const double _minMoveM = 8; // movement floor below which we hold still
-  static const double _maxSpeedMps = 70; // ~252 km/h — reject glitch jumps
-  LatLng? _lastAccepted;
-  DateTime? _lastAcceptedAt;
+  // The OS keeps emitting jittery fixes even while parked, which naively pile
+  // up as fake zig-zag movement. This filter holds a stable anchor and only
+  // leaves it on confirmed movement (see JourneyTrackFilter). Recreated per
+  // recording session in _start().
+  JourneyTrackFilter _filter = JourneyTrackFilter();
+
+  // The stable position shown on the map (anchor while parked, accepted fix
+  // while moving) — kept separate from the recorded trail so the live marker
+  // never jitters even during a hold.
+  LatLng? _live;
 
   @override
   void initState() {
@@ -135,12 +137,15 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
           );
         }
       });
-      _lastAccepted = null;
-      _lastAcceptedAt = null;
+      _filter = JourneyTrackFilter();
+      _live = null;
+      // distanceFilter: 0 — let our own filter be the sole authority on what
+      // counts as movement. The OS distance filter keys off raw jitter, so it
+      // would emit erratically while parked and add nothing but noise.
       _sub = Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.bestForNavigation,
-          distanceFilter: 4,
+          distanceFilter: 0,
         ),
       ).listen(_onPosition);
       setState(() => _recording = true);
@@ -154,48 +159,38 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
   }
 
   void _onPosition(Position pos) {
-    // 1) Drop low-quality fixes outright — these are the main source of drift.
-    if (pos.accuracy > 0 && pos.accuracy > _maxAccuracyM) return;
+    final sample = _filter.add(pos);
 
-    final point = LatLng(pos.latitude, pos.longitude);
-    final now = DateTime.now();
+    // Unusable fix — leave everything (marker included) exactly as it was.
+    if (sample.decision == TrackDecision.rejected) return;
 
-    if (_lastAccepted != null) {
-      final moved = _distance.as(LengthUnit.Meter, _lastAccepted!, point);
-
-      // 2) Stationary drift: if we haven't moved farther than our own GPS
-      // uncertainty (or the floor), it's noise — refresh speed but don't grow
-      // the trail or distance.
-      final threshold = math.max(
-        _minMoveM,
-        pos.accuracy > 0 ? pos.accuracy : 0,
-      );
-      if (moved < threshold) {
-        if (mounted) setState(() => _speed = pos.speed >= 0 ? 0 : null);
-        return;
-      }
-
-      // 3) Teleport guard: reject physically impossible jumps between fixes.
-      final dt = now.difference(_lastAcceptedAt ?? now).inMilliseconds / 1000.0;
-      if (dt > 0 && moved / dt > _maxSpeedMps) return;
-
-      _distanceM += moved;
+    // Keep the live marker/camera on the stable point (anchor while parked),
+    // so the map holds steady even when we're not recording anything.
+    final movedMarker = _live == null || _live != sample.point;
+    _live = sample.point;
+    if (movedMarker) {
+      _mapController.move(sample.point, _mapController.camera.zoom);
     }
 
-    _lastAccepted = point;
-    _lastAcceptedAt = now;
-    _trail.add(point);
+    // Parked: update the speed readout to 0 but don't record a thing.
+    if (sample.decision == TrackDecision.holding) {
+      if (mounted) setState(() => _speed = sample.speedKmh);
+      return;
+    }
+
+    // Confirmed movement — grow the trail and the recorded distance.
+    _distanceM += sample.movedMeters;
+    _trail.add(sample.point);
     _pending.add({
-      'latitude': pos.latitude,
-      'longitude': pos.longitude,
+      'latitude': sample.point.latitude,
+      'longitude': sample.point.longitude,
       'sequence': _seq++,
       if (pos.speed >= 0) 'speed': pos.speed,
       if (pos.heading >= 0) 'heading': pos.heading,
       if (pos.accuracy >= 0) 'accuracy': pos.accuracy,
-      'recorded_at': now.toUtc().toIso8601String(),
+      'recorded_at': pos.timestamp.toUtc().toIso8601String(),
     });
-    setState(() => _speed = pos.speed >= 0 ? pos.speed * 3.6 : null);
-    _mapController.move(point, _mapController.camera.zoom);
+    setState(() => _speed = sample.speedKmh);
     if (_pending.length >= 8) _flush();
   }
 
@@ -453,9 +448,8 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
   }
 
   Widget _recordingView() {
-    final center = _trail.isNotEmpty
-        ? _trail.last
-        : const LatLng(9.0820, 8.6753);
+    final center =
+        _live ?? (_trail.isNotEmpty ? _trail.last : const LatLng(9.0820, 8.6753));
     return Stack(
       children: [
         FlutterMap(
@@ -476,11 +470,11 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
                   ),
                 ],
               ),
-            if (_trail.isNotEmpty)
+            if (_live != null || _trail.isNotEmpty)
               MarkerLayer(
                 markers: [
                   Marker(
-                    point: _trail.last,
+                    point: _live ?? _trail.last,
                     width: 24,
                     height: 24,
                     child: Container(
