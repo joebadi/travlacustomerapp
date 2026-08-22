@@ -225,7 +225,7 @@ class _JourneyDestination extends StatelessWidget {
       child: Semantics(
         button: true,
         selected: selected,
-        label: 'Journeys',
+        label: 'Travla',
         child: Material(
           color: Colors.transparent,
           child: InkWell(
@@ -265,14 +265,14 @@ class _JourneyDestination extends StatelessWidget {
                       'assets/brand/travla-mark-white.png',
                       fit: BoxFit.contain,
                       filterQuality: FilterQuality.high,
-                      semanticLabel: 'Travla Journeys',
+                      semanticLabel: 'Travla map',
                     ),
                   ),
                 ),
                 Positioned(
                   bottom: 8,
                   child: Text(
-                    'Journeys',
+                    'Travla',
                     style: TextStyle(
                       color: selected ? AppColors.orange : AppColors.forest900,
                       fontSize: 9,
