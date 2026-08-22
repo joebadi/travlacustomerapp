@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,8 +13,8 @@ import 'package:travla_customer_app/features/home/presentation/dashboard_header_
 import 'package:travla_customer_app/features/home/presentation/dashboard_quick_actions.dart';
 import 'package:travla_customer_app/features/insurance/data/insurance_repository.dart';
 import 'package:travla_customer_app/features/insurance/domain/insurance_models.dart';
-import 'package:travla_customer_app/features/notifications/data/notification_repository.dart';
-import 'package:travla_customer_app/features/notifications/domain/app_notification.dart';
+import 'package:travla_customer_app/features/news/data/news_repository.dart';
+import 'package:travla_customer_app/features/news/domain/news_models.dart';
 import 'package:travla_customer_app/features/renewals/data/renewal_repository.dart';
 import 'package:travla_customer_app/features/renewals/domain/renewal_models.dart';
 import 'package:travla_customer_app/features/vehicles/data/garage_repository.dart';
@@ -20,8 +22,8 @@ import 'package:travla_customer_app/features/vehicles/domain/garage_snapshot.dar
 import 'package:travla_customer_app/shared/widgets/travla_logo.dart';
 
 /// Home dashboard — mirrors the web dashboard's information architecture:
-/// hero + fleet cross-sell, KPI tiles, a readiness donut + at-a-glance bars,
-/// "needs attention" and "renewals in progress" panels, and latest updates.
+/// hero + fleet cross-sell, a readiness donut + at-a-glance bars,
+/// "needs attention", live renewals, quick actions, and recent road content.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -32,7 +34,8 @@ class HomeScreen extends ConsumerWidget {
     final renewals = ref.watch(renewalOrdersProvider);
     final licenses = ref.watch(driversLicensesProvider);
     final expiringPolicies = ref.watch(expiringPoliciesProvider);
-    final notifications = ref.watch(notificationsProvider);
+    const dashboardNewsQuery = NewsQuery();
+    final recentNews = ref.watch(newsFeedProvider(dashboardNewsQuery));
 
     final activeRenewals = renewals.asData?.value
         .where((r) => !r.isCompleted && r.status != 'CANCELLED')
@@ -48,7 +51,7 @@ class HomeScreen extends ConsumerWidget {
           ref.invalidate(renewalOrdersProvider);
           ref.invalidate(driversLicensesProvider);
           ref.invalidate(expiringPoliciesProvider);
-          ref.invalidate(notificationsProvider);
+          ref.invalidate(newsFeedProvider(dashboardNewsQuery));
           await ref.read(garageProvider.future).catchError((_) {
             throw Exception();
           });
@@ -100,24 +103,11 @@ class HomeScreen extends ConsumerWidget {
                   _RenewalsInProgressCard(renewals: activeRenewals),
 
                   const SizedBox(height: 22),
-                  _LatestUpdatesCard(
-                    snapshot: notifications.asData?.value,
-                    isLoading: notifications.isLoading,
+                  _RecentBlogPostsSlider(
+                    feed: recentNews,
+                    onRetry: () =>
+                        ref.invalidate(newsFeedProvider(dashboardNewsQuery)),
                   ),
-
-                  // KPI tiles — mirrors the web's Vehicles / Papers to review /
-                  // Active renewals / Driver's licences row. Kept near the
-                  // bottom, right before the Fleet cross-sell.
-                  const SizedBox(height: 22),
-                  _StatGrid(
-                    vehicleCount: snapshot?.vehicles.length ?? 0,
-                    papersToReview:
-                        (snapshot?.expiringCount ?? 0) +
-                        (snapshot?.expiredCount ?? 0),
-                    activeRenewals: activeRenewals?.length ?? 0,
-                    licenseCount: licenseList?.length ?? 0,
-                  ),
-
                   const SizedBox(height: 22),
                   const _FleetCtaBanner(),
                 ],
@@ -239,164 +229,6 @@ class _SectionHeaderBar extends StatelessWidget {
             ),
           ),
           if (trailing != null) ...[const SizedBox(width: 8), trailing!],
-        ],
-      ),
-    );
-  }
-}
-
-/* ------------------------------- KPI tiles -------------------------------- */
-
-class _StatGrid extends StatelessWidget {
-  const _StatGrid({
-    required this.vehicleCount,
-    required this.papersToReview,
-    required this.activeRenewals,
-    required this.licenseCount,
-  });
-
-  final int vehicleCount;
-  final int papersToReview;
-  final int activeRenewals;
-  final int licenseCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final tiles = [
-      _StatTile(
-        icon: Icons.directions_car_filled_outlined,
-        iconColor: AppColors.forest700,
-        iconBg: AppColors.forest50,
-        label: 'Vehicles',
-        value: '$vehicleCount',
-        caption: 'on your account',
-      ),
-      _StatTile(
-        icon: Icons.description_outlined,
-        iconColor: AppColors.forest700,
-        iconBg: AppColors.forest50,
-        label: 'Papers to review',
-        value: '$papersToReview',
-        caption: papersToReview == 0
-            ? 'everything looks current'
-            : 'need attention',
-      ),
-      _StatTile(
-        icon: Icons.autorenew_rounded,
-        iconColor: const Color(0xFF2F6FEB),
-        iconBg: const Color(0xFFE7EDFB),
-        label: 'Active renewals',
-        value: '$activeRenewals',
-        caption: activeRenewals == 0 ? 'no orders in progress' : 'in progress',
-      ),
-      _StatTile(
-        icon: Icons.badge_outlined,
-        iconColor: const Color(0xFF2F6FEB),
-        iconBg: const Color(0xFFE7EDFB),
-        label: "Driver's licences",
-        value: '$licenseCount',
-        caption: licenseCount == 0 ? 'none added yet' : 'on record',
-      ),
-    ];
-
-    // A hand-rolled 2-column grid (IntrinsicHeight rows, no fixed aspect
-    // ratio) rather than GridView.count — GridView forces every cell into an
-    // exact height derived from childAspectRatio, and that height doesn't
-    // grow with the system font-scale setting, so long captions or a larger
-    // accessibility text size can overflow it. Letting each tile size to its
-    // own content makes that class of overflow impossible.
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var i = 0; i < tiles.length; i += 2) ...[
-          if (i > 0) const SizedBox(height: 10),
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(child: tiles[i]),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: i + 1 < tiles.length
-                      ? tiles[i + 1]
-                      : const SizedBox.shrink(),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _StatTile extends StatelessWidget {
-  const _StatTile({
-    required this.icon,
-    required this.iconColor,
-    required this.iconBg,
-    required this.label,
-    required this.value,
-    required this.caption,
-  });
-
-  final IconData icon;
-  final Color iconColor;
-  final Color iconBg;
-  final String label;
-  final String value;
-  final String caption;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: iconBg,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: iconColor, size: 18),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            value,
-            style: const TextStyle(
-              color: AppColors.ink,
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-              height: 1,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppColors.ink,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 1),
-          Text(
-            caption,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: AppColors.muted, fontSize: 10.5),
-          ),
         ],
       ),
     );
@@ -1117,140 +949,392 @@ class _RenewalRow extends StatelessWidget {
   }
 }
 
-/* ----------------------------- Latest updates ------------------------------ */
+/* ----------------------------- Recent blogs ------------------------------- */
 
-class _LatestUpdatesCard extends StatelessWidget {
-  const _LatestUpdatesCard({required this.snapshot, required this.isLoading});
+class _RecentBlogPostsSlider extends StatefulWidget {
+  const _RecentBlogPostsSlider({required this.feed, required this.onRetry});
 
-  final NotificationSnapshot? snapshot;
-  final bool isLoading;
+  final AsyncValue<NewsPage> feed;
+  final VoidCallback onRetry;
+
+  @override
+  State<_RecentBlogPostsSlider> createState() => _RecentBlogPostsSliderState();
+}
+
+class _RecentBlogPostsSliderState extends State<_RecentBlogPostsSlider> {
+  late final PageController _controller;
+  Timer? _autoPlay;
+  int _current = 0;
+
+  List<NewsArticle> get _articles =>
+      widget.feed.asData?.value.articles.take(6).toList(growable: false) ??
+      const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PageController(viewportFraction: .9);
+    _autoPlay = Timer.periodic(const Duration(seconds: 6), (_) {
+      if (!mounted || !_controller.hasClients || _articles.length < 2) return;
+      final next = (_current + 1) % _articles.length;
+      _controller.animateToPage(
+        next,
+        duration: const Duration(milliseconds: 650),
+        curve: Curves.easeInOutCubicEmphasized,
+      );
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _RecentBlogPostsSlider oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_articles.isNotEmpty && _current >= _articles.length) {
+      _current = 0;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_controller.hasClients) _controller.jumpToPage(0);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _autoPlay?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final items = snapshot?.items.take(3).toList(growable: false) ?? const [];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Recent blog posts',
+                    style: TextStyle(
+                      color: AppColors.ink,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  SizedBox(height: 3),
+                  Text(
+                    'News, guides and updates for Nigerian roads.',
+                    style: TextStyle(color: AppColors.muted, fontSize: 11.5),
+                  ),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: () => context.go('/news'),
+              child: const Text(
+                'View all',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        widget.feed.when(
+          loading: () => const _BlogSliderSkeleton(),
+          error: (_, _) => _BlogSliderError(onRetry: widget.onRetry),
+          data: (page) => page.articles.isEmpty
+              ? const _EmptyBlogSlider()
+              : Column(
+                  children: [
+                    SizedBox(
+                      height: 236,
+                      child: PageView.builder(
+                        controller: _controller,
+                        clipBehavior: Clip.none,
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: _articles.length,
+                        onPageChanged: (index) =>
+                            setState(() => _current = index),
+                        itemBuilder: (context, index) {
+                          return AnimatedBuilder(
+                            animation: _controller,
+                            builder: (context, child) {
+                              var pageValue = _current.toDouble();
+                              if (_controller.hasClients &&
+                                  _controller.position.haveDimensions) {
+                                pageValue = _controller.page ?? pageValue;
+                              }
+                              final distance = (pageValue - index).abs().clamp(
+                                0.0,
+                                1.0,
+                              );
+                              final scale = 1 - (distance * .045);
+                              return Transform.scale(
+                                scale: scale,
+                                alignment: Alignment.centerLeft,
+                                child: Opacity(
+                                  opacity: 1 - (distance * .18),
+                                  child: child,
+                                ),
+                              );
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 12),
+                              child: _BlogSlide(article: _articles[index]),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    if (_articles.length > 1) ...[
+                      const SizedBox(height: 11),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(
+                          _articles.length,
+                          (index) => AnimatedContainer(
+                            duration: const Duration(milliseconds: 280),
+                            curve: Curves.easeOutCubic,
+                            width: index == _current ? 20 : 6,
+                            height: 6,
+                            margin: const EdgeInsets.symmetric(horizontal: 3),
+                            decoration: BoxDecoration(
+                              color: index == _current
+                                  ? AppColors.orange
+                                  : AppColors.border,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+}
 
+class _BlogSlide extends StatelessWidget {
+  const _BlogSlide({required this.article});
+
+  final NewsArticle article;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.forest950,
+      borderRadius: BorderRadius.circular(20),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => context.push('/news/${article.slug}'),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (article.coverImageUrl?.isNotEmpty == true)
+              Image.network(
+                article.coverImageUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => const _BlogImageFallback(),
+              )
+            else
+              const _BlogImageFallback(),
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  stops: [0, .38, 1],
+                  colors: [
+                    Color(0x12000000),
+                    Color(0x6B021B13),
+                    Color(0xFA021B13),
+                  ],
+                ),
+              ),
+            ),
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 15,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (article.category?.isNotEmpty == true)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.orange,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        article.category!.toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: .65,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  Text(
+                    article.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                      height: 1.18,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${_formatBlogDate(article.publishedAt)} · ${article.readingMinutes} min read',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: .67),
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const Icon(
+                        Icons.arrow_forward_rounded,
+                        color: Color(0xFF75DFB8),
+                        size: 19,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BlogImageFallback extends StatelessWidget {
+  const _BlogImageFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.forest700, AppColors.forest950],
+        ),
+      ),
+      child: Center(
+        child: Icon(
+          Icons.newspaper_rounded,
+          color: Color(0xFF75DFB8),
+          size: 42,
+        ),
+      ),
+    );
+  }
+}
+
+class _BlogSliderSkeleton extends StatelessWidget {
+  const _BlogSliderSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
+      height: 236,
+      decoration: BoxDecoration(
+        color: AppColors.border.withValues(alpha: .55),
+        borderRadius: BorderRadius.circular(20),
+      ),
+    );
+  }
+}
+
+class _BlogSliderError extends StatelessWidget {
+  const _BlogSliderError({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 120,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.border),
       ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      child: Row(
         children: [
-          _SectionHeaderBar(
-            title: 'Latest updates',
-            subtitle: 'From renewals, documents, and deliveries.',
-            trailing: TextButton(
-              onPressed: () => context.push('/notifications'),
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.zero,
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: const Text(
-                'All updates',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
-              ),
+          const Icon(Icons.cloud_off_outlined, color: AppColors.muted),
+          const SizedBox(width: 11),
+          const Expanded(
+            child: Text(
+              'Recent posts could not be loaded.',
+              style: TextStyle(color: AppColors.muted, fontSize: 12.5),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: isLoading && snapshot == null
-                ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Center(
-                      child: SizedBox.square(
-                        dimension: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    ),
-                  )
-                : items.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 14),
-                    child: Text(
-                      'No updates yet.',
-                      style: TextStyle(color: AppColors.muted, fontSize: 12.5),
-                    ),
-                  )
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (var i = 0; i < items.length; i++) ...[
-                        if (i > 0) const Divider(height: 20),
-                        _UpdateRow(notification: items[i]),
-                      ],
-                    ],
-                  ),
-          ),
+          TextButton(onPressed: onRetry, child: const Text('Retry')),
         ],
       ),
     );
   }
 }
 
-class _UpdateRow extends StatelessWidget {
-  const _UpdateRow({required this.notification});
-
-  final AppNotification notification;
+class _EmptyBlogSlider extends StatelessWidget {
+  const _EmptyBlogSlider();
 
   @override
   Widget build(BuildContext context) {
-    final destination = nativeNotificationPath(notification.actionUrl);
-
-    return InkWell(
-      onTap: destination == null ? null : () => context.push(destination),
-      borderRadius: BorderRadius.circular(10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 5),
-            child: Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: notification.isRead
-                    ? AppColors.border
-                    : AppColors.forest600,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  notification.title,
-                  style: const TextStyle(
-                    color: AppColors.ink,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  notification.message,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.muted,
-                    fontSize: 11.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+    return Container(
+      height: 120,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: const Text(
+        'New road stories will appear here.',
+        style: TextStyle(color: AppColors.muted, fontSize: 12.5),
       ),
     );
   }
+}
+
+String _formatBlogDate(DateTime? value) {
+  if (value == null) return 'Recently';
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  return '${value.day} ${months[value.month - 1]} ${value.year}';
 }
 
 /* ------------------------------- Shared bits -------------------------------- */
@@ -1402,29 +1486,6 @@ class _FleetCtaBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 9,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.orange.withValues(alpha: .18),
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(
-                      color: AppColors.orange.withValues(alpha: .4),
-                    ),
-                  ),
-                  child: const Text(
-                    'FOR BUSINESSES',
-                    style: TextStyle(
-                      color: AppColors.orange,
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
                 const Text(
                   'Running more than one vehicle?',
                   style: TextStyle(

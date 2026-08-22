@@ -40,7 +40,17 @@ class _TravlaAppState extends ConsumerState<TravlaApp> {
       title: AppConfig.appName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
+      scrollBehavior: const _TravlaScrollBehavior(),
       routerConfig: router,
     );
+  }
+}
+
+class _TravlaScrollBehavior extends MaterialScrollBehavior {
+  const _TravlaScrollBehavior();
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    return const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
   }
 }

@@ -26,7 +26,22 @@ class CustomerShell extends ConsumerWidget {
     return Scaffold(
       body: Stack(
         children: [
-          navigationShell,
+          TweenAnimationBuilder<double>(
+            key: ValueKey(navigationShell.currentIndex),
+            tween: Tween(begin: 0, end: 1),
+            duration: const Duration(milliseconds: 360),
+            curve: Curves.easeOutCubic,
+            child: navigationShell,
+            builder: (context, value, child) {
+              return Opacity(
+                opacity: .72 + (.28 * value),
+                child: Transform.translate(
+                  offset: Offset(0, 7 * (1 - value)),
+                  child: child,
+                ),
+              );
+            },
+          ),
           if (!isTravlaMap) const SupportFloatingWidget(),
         ],
       ),

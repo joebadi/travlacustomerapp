@@ -27,6 +27,16 @@ abstract final class AppTheme {
       colorScheme: scheme,
       scaffoldBackgroundColor: AppColors.canvas,
       fontFamily: 'Roboto',
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: _TravlaPageTransitionsBuilder(),
+          TargetPlatform.iOS: _TravlaPageTransitionsBuilder(),
+          TargetPlatform.macOS: _TravlaPageTransitionsBuilder(),
+          TargetPlatform.windows: _TravlaPageTransitionsBuilder(),
+          TargetPlatform.linux: _TravlaPageTransitionsBuilder(),
+          TargetPlatform.fuchsia: _TravlaPageTransitionsBuilder(),
+        },
+      ),
       textTheme: textTheme.copyWith(
         displaySmall: textTheme.displaySmall?.copyWith(
           fontSize: 30,
@@ -128,6 +138,48 @@ abstract final class AppTheme {
                 : FontWeight.w600,
           );
         }),
+      ),
+    );
+  }
+}
+
+/// A short, calm transition shared by every pushed page. The movement is kept
+/// deliberately small so navigation feels responsive without making dense
+/// forms or maps appear to fly across the screen.
+class _TravlaPageTransitionsBuilder extends PageTransitionsBuilder {
+  const _TravlaPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    final incoming = CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+    final outgoing = Tween<double>(begin: 1, end: .94).animate(
+      CurvedAnimation(parent: secondaryAnimation, curve: Curves.easeOutCubic),
+    );
+
+    return FadeTransition(
+      opacity: outgoing,
+      child: FadeTransition(
+        opacity: Tween<double>(begin: .18, end: 1).animate(incoming),
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(.025, .012),
+            end: Offset.zero,
+          ).animate(incoming),
+          child: ScaleTransition(
+            scale: Tween<double>(begin: .992, end: 1).animate(incoming),
+            child: child,
+          ),
+        ),
       ),
     );
   }
