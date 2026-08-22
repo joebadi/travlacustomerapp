@@ -21,9 +21,15 @@ class CustomerShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authControllerProvider).user;
+    final isTravlaMap = navigationShell.currentIndex == 2;
 
     return Scaffold(
-      body: Stack(children: [navigationShell, const SupportFloatingWidget()]),
+      body: Stack(
+        children: [
+          navigationShell,
+          if (!isTravlaMap) const SupportFloatingWidget(),
+        ],
+      ),
       bottomNavigationBar: CustomerBottomBar(
         selectedIndex: navigationShell.currentIndex,
         onSelected: _selectDestination,

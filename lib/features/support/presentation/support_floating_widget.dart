@@ -11,11 +11,10 @@ enum _SupportView { list, newTicket, thread }
 
 /// The floating "Travla Support" launcher + panel — the mobile counterpart
 /// of the web's `SupportWidget` (list of conversations, new-ticket form,
-/// live thread). Mounted once in [CustomerShell] so it floats over every
-/// tab, on the bottom-LEFT (not bottom-right like web) so it never
-/// collides with a tab's own FloatingActionButton (Journeys' Record,
-/// Car Talk's New thread/Report stolen), which all use the default
-/// bottom-right position.
+/// live thread). Mounted by [CustomerShell] over customer tabs except the
+/// full-screen Travla map, where the map's own controls need the complete
+/// canvas. It rests on the bottom-left so it does not collide with the other
+/// tabs' primary actions.
 class SupportFloatingWidget extends ConsumerStatefulWidget {
   const SupportFloatingWidget({super.key});
 

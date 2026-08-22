@@ -11,23 +11,30 @@ import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/journeys/data/journey_repository.dart';
 import 'package:travla_customer_app/features/journeys/domain/journey_models.dart';
-import 'package:travla_customer_app/features/vehicles/data/garage_repository.dart';
 
 class RecordJourneyScreen extends ConsumerStatefulWidget {
-  const RecordJourneyScreen({super.key});
+  const RecordJourneyScreen({
+    super.key,
+    this.initialTitle,
+    this.initialMode = 'DRIVING',
+    this.initialVehicleId,
+  });
+
+  final String? initialTitle;
+  final String initialMode;
+  final String? initialVehicleId;
 
   @override
-  ConsumerState<RecordJourneyScreen> createState() => _RecordJourneyScreenState();
+  ConsumerState<RecordJourneyScreen> createState() =>
+      _RecordJourneyScreenState();
 }
 
 class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
   final _mapController = MapController();
   final _distance = const Distance();
 
-  final _titleCtrl = TextEditingController(
-    text: 'Journey ${DateTime.now().day}/${DateTime.now().month}',
-  );
-  String _mode = 'DRIVING';
+  late final TextEditingController _titleCtrl;
+  late String _mode;
   String? _vehicleId;
 
   bool _recording = false;
@@ -56,6 +63,25 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
   DateTime? _lastAcceptedAt;
 
   @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _titleCtrl = TextEditingController(
+      text: widget.initialTitle?.trim().isNotEmpty == true
+          ? widget.initialTitle!.trim()
+          : 'Journey ${now.day}/${now.month}',
+    );
+    _mode =
+        transportModeOptions.any((option) => option.value == widget.initialMode)
+        ? widget.initialMode
+        : 'DRIVING';
+    _vehicleId = widget.initialVehicleId;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _start();
+    });
+  }
+
+  @override
   void dispose() {
     _sub?.cancel();
     _ticker?.cancel();
@@ -69,31 +95,45 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
       return false;
     }
     var p = await Geolocator.checkPermission();
-    if (p == LocationPermission.denied) p = await Geolocator.requestPermission();
-    if (p == LocationPermission.denied || p == LocationPermission.deniedForever) {
-      setState(() => _error = 'Location permission is required to record a journey.');
+    if (p == LocationPermission.denied) {
+      p = await Geolocator.requestPermission();
+    }
+    if (p == LocationPermission.denied ||
+        p == LocationPermission.deniedForever) {
+      setState(
+        () => _error = 'Location permission is required to record a journey.',
+      );
       return false;
     }
     return true;
   }
 
   Future<void> _start() async {
+    if (_busy) return;
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
       if (!await _ensurePermission()) return;
-      final id = await ref.read(journeyRepositoryProvider).create(
+      final id = await ref
+          .read(journeyRepositoryProvider)
+          .create(
             title: _titleCtrl.text,
             transportMode: _mode,
             vehicleId: _vehicleId,
           );
-      if (id.isEmpty) throw const ApiFailure('The journey could not be started.');
+      if (id.isEmpty) {
+        throw const ApiFailure('The journey could not be started.');
+      }
       _journeyId = id;
       _startedAt = DateTime.now();
       _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-        if (mounted) setState(() => _elapsed = DateTime.now().difference(_startedAt!).inSeconds);
+        if (mounted) {
+          setState(
+            () => _elapsed = DateTime.now().difference(_startedAt!).inSeconds,
+          );
+        }
       });
       _lastAccepted = null;
       _lastAcceptedAt = null;
@@ -189,7 +229,9 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
 
   Future<void> _reportRoadCondition() async {
     if (_trail.isEmpty) return;
-    final catalogue = await ref.read(roadReportCatalogueProvider.future).catchError((_) => <RoadReportType>[]);
+    final catalogue = await ref
+        .read(roadReportCatalogueProvider.future)
+        .catchError((_) => <RoadReportType>[]);
     if (!mounted || catalogue.isEmpty) return;
     final descCtrl = TextEditingController();
     final type = await showModalBottomSheet<RoadReportType>(
@@ -197,36 +239,55 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
       backgroundColor: AppColors.white,
       showDragHandle: true,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (sheetContext) => SafeArea(
         top: false,
         child: Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(sheetContext).bottom),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Padding(
                 padding: EdgeInsets.fromLTRB(20, 2, 20, 4),
-                child: Text('Report a road condition', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                child: Text(
+                  'Report a road condition',
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                ),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
                 child: TextField(
                   controller: descCtrl,
-                  decoration: const InputDecoration(hintText: 'Note (optional)'),
+                  decoration: const InputDecoration(
+                    hintText: 'Note (optional)',
+                  ),
                 ),
               ),
               Flexible(
                 child: ListView(
                   shrinkWrap: true,
                   children: catalogue
-                      .map((t) => ListTile(
-                            leading: const Icon(Icons.warning_amber_rounded, color: AppColors.orangeDark),
-                            title: Text(t.label, style: const TextStyle(fontWeight: FontWeight.w700)),
-                            subtitle: t.category != null ? Text(t.category!) : null,
-                            onTap: () => Navigator.of(sheetContext).pop(t),
-                          ))
+                      .map(
+                        (t) => ListTile(
+                          leading: const Icon(
+                            Icons.warning_amber_rounded,
+                            color: AppColors.orangeDark,
+                          ),
+                          title: Text(
+                            t.label,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          subtitle: t.category != null
+                              ? Text(t.category!)
+                              : null,
+                          onTap: () => Navigator.of(sheetContext).pop(t),
+                        ),
+                      )
                       .toList(),
                 ),
               ),
@@ -239,7 +300,9 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
     if (type == null) return;
     final at = _trail.last;
     try {
-      await ref.read(journeyRepositoryProvider).createRoadReport(
+      await ref
+          .read(journeyRepositoryProvider)
+          .createRoadReport(
             type: type.value,
             latitude: at.latitude,
             longitude: at.longitude,
@@ -248,7 +311,9 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
-          ..showSnackBar(const SnackBar(content: Text('Road report submitted. Thank you!')));
+          ..showSnackBar(
+            const SnackBar(content: Text('Road report submitted. Thank you!')),
+          );
       }
     } on ApiFailure catch (f) {
       if (mounted) {
@@ -261,71 +326,136 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_recording) return _startingView();
     return Scaffold(
       backgroundColor: AppColors.canvas,
-      appBar: AppBar(title: Text(_recording ? 'Recording…' : 'Record a journey')),
-      body: _recording ? _recordingView() : _setupView(),
+      appBar: AppBar(title: const Text('Recording…')),
+      body: _recordingView(),
     );
   }
 
-  Widget _setupView() {
-    final garage = ref.watch(garageProvider);
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
-      children: [
-        if (_error != null) ...[
-          Container(
-            padding: const EdgeInsets.all(13),
-            decoration: BoxDecoration(color: const Color(0xFFFFE3E1), borderRadius: BorderRadius.circular(12)),
-            child: Row(children: [
-              const Icon(Icons.error_outline_rounded, color: AppColors.danger),
-              const SizedBox(width: 10),
-              Expanded(child: Text(_error!, style: const TextStyle(color: AppColors.danger, fontSize: 12.5))),
-            ]),
+  Widget _startingView() {
+    return Scaffold(
+      backgroundColor: AppColors.forest950,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          FlutterMap(
+            options: const MapOptions(
+              initialCenter: LatLng(9.0820, 8.6753),
+              initialZoom: 5.7,
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'ng.com.travla.customer',
+              ),
+            ],
           ),
-          const SizedBox(height: 14),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.forest950.withValues(alpha: .22),
+            ),
+          ),
+          Center(
+            child: Container(
+              width: math.min(MediaQuery.sizeOf(context).width - 32, 360),
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xE805100C),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: AppColors.forest600),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x66000000),
+                    blurRadius: 30,
+                    offset: Offset(0, 14),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_error == null)
+                    const SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF6DE4B0),
+                        strokeWidth: 2.4,
+                      ),
+                    )
+                  else
+                    const Icon(
+                      Icons.location_off_rounded,
+                      color: AppColors.orange,
+                      size: 30,
+                    ),
+                  const SizedBox(height: 14),
+                  Text(
+                    _error == null
+                        ? 'Preparing your journey'
+                        : 'Journey not started',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  Text(
+                    _error ?? 'Connecting to GPS and preparing live recording…',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Color(0xFFB8CEC5),
+                      fontSize: 12.5,
+                      height: 1.45,
+                    ),
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 17),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => context.pop(),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(
+                                color: AppColors.forest600,
+                              ),
+                            ),
+                            child: const Text('Back'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: _start,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.orange,
+                            ),
+                            child: const Text('Try again'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
         ],
-        TextField(
-          controller: _titleCtrl,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(labelText: 'Journey title'),
-        ),
-        const SizedBox(height: 14),
-        DropdownButtonFormField<String>(
-          initialValue: _mode,
-          isExpanded: true,
-          decoration: const InputDecoration(labelText: 'Transport mode'),
-          items: transportModeOptions.map((o) => DropdownMenuItem(value: o.value, child: Text(o.label))).toList(),
-          onChanged: (v) => setState(() => _mode = v ?? 'DRIVING'),
-        ),
-        const SizedBox(height: 14),
-        garage.maybeWhen(
-          data: (snapshot) => DropdownButtonFormField<String>(
-            initialValue: _vehicleId,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Vehicle (optional)'),
-            items: snapshot.vehicles
-                .map((v) => DropdownMenuItem(value: v.id, child: Text(v.displayName, overflow: TextOverflow.ellipsis)))
-                .toList(),
-            onChanged: (v) => setState(() => _vehicleId = v),
-          ),
-          orElse: () => const SizedBox.shrink(),
-        ),
-        const SizedBox(height: 24),
-        FilledButton.icon(
-          onPressed: _busy ? null : _start,
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(54), backgroundColor: AppColors.orange),
-          icon: _busy
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : const Icon(Icons.fiber_manual_record_rounded),
-          label: Text(_busy ? 'Starting…' : 'Start recording', style: const TextStyle(fontWeight: FontWeight.w900)),
-        ),
-      ],
+      ),
     );
   }
 
   Widget _recordingView() {
-    final center = _trail.isNotEmpty ? _trail.last : const LatLng(9.0820, 8.6753);
+    final center = _trail.isNotEmpty
+        ? _trail.last
+        : const LatLng(9.0820, 8.6753);
     return Stack(
       children: [
         FlutterMap(
@@ -337,22 +467,32 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
               userAgentPackageName: 'ng.com.travla.customer',
             ),
             if (_trail.length >= 2)
-              PolylineLayer(polylines: [Polyline(points: _trail, strokeWidth: 5, color: AppColors.orange)]),
+              PolylineLayer(
+                polylines: [
+                  Polyline(
+                    points: _trail,
+                    strokeWidth: 5,
+                    color: AppColors.orange,
+                  ),
+                ],
+              ),
             if (_trail.isNotEmpty)
-              MarkerLayer(markers: [
-                Marker(
-                  point: _trail.last,
-                  width: 24,
-                  height: 24,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.forest700,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 3),
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    point: _trail.last,
+                    width: 24,
+                    height: 24,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.forest700,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                      ),
                     ),
                   ),
-                ),
-              ]),
+                ],
+              ),
           ],
         ),
         Positioned(
@@ -364,7 +504,13 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
             decoration: BoxDecoration(
               color: AppColors.white,
               borderRadius: BorderRadius.circular(16),
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .12), blurRadius: 12, offset: const Offset(0, 4))],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: .12),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Row(
               children: [
@@ -398,7 +544,10 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
               Expanded(
                 child: FilledButton.icon(
                   onPressed: _busy ? null : _stop,
-                  style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52), backgroundColor: AppColors.danger),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                    backgroundColor: AppColors.danger,
+                  ),
                   icon: const Icon(Icons.stop_rounded),
                   label: const Text('Stop & save'),
                 ),
@@ -411,13 +560,23 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
   }
 
   Widget _liveStat(String value, String label) => Expanded(
-        child: Column(
-          children: [
-            Text(value, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: AppColors.ink)),
-            Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 10.5)),
-          ],
+    child: Column(
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            fontWeight: FontWeight.w900,
+            fontSize: 17,
+            color: AppColors.ink,
+          ),
         ),
-      );
+        Text(
+          label,
+          style: const TextStyle(color: AppColors.muted, fontSize: 10.5),
+        ),
+      ],
+    ),
+  );
 
   Widget _div() => Container(width: 1, height: 26, color: AppColors.border);
 

@@ -179,7 +179,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 routes: [
                   GoRoute(
                     path: 'record',
-                    builder: (context, state) => const RecordJourneyScreen(),
+                    builder: (context, state) => RecordJourneyScreen(
+                      initialTitle: state.uri.queryParameters['title'],
+                      initialMode:
+                          state.uri.queryParameters['mode'] ?? 'DRIVING',
+                      initialVehicleId: state.uri.queryParameters['vehicle_id'],
+                    ),
                   ),
                   GoRoute(
                     path: ':journeyId',
