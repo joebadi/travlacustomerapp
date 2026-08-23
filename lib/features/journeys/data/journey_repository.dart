@@ -64,6 +64,19 @@ class JourneyRepository {
     }
   }
 
+  /// Ask the server to snap this journey to the road network (OSRM
+  /// map-matching). Best-effort: returns the refreshed journey either way.
+  Future<Journey> match(String journeyId) async {
+    try {
+      final response = await _apiClient.dio.post<Map<String, dynamic>>(
+        '/journeys/$journeyId/match',
+      );
+      return Journey.fromJson(_dataMap(response.data));
+    } on DioException catch (exception) {
+      throw ApiFailure.fromDio(exception);
+    }
+  }
+
   Future<void> delete(String journeyId) async {
     try {
       await _apiClient.dio.delete<Map<String, dynamic>>('/journeys/$journeyId');

@@ -18,6 +18,8 @@ class Journey {
     required this.createdAt,
     required this.vehiclePlate,
     required this.trail,
+    required this.matchedTrail,
+    required this.isMatched,
   });
 
   final String id;
@@ -33,12 +35,31 @@ class Journey {
   final String? vehiclePlate;
   final List<LatLngPoint> trail;
 
+  /// Road-snapped path from OSRM map-matching, when available. Prefer this
+  /// over [trail] for display so driving journeys follow real roads.
+  final List<LatLngPoint> matchedTrail;
+  final bool isMatched;
+
+  /// The best path to draw: the road-snapped one when present, else the raw
+  /// recorded trail.
+  List<LatLngPoint> get displayTrail =>
+      matchedTrail.length >= 2 ? matchedTrail : trail;
+
   String get durationLabel {
     final h = durationS ~/ 3600;
     final m = (durationS % 3600) ~/ 60;
     if (h > 0) return '${h}h ${m}m';
     if (m > 0) return '${m}m';
     return '${durationS}s';
+  }
+
+  static List<LatLngPoint> _pairs(dynamic raw) {
+    if (raw is! List) return const [];
+    return raw
+        .whereType<List>()
+        .where((e) => e.length >= 2)
+        .map((e) => LatLngPoint((e[0] as num).toDouble(), (e[1] as num).toDouble()))
+        .toList(growable: false);
   }
 
   factory Journey.fromJson(Map<String, dynamic> json) {
@@ -61,6 +82,8 @@ class Journey {
               .map((p) => LatLngPoint((p['lat'] as num?)?.toDouble() ?? 0, (p['lng'] as num?)?.toDouble() ?? 0))
               .toList(growable: false)
           : const [],
+      matchedTrail: _pairs(json['matched_path']),
+      isMatched: json['is_matched'] == true,
     );
   }
 }

@@ -66,7 +66,10 @@ class JourneyDetailScreen extends ConsumerWidget {
           ),
         ),
         data: (journey) {
-          final points = journey.trail.map((p) => LatLng(p.lat, p.lng)).toList();
+          // Prefer the road-snapped path when available; fall back to the raw
+          // recorded trail otherwise.
+          final points =
+              journey.displayTrail.map((p) => LatLng(p.lat, p.lng)).toList();
           return Column(
             children: [
               Expanded(
@@ -110,11 +113,17 @@ class JourneyDetailScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (journey.transportModeLabel != null || journey.vehiclePlate != null)
+                    if (journey.transportModeLabel != null ||
+                        journey.vehiclePlate != null ||
+                        journey.isMatched)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: Text(
-                          [journey.transportModeLabel, journey.vehiclePlate].where((s) => s != null).join(' · '),
+                          [
+                            journey.transportModeLabel,
+                            journey.vehiclePlate,
+                            if (journey.isMatched) 'Snapped to road',
+                          ].where((s) => s != null).join(' · '),
                           style: const TextStyle(color: AppColors.muted, fontSize: 12.5),
                         ),
                       ),

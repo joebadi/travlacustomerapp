@@ -228,14 +228,26 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
     if (action == 'discard') await _discardAndLeave();
   }
 
+  /// Road modes get their trace snapped to the road network on save.
+  static const _roadModes = {'DRIVING', 'BUS', 'MOTORCYCLE'};
+
   Future<void> _saveAndLeave() async {
     setState(() => _busy = true);
     await _sub?.cancel();
     _ticker?.cancel();
     await _flush();
+    final id = _journeyId;
+    // Snap to roads before showing the result, so the saved journey opens
+    // already road-matched. Best-effort — the raw trail stands if it fails.
+    if (id != null && id.isNotEmpty && _roadModes.contains(_mode)) {
+      try {
+        await ref.read(journeyRepositoryProvider).match(id);
+      } catch (_) {
+        // Keep the raw trail if matching is unavailable/offline.
+      }
+    }
     ref.invalidate(journeysProvider);
     if (!mounted) return;
-    final id = _journeyId;
     if (id != null && id.isNotEmpty) {
       context.pushReplacement('/journeys/$id');
     } else {
