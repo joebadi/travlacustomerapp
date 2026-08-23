@@ -29,6 +29,7 @@ class _JourneysScreenState extends ConsumerState<JourneysScreen>
   late final Animation<Offset> _actionsSlide;
 
   LatLng? _currentPosition;
+  AnimationController? _moveController;
   bool _locating = false;
   bool _showJourneys = false;
   bool _showStartJourney = false;
@@ -63,6 +64,7 @@ class _JourneysScreenState extends ConsumerState<JourneysScreen>
 
   @override
   void dispose() {
+    _moveController?.dispose();
     _entryController.dispose();
     _pulseController.dispose();
     _mapController.dispose();
@@ -122,12 +124,43 @@ class _JourneysScreenState extends ConsumerState<JourneysScreen>
       if (!mounted) return;
       final point = LatLng(position.latitude, position.longitude);
       setState(() => _currentPosition = point);
-      _mapController.move(point, 16.2);
+      // Glide from the Nigeria-wide view down to a neighbourhood zoom that
+      // keeps surroundings visible around the blinking location dot.
+      _animatedMapMove(point, 14);
     } catch (_) {
       if (announceErrors) {
         _message('Your current position could not be resolved. Try again.');
       }
     }
+  }
+
+  /// Smoothly fly the map to [dest]/[destZoom] instead of snapping.
+  void _animatedMapMove(LatLng dest, double destZoom) {
+    final camera = _mapController.camera;
+    final latTween = Tween<double>(begin: camera.center.latitude, end: dest.latitude);
+    final lngTween = Tween<double>(begin: camera.center.longitude, end: dest.longitude);
+    final zoomTween = Tween<double>(begin: camera.zoom, end: destZoom);
+
+    _moveController?.dispose();
+    final controller = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+    _moveController = controller;
+    final anim = CurvedAnimation(parent: controller, curve: Curves.easeInOutCubic);
+    controller.addListener(() {
+      _mapController.move(
+        LatLng(latTween.evaluate(anim), lngTween.evaluate(anim)),
+        zoomTween.evaluate(anim),
+      );
+    });
+    controller.addStatusListener((status) {
+      if (status == AnimationStatus.completed || status == AnimationStatus.dismissed) {
+        controller.dispose();
+        if (identical(_moveController, controller)) _moveController = null;
+      }
+    });
+    controller.forward();
   }
 
   void _message(String text) {
