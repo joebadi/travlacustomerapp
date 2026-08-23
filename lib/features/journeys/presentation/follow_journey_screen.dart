@@ -231,7 +231,10 @@ class _FollowJourneyScreenState extends ConsumerState<FollowJourneyScreen> {
       _distToTrail = g.distanceToTrailM;
     });
     if (_autoFollow) {
-      _map.move(me, _map.camera.zoom < 14 ? 16.5 : _map.camera.zoom);
+      // Recenter on the driver but keep the current zoom — opening at the
+      // whole-route fit and letting the user pinch to their preferred level,
+      // instead of slamming to a tight zoom on the first GPS fix.
+      _map.move(me, _map.camera.zoom);
     }
   }
 
@@ -277,7 +280,9 @@ class _FollowJourneyScreenState extends ConsumerState<FollowJourneyScreen> {
     final me = _me;
     if (me == null) return;
     setState(() => _autoFollow = true);
-    _map.move(me, 16.5);
+    // Keep the user's zoom, but pull in to a usable level if they'd zoomed
+    // right out — never slam to a tight zoom.
+    _map.move(me, math.max(_map.camera.zoom, 14.5));
   }
 
   @override
