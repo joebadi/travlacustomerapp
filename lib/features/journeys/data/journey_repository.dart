@@ -77,6 +77,45 @@ class JourneyRepository {
     }
   }
 
+  /// Create/refresh a share link (optionally expiring after [expiresInDays]).
+  /// Sets visibility to LINK if the journey was private.
+  Future<Journey> share(String journeyId, {int? expiresInDays}) async {
+    try {
+      final response = await _apiClient.dio.post<Map<String, dynamic>>(
+        '/journeys/$journeyId/share',
+        data: {'expires_in_days': ?expiresInDays},
+      );
+      return Journey.fromJson(_dataMap(response.data));
+    } on DioException catch (exception) {
+      throw ApiFailure.fromDio(exception);
+    }
+  }
+
+  /// Set visibility: PRIVATE | LINK | ORGANISATION | PUBLIC.
+  Future<Journey> setVisibility(String journeyId, String visibility) async {
+    try {
+      final response = await _apiClient.dio.patch<Map<String, dynamic>>(
+        '/journeys/$journeyId/visibility',
+        data: {'visibility': visibility},
+      );
+      return Journey.fromJson(_dataMap(response.data));
+    } on DioException catch (exception) {
+      throw ApiFailure.fromDio(exception);
+    }
+  }
+
+  /// Clone a shared journey into the signed-in user's list; returns the copy.
+  Future<Journey> importJourney(String journeyId) async {
+    try {
+      final response = await _apiClient.dio.post<Map<String, dynamic>>(
+        '/journeys/$journeyId/import',
+      );
+      return Journey.fromJson(_dataMap(response.data));
+    } on DioException catch (exception) {
+      throw ApiFailure.fromDio(exception);
+    }
+  }
+
   Future<void> delete(String journeyId) async {
     try {
       await _apiClient.dio.delete<Map<String, dynamic>>('/journeys/$journeyId');

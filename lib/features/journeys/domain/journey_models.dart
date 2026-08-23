@@ -20,6 +20,10 @@ class Journey {
     required this.trail,
     required this.matchedTrail,
     required this.isMatched,
+    required this.isMine,
+    required this.visibility,
+    required this.shareToken,
+    required this.shareExpiresAt,
   });
 
   final String id;
@@ -39,6 +43,19 @@ class Journey {
   /// over [trail] for display so driving journeys follow real roads.
   final List<LatLngPoint> matchedTrail;
   final bool isMatched;
+
+  /// True when the signed-in user owns this journey (owner sees full trace +
+  /// share/delete controls; others get a trimmed, read-only view).
+  final bool isMine;
+  final String visibility; // PRIVATE | LINK | ORGANISATION | PUBLIC
+  final String? shareToken; // present only for the owner of a shared journey
+  final String? shareExpiresAt;
+
+  bool get isShared => visibility == 'LINK' || visibility == 'PUBLIC' || visibility == 'ORGANISATION';
+
+  /// The shareable link for this journey (opens the journey in Travla).
+  String? get shareUrl =>
+      isShared ? 'https://travla.com.ng/journeys/$id' : null;
 
   /// The best path to draw: the road-snapped one when present, else the raw
   /// recorded trail.
@@ -84,6 +101,10 @@ class Journey {
           : const [],
       matchedTrail: _pairs(json['matched_path']),
       isMatched: json['is_matched'] == true,
+      isMine: json['is_mine'] != false, // absent (older payloads) ⇒ treat as mine
+      visibility: json['visibility']?.toString() ?? 'PRIVATE',
+      shareToken: json['share_token']?.toString(),
+      shareExpiresAt: json['share_expires_at']?.toString(),
     );
   }
 }
