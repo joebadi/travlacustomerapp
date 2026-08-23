@@ -15,6 +15,7 @@ import 'package:travla_customer_app/features/journeys/data/journey_repository.da
 import 'package:travla_customer_app/features/journeys/domain/journey_models.dart';
 import 'package:travla_customer_app/features/journeys/domain/trail_guide.dart';
 import 'package:travla_customer_app/features/journeys/presentation/drop_road_tag_sheet.dart';
+import 'package:travla_customer_app/features/journeys/presentation/journey_vector_map.dart';
 import 'package:travla_customer_app/features/journeys/presentation/road_tag_sheet.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -330,10 +331,8 @@ class _FollowJourneyScreenState extends ConsumerState<FollowJourneyScreen> {
             },
           ),
           children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'ng.com.travla.customer',
-            ),
+            // Self-hosted Nigeria vector basemap (see journey_vector_map).
+            travlaVectorTileLayer(),
             PolylineLayer(
               polylines: [
                 Polyline(points: _trail, strokeWidth: 6, color: _trailColor),
