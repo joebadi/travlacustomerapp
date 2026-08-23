@@ -2,16 +2,20 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
+import 'package:travla_customer_app/core/auth/secure_token_store.dart';
+import 'package:travla_customer_app/core/config/app_config.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
+import 'package:travla_customer_app/features/journeys/data/journey_record_task_handler.dart';
 import 'package:travla_customer_app/features/journeys/data/journey_repository.dart';
 import 'package:travla_customer_app/features/journeys/domain/journey_models.dart';
-import 'package:travla_customer_app/features/journeys/domain/journey_track_filter.dart';
 import 'package:travla_customer_app/features/journeys/presentation/drop_road_tag_sheet.dart';
 
 class RecordJourneyScreen extends ConsumerStatefulWidget {
@@ -43,22 +47,18 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
   String? _error;
 
   String? _journeyId;
-  StreamSubscription<Position>? _sub;
   Timer? _ticker;
   DateTime? _startedAt;
   int _elapsed = 0;
 
   final List<LatLng> _trail = [];
-  final List<Map<String, dynamic>> _pending = []; // not-yet-uploaded points
-  int _seq = 0;
   double _distanceM = 0;
   double? _speed;
 
-  // The OS keeps emitting jittery fixes even while parked, which naively pile
-  // up as fake zig-zag movement. This filter holds a stable anchor and only
-  // leaves it on confirmed movement (see JourneyTrackFilter). Recreated per
-  // recording session in _start().
-  JourneyTrackFilter _filter = JourneyTrackFilter();
+  // Recording runs in a foreground-service isolate (see
+  // journey_record_task_handler) so it keeps going — and keeps saving points —
+  // when the app is backgrounded or the screen is locked, behind a persistent
+  // notification. The UI just presents what the service streams back.
 
   // The stable position shown on the map (anchor while parked, accepted fix
   // while moving) — kept separate from the recorded trail so the live marker
@@ -82,6 +82,7 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
         ? widget.initialMode
         : 'DRIVING';
     _vehicleId = widget.initialVehicleId;
+    FlutterForegroundTask.addTaskDataCallback(_onServiceData);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _start();
     });
@@ -89,8 +90,11 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
 
   @override
   void dispose() {
-    _sub?.cancel();
+    FlutterForegroundTask.removeTaskDataCallback(_onServiceData);
     _ticker?.cancel();
+    // If the screen is torn down while still recording, stop the service too so
+    // we don't orphan a headless recording.
+    if (_recording) FlutterForegroundTask.stopService();
     _titleCtrl.dispose();
     super.dispose();
   }
@@ -141,19 +145,10 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
           );
         }
       });
-      _filter = JourneyTrackFilter();
       // Seed the camera on the user's current spot so recording opens centred
-      // on them (not the middle of Nigeria) before the first stream fix lands.
+      // on them (not the middle of Nigeria) before the first service fix lands.
       _live = await _quickFix();
-      // distanceFilter: 0 — let our own filter be the sole authority on what
-      // counts as movement. The OS distance filter keys off raw jitter, so it
-      // would emit erratically while parked and add nothing but noise.
-      _sub = Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.bestForNavigation,
-          distanceFilter: 0,
-        ),
-      ).listen(_onPosition);
+      await _startRecordingService(id);
       setState(() => _recording = true);
     } on ApiFailure catch (f) {
       setState(() => _error = f.message);
@@ -192,52 +187,75 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
     _mapController.move(at, 15);
   }
 
-  void _onPosition(Position pos) {
-    final sample = _filter.add(pos);
+  /// Start the foreground recording service, handing it the points endpoint +
+  /// bearer token so its isolate can upload while the app is backgrounded.
+  Future<void> _startRecordingService(String journeyId) async {
+    await FlutterForegroundTask.requestNotificationPermission();
+    final token = await SecureTokenStore(const FlutterSecureStorage()).read();
 
-    // Unusable fix — leave everything (marker included) exactly as it was.
-    if (sample.decision == TrackDecision.rejected) return;
+    await FlutterForegroundTask.saveData(
+      key: kJourneyPointsUrl,
+      value: '${AppConfig.apiBaseUrl}/journeys/$journeyId/points',
+    );
+    await FlutterForegroundTask.saveData(key: kJourneyBearer, value: token ?? '');
+    await FlutterForegroundTask.saveData(key: kJourneyAppType, value: AppConfig.appType);
 
-    // Keep the live marker/camera on the stable point (anchor while parked),
-    // so the map holds steady even when we're not recording anything.
-    final movedMarker = _live == null || _live != sample.point;
-    _live = sample.point;
-    if (movedMarker && _autoFollow) {
-      _mapController.move(sample.point, _mapController.camera.zoom);
+    FlutterForegroundTask.init(
+      androidNotificationOptions: AndroidNotificationOptions(
+        channelId: 'travla_journeys',
+        channelName: 'Journey recording',
+        channelDescription: 'Shown while a journey is being recorded.',
+        channelImportance: NotificationChannelImportance.LOW,
+        priority: NotificationPriority.LOW,
+      ),
+      iosNotificationOptions: const IOSNotificationOptions(),
+      foregroundTaskOptions: ForegroundTaskOptions(
+        eventAction: ForegroundTaskEventAction.repeat(2000),
+        allowWakeLock: true,
+        allowWifiLock: true,
+      ),
+    );
+
+    final result = await FlutterForegroundTask.startService(
+      serviceTypes: [ForegroundServiceTypes.location],
+      notificationTitle: 'Recording journey',
+      notificationText: '0.00 km',
+      callback: journeyRecordCallback,
+    );
+    if (result is ServiceRequestFailure) {
+      throw ApiFailure('Could not start recording: ${result.error}');
     }
-
-    // Parked: update the speed readout to 0 but don't record a thing.
-    if (sample.decision == TrackDecision.holding) {
-      if (mounted) setState(() => _speed = sample.speedKmh);
-      return;
-    }
-
-    // Confirmed movement — grow the trail and the recorded distance.
-    _distanceM += sample.movedMeters;
-    _trail.add(sample.point);
-    _pending.add({
-      'latitude': sample.point.latitude,
-      'longitude': sample.point.longitude,
-      'sequence': _seq++,
-      if (pos.speed >= 0) 'speed': pos.speed,
-      if (pos.heading >= 0) 'heading': pos.heading,
-      if (pos.accuracy >= 0) 'accuracy': pos.accuracy,
-      'recorded_at': pos.timestamp.toUtc().toIso8601String(),
-    });
-    setState(() => _speed = sample.speedKmh);
-    if (_pending.length >= 8) _flush();
   }
 
-  Future<void> _flush() async {
-    final id = _journeyId;
-    if (id == null || _pending.isEmpty) return;
-    final batch = List<Map<String, dynamic>>.from(_pending);
-    _pending.clear();
+  Future<void> _stopRecordingService() async {
+    _recording = false;
     try {
-      await ref.read(journeyRepositoryProvider).addPoints(id, batch);
-    } on ApiFailure {
-      // Re-queue so the next flush retries.
-      _pending.insertAll(0, batch);
+      await FlutterForegroundTask.stopService();
+    } catch (_) {
+      // Already stopped — nothing to do.
+    }
+  }
+
+  /// Progress streamed from the recording isolate (foreground or background).
+  void _onServiceData(Object data) {
+    if (data is! Map) return;
+    final lat = (data['lat'] as num?)?.toDouble();
+    final lng = (data['lng'] as num?)?.toDouble();
+    if (lat == null || lng == null) return;
+
+    final point = LatLng(lat, lng);
+    final moved = data['decision']?.toString() == 'moved';
+    final dist = (data['distance_m'] as num?)?.toDouble();
+    final speed = (data['speed_kmh'] as num?)?.toDouble();
+
+    setState(() {
+      _live = point;
+      if (dist != null) _distanceM = dist;
+      _speed = speed;
+      if (moved) _trail.add(point);
+    });
+    if (_autoFollow) {
+      _mapController.move(point, _mapController.camera.zoom);
     }
   }
 
@@ -267,9 +285,9 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
 
   Future<void> _saveAndLeave() async {
     setState(() => _busy = true);
-    await _sub?.cancel();
     _ticker?.cancel();
-    await _flush();
+    // Stopping the service triggers its final flush of any buffered points.
+    await _stopRecordingService();
     final id = _journeyId;
     // Snap to roads before showing the result, so the saved journey opens
     // already road-matched. Best-effort — the raw trail stands if it fails.
@@ -293,8 +311,8 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
   /// never leave an empty, unopenable journey behind.
   Future<void> _discardAndLeave() async {
     setState(() => _busy = true);
-    await _sub?.cancel();
     _ticker?.cancel();
+    await _stopRecordingService();
     final id = _journeyId;
     if (id != null && id.isNotEmpty) {
       try {
