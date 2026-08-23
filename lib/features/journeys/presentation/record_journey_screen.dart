@@ -12,6 +12,7 @@ import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/journeys/data/journey_repository.dart';
 import 'package:travla_customer_app/features/journeys/domain/journey_models.dart';
 import 'package:travla_customer_app/features/journeys/domain/journey_track_filter.dart';
+import 'package:travla_customer_app/features/journeys/presentation/drop_road_tag_sheet.dart';
 
 class RecordJourneyScreen extends ConsumerStatefulWidget {
   const RecordJourneyScreen({
@@ -366,101 +367,20 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
     if (action == 'discard') await _discardAndLeave();
   }
 
-  Future<void> _reportRoadCondition() async {
-    if (_trail.isEmpty) return;
-    final catalogue = await ref
-        .read(roadReportCatalogueProvider.future)
-        .catchError((_) => <RoadReportType>[]);
-    if (!mounted || catalogue.isEmpty) return;
-    final descCtrl = TextEditingController();
-    final type = await showModalBottomSheet<RoadReportType>(
-      context: context,
-      backgroundColor: AppColors.white,
-      showDragHandle: true,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (sheetContext) => SafeArea(
-        top: false,
-        child: Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(20, 2, 20, 4),
-                child: Text(
-                  'Report a road condition',
-                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
-                child: TextField(
-                  controller: descCtrl,
-                  decoration: const InputDecoration(
-                    hintText: 'Note (optional)',
-                  ),
-                ),
-              ),
-              Flexible(
-                child: ListView(
-                  shrinkWrap: true,
-                  children: catalogue
-                      .map(
-                        (t) => ListTile(
-                          leading: const Icon(
-                            Icons.warning_amber_rounded,
-                            color: AppColors.orangeDark,
-                          ),
-                          title: Text(
-                            t.label,
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          subtitle: t.category != null
-                              ? Text(t.category!)
-                              : null,
-                          onTap: () => Navigator.of(sheetContext).pop(t),
-                        ),
-                      )
-                      .toList(),
-                ),
-              ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        ),
-      ),
-    );
-    if (type == null) return;
-    final at = _trail.last;
-    try {
-      await ref
-          .read(journeyRepositoryProvider)
-          .createRoadReport(
-            type: type.value,
-            latitude: at.latitude,
-            longitude: at.longitude,
-            description: descCtrl.text,
-          );
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            const SnackBar(content: Text('Road report submitted. Thank you!')),
-          );
-      }
-    } on ApiFailure catch (f) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text(f.message)));
-      }
+  /// Drop a rich road-report tag (photo/audio/video) at the current position.
+  void _dropTag() {
+    final at = _live;
+    if (at == null) {
+      _snackWaiting();
+      return;
     }
+    showDropRoadTagSheet(context, position: at);
+  }
+
+  void _snackWaiting() {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('Waiting for your GPS position…')));
   }
 
   @override
@@ -725,7 +645,7 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: _reportRoadCondition,
+                  onPressed: _dropTag,
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(52),
                     backgroundColor: AppColors.white,

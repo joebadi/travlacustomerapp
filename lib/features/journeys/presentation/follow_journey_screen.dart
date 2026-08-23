@@ -14,6 +14,7 @@ import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/journeys/data/journey_repository.dart';
 import 'package:travla_customer_app/features/journeys/domain/journey_models.dart';
 import 'package:travla_customer_app/features/journeys/domain/trail_guide.dart';
+import 'package:travla_customer_app/features/journeys/presentation/drop_road_tag_sheet.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 /// Follow a saved trail: shows the route + the driver's live position, and
@@ -350,6 +351,22 @@ class _FollowJourneyScreenState extends ConsumerState<FollowJourneyScreen> {
           ],
         ),
         Positioned(top: 12, left: 12, right: 12, child: _statusBanner()),
+        if (_me != null)
+          Positioned(
+            right: 14,
+            bottom: 204,
+            child: FloatingActionButton.small(
+              heroTag: 'drop-tag',
+              backgroundColor: AppColors.orange,
+              foregroundColor: Colors.white,
+              onPressed: () => showDropRoadTagSheet(
+                context,
+                position: _me!,
+                onDone: _loadReports,
+              ),
+              child: const Icon(Icons.add_location_alt_outlined),
+            ),
+          ),
         Positioned(
           right: 14,
           bottom: 150,

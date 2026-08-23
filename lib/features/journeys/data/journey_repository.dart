@@ -153,6 +153,8 @@ class JourneyRepository {
     }
   }
 
+  /// Drop a road-report tag with optional photo/audio/video attachments.
+  /// Sent as multipart so the media rides along.
   Future<void> createRoadReport({
     required String type,
     required double latitude,
@@ -161,19 +163,50 @@ class JourneyRepository {
     String? description,
     double? gpsAccuracy,
     bool physicallyTravelled = true,
+    String? photoPath,
+    String? audioPath,
+    String? videoPath,
   }) async {
     try {
+      final form = FormData.fromMap({
+        'type': type,
+        'latitude': latitude,
+        'longitude': longitude,
+        'heading': ?heading,
+        if (description != null && description.isNotEmpty) 'description': description,
+        'gps_accuracy': ?gpsAccuracy,
+        'physically_travelled': physicallyTravelled ? 1 : 0,
+        if (photoPath != null)
+          'photo': await MultipartFile.fromFile(photoPath),
+        if (audioPath != null)
+          'audio': await MultipartFile.fromFile(audioPath),
+        if (videoPath != null)
+          'video': await MultipartFile.fromFile(videoPath),
+      });
+      await _apiClient.dio.post<Map<String, dynamic>>('/road-reports', data: form);
+    } on DioException catch (exception) {
+      throw ApiFailure.fromDio(exception);
+    }
+  }
+
+  /// Confirm or dispute a road report. A DISPUTE ("it's been repaired / not
+  /// there") requires photo or video evidence.
+  Future<void> voteRoadReport(
+    String reportId, {
+    required String vote, // CONFIRM | DISPUTE
+    bool travelled = true,
+    String? evidencePath,
+  }) async {
+    try {
+      final form = FormData.fromMap({
+        'vote': vote,
+        'travelled': travelled ? 1 : 0,
+        if (evidencePath != null)
+          'evidence': await MultipartFile.fromFile(evidencePath),
+      });
       await _apiClient.dio.post<Map<String, dynamic>>(
-        '/road-reports',
-        data: {
-          'type': type,
-          'latitude': latitude,
-          'longitude': longitude,
-          'heading': ?heading,
-          if (description != null && description.isNotEmpty) 'description': description,
-          'gps_accuracy': ?gpsAccuracy,
-          'physically_travelled': physicallyTravelled,
-        },
+        '/road-reports/$reportId/vote',
+        data: form,
       );
     } on DioException catch (exception) {
       throw ApiFailure.fromDio(exception);

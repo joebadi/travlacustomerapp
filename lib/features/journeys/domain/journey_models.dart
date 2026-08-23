@@ -132,6 +132,26 @@ class RoadReportType {
   }
 }
 
+class ReportMedia {
+  const ReportMedia({required this.kind, required this.url, this.mime});
+
+  final String kind; // PHOTO | AUDIO | VIDEO
+  final String url;
+  final String? mime;
+
+  bool get isPhoto => kind == 'PHOTO';
+  bool get isAudio => kind == 'AUDIO';
+  bool get isVideo => kind == 'VIDEO';
+
+  factory ReportMedia.fromJson(Map<String, dynamic> json) {
+    return ReportMedia(
+      kind: json['kind']?.toString() ?? 'PHOTO',
+      url: json['url']?.toString() ?? '',
+      mime: json['mime']?.toString(),
+    );
+  }
+}
+
 class NearbyRoadReport {
   const NearbyRoadReport({
     required this.id,
@@ -143,6 +163,7 @@ class NearbyRoadReport {
     required this.longitude,
     required this.description,
     required this.verificationLabel,
+    required this.media,
   });
 
   final String id;
@@ -157,8 +178,12 @@ class NearbyRoadReport {
   final double longitude;
   final String? description;
   final String? verificationLabel;
+  final List<ReportMedia> media;
+
+  bool get hasMedia => media.isNotEmpty;
 
   factory NearbyRoadReport.fromJson(Map<String, dynamic> json) {
+    final media = json['media'];
     return NearbyRoadReport(
       id: json['id']?.toString() ?? '',
       type: json['type']?.toString() ?? '',
@@ -169,6 +194,12 @@ class NearbyRoadReport {
       longitude: (json['longitude'] as num?)?.toDouble() ?? (json['lng'] as num?)?.toDouble() ?? 0,
       description: json['description']?.toString(),
       verificationLabel: json['verification_label']?.toString(),
+      media: media is List
+          ? media
+              .whereType<Map>()
+              .map((m) => ReportMedia.fromJson(m.cast<String, dynamic>()))
+              .toList(growable: false)
+          : const [],
     );
   }
 }
