@@ -70,8 +70,16 @@ class JourneyDetailScreen extends ConsumerWidget {
           return Column(
             children: [
               Expanded(
-                child: points.isEmpty
-                    ? const Center(child: Text('No trail was recorded.', style: TextStyle(color: AppColors.muted)))
+                child: points.length < 2
+                    // A trail needs at least two points to draw or fit bounds;
+                    // a single point can't (CameraFit on one coordinate is
+                    // degenerate), so show a clear empty state instead.
+                    ? const Center(
+                        child: Text(
+                          'No trail was recorded for this journey.',
+                          style: TextStyle(color: AppColors.muted),
+                        ),
+                      )
                     : FlutterMap(
                         options: MapOptions(
                           initialCameraFit: CameraFit.coordinates(
@@ -87,7 +95,7 @@ class JourneyDetailScreen extends ConsumerWidget {
                           PolylineLayer(polylines: [Polyline(points: points, strokeWidth: 5, color: AppColors.orange)]),
                           MarkerLayer(markers: [
                             _pin(points.first, AppColors.forest700),
-                            if (points.length > 1) _pin(points.last, AppColors.danger),
+                            _pin(points.last, AppColors.danger),
                           ]),
                         ],
                       ),

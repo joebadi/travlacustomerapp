@@ -207,7 +207,28 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
     }
   }
 
+  /// A journey worth saving needs at least two recorded points *and* enough
+  /// real ground covered — the movement filter only appends points on genuine
+  /// movement, so this reliably separates "I actually went somewhere" from "I
+  /// stood still and GPS jittered". Saving a no-movement trail produced a
+  /// single-point journey that then errored when opened.
+  static const double _minSaveDistanceM = 25;
+  bool get _hasRealTrail =>
+      _trail.length >= 2 && _distanceM >= _minSaveDistanceM;
+
+  /// The "Stop & save" button. Saves when there's a real trail; otherwise
+  /// there's nothing to save, so we offer to discard or keep recording.
   Future<void> _stop() async {
+    if (_busy) return;
+    if (_hasRealTrail) {
+      await _saveAndLeave();
+      return;
+    }
+    final action = await _askNoMovement();
+    if (action == 'discard') await _discardAndLeave();
+  }
+
+  Future<void> _saveAndLeave() async {
     setState(() => _busy = true);
     await _sub?.cancel();
     _ticker?.cancel();
@@ -220,6 +241,84 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
     } else {
       context.pop();
     }
+  }
+
+  /// Cancel recording and remove the draft journey created at start, so we
+  /// never leave an empty, unopenable journey behind.
+  Future<void> _discardAndLeave() async {
+    setState(() => _busy = true);
+    await _sub?.cancel();
+    _ticker?.cancel();
+    final id = _journeyId;
+    if (id != null && id.isNotEmpty) {
+      try {
+        await ref.read(journeyRepositoryProvider).delete(id);
+      } catch (_) {
+        // Best-effort cleanup — a leftover empty draft is filtered from the
+        // list anyway.
+      }
+    }
+    ref.invalidate(journeysProvider);
+    if (mounted) context.pop();
+  }
+
+  /// Returns 'discard', 'keep', or null (dismissed).
+  Future<String?> _askNoMovement() {
+    return showDialog<String>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('No movement recorded'),
+        content: const Text(
+          "We haven't detected any real movement yet, so there's nothing to "
+          'save. Keep recording once you start moving, or discard this journey.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(c).pop('keep'),
+            child: const Text('Keep recording'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () => Navigator.of(c).pop('discard'),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Handles hardware-back / swipe-back while the screen is up, so exiting
+  /// never silently drops a real trail or leaves an empty draft behind.
+  Future<void> _onPopInvoked(bool didPop) async {
+    if (didPop || _busy) return;
+    if (!_recording) {
+      // Still connecting or errored — bin any draft that was created.
+      await _discardAndLeave();
+      return;
+    }
+    if (_hasRealTrail) {
+      final action = await showDialog<String>(
+        context: context,
+        builder: (c) => AlertDialog(
+          title: const Text('Finish this journey?'),
+          content: const Text('Save what you have recorded so far, or keep going.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(c).pop('keep'),
+              child: const Text('Keep recording'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(c).pop('save'),
+              child: const Text('Save & exit'),
+            ),
+          ],
+        ),
+      );
+      if (action == 'save') await _saveAndLeave();
+      return;
+    }
+    final action = await _askNoMovement();
+    if (action == 'discard') await _discardAndLeave();
   }
 
   Future<void> _reportRoadCondition() async {
@@ -321,11 +420,16 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_recording) return _startingView();
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AppBar(title: const Text('Recording…')),
-      body: _recordingView(),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) => _onPopInvoked(didPop),
+      child: !_recording
+          ? _startingView()
+          : Scaffold(
+              backgroundColor: AppColors.canvas,
+              appBar: AppBar(title: const Text('Recording…')),
+              body: _recordingView(),
+            ),
     );
   }
 
@@ -506,13 +610,46 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
                 ),
               ],
             ),
-            child: Row(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                _liveStat((_distanceM / 1000).toStringAsFixed(2), 'km'),
-                _div(),
-                _liveStat(_hms(_elapsed), 'time'),
-                _div(),
-                _liveStat(_speed != null ? '${_speed!.round()}' : '—', 'km/h'),
+                Row(
+                  children: [
+                    _liveStat((_distanceM / 1000).toStringAsFixed(2), 'km'),
+                    _div(),
+                    _liveStat(_hms(_elapsed), 'time'),
+                    _div(),
+                    _liveStat(
+                      _speed != null ? '${_speed!.round()}' : '—',
+                      'km/h',
+                    ),
+                  ],
+                ),
+                if (!_hasRealTrail) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.forest600,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Waiting for movement…',
+                        style: TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
