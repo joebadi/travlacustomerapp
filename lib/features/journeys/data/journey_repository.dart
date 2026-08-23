@@ -77,6 +77,18 @@ class JourneyRepository {
     }
   }
 
+  /// Route health: age of the trail + active road reports along it.
+  Future<JourneyHealth> health(String journeyId) async {
+    try {
+      final response = await _apiClient.dio.get<Map<String, dynamic>>(
+        '/journeys/$journeyId/health',
+      );
+      return JourneyHealth.fromJson(_dataMap(response.data));
+    } on DioException catch (exception) {
+      throw ApiFailure.fromDio(exception);
+    }
+  }
+
   /// Create/refresh a share link (optionally expiring after [expiresInDays]).
   /// Sets visibility to LINK if the journey was private.
   Future<Journey> share(String journeyId, {int? expiresInDays}) async {
@@ -235,4 +247,9 @@ final journeyProvider = FutureProvider.autoDispose.family<Journey, String>((ref,
 
 final roadReportCatalogueProvider = FutureProvider.autoDispose<List<RoadReportType>>((ref) {
   return ref.watch(journeyRepositoryProvider).roadReportCatalogue();
+});
+
+final journeyHealthProvider =
+    FutureProvider.autoDispose.family<JourneyHealth, String>((ref, id) {
+  return ref.watch(journeyRepositoryProvider).health(id);
 });

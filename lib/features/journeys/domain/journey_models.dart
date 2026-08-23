@@ -109,6 +109,54 @@ class Journey {
   }
 }
 
+/// `GET /journeys/{id}/health` — how stale a saved route is and how many
+/// active road reports now sit along it, so we can prompt a review before
+/// following.
+class JourneyHealth {
+  const JourneyHealth({
+    required this.ageDays,
+    required this.reportsAlongTrail,
+    required this.recordedAt,
+  });
+
+  final int? ageDays;
+  final int reportsAlongTrail;
+  final String? recordedAt;
+
+  bool get isStale => (ageDays ?? 0) >= 90;
+  bool get hasChanges => reportsAlongTrail > 0;
+
+  /// A short human summary like "Recorded 3 months ago · 2 road changes along
+  /// this route", or null when there's nothing worth flagging.
+  String? get summary {
+    final parts = <String>[];
+    final age = ageDays;
+    if (age != null) {
+      if (age < 1) {
+        parts.add('Recorded today');
+      } else if (age < 30) {
+        parts.add('Recorded ${age}d ago');
+      } else if (age < 365) {
+        parts.add('Recorded ${(age / 30).round()} month${age < 60 ? '' : 's'} ago');
+      } else {
+        parts.add('Recorded ${(age / 365).round()} year${age < 730 ? '' : 's'} ago');
+      }
+    }
+    if (reportsAlongTrail > 0) {
+      parts.add('$reportsAlongTrail road change${reportsAlongTrail == 1 ? '' : 's'} along this route');
+    }
+    return parts.isEmpty ? null : parts.join(' · ');
+  }
+
+  factory JourneyHealth.fromJson(Map<String, dynamic> json) {
+    return JourneyHealth(
+      ageDays: (json['age_days'] as num?)?.toInt(),
+      reportsAlongTrail: (json['reports_along_trail'] as num?)?.toInt() ?? 0,
+      recordedAt: json['recorded_at']?.toString(),
+    );
+  }
+}
+
 class RoadReportType {
   const RoadReportType({
     required this.value,

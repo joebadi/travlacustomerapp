@@ -200,6 +200,8 @@ class JourneyDetailScreen extends ConsumerWidget {
                         ),
                       ),
                     if (journey.displayTrail.length >= 2) ...[
+                      const SizedBox(height: 14),
+                      _HealthBanner(journeyId: journeyId),
                       const SizedBox(height: 16),
                       FilledButton.icon(
                         onPressed: () => context.push('/journeys/$journeyId/follow'),
@@ -465,6 +467,46 @@ class _ShareSheetState extends ConsumerState<_ShareSheet> {
               const Icon(Icons.check_circle_rounded, color: AppColors.forest700, size: 20),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// A subtle "recorded N ago · K road changes along this route" prompt so a
+/// follower reviews a stale route before setting off. Silent when there's
+/// nothing worth flagging.
+class _HealthBanner extends ConsumerWidget {
+  const _HealthBanner({required this.journeyId});
+
+  final String journeyId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final health = ref.watch(journeyHealthProvider(journeyId)).value;
+    final summary = health?.summary;
+    if (health == null || summary == null) return const SizedBox.shrink();
+
+    final warn = health.isStale || health.hasChanges;
+    final color = warn ? AppColors.orangeDark : AppColors.muted;
+    final bg = warn ? const Color(0xFFFFF3EC) : AppColors.canvas;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: warn ? const Color(0xFFFFD3BC) : AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Icon(warn ? Icons.info_outline_rounded : Icons.history_rounded,
+              size: 16, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(summary,
+                style: TextStyle(color: color, fontSize: 12, height: 1.35)),
+          ),
+        ],
       ),
     );
   }
