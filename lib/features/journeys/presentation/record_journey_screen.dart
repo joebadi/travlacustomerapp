@@ -64,6 +64,9 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
   // never jitters even during a hold.
   LatLng? _live;
 
+  // Camera keeps the user centred until they pan; the locate button re-arms it.
+  bool _autoFollow = true;
+
   @override
   void initState() {
     super.initState();
@@ -138,7 +141,9 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
         }
       });
       _filter = JourneyTrackFilter();
-      _live = null;
+      // Seed the camera on the user's current spot so recording opens centred
+      // on them (not the middle of Nigeria) before the first stream fix lands.
+      _live = await _quickFix();
       // distanceFilter: 0 — let our own filter be the sole authority on what
       // counts as movement. The OS distance filter keys off raw jitter, so it
       // would emit erratically while parked and add nothing but noise.
@@ -158,6 +163,34 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
     }
   }
 
+  /// A fast best-effort current position for seeding the camera at start —
+  /// last-known first (instant), then a short live read.
+  Future<LatLng?> _quickFix() async {
+    try {
+      final last = await Geolocator.getLastKnownPosition();
+      if (last != null) return LatLng(last.latitude, last.longitude);
+    } catch (_) {}
+    try {
+      final now = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 8),
+        ),
+      );
+      return LatLng(now.latitude, now.longitude);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Recenter the map on the user and re-enable follow.
+  void _recenter() {
+    final at = _live;
+    if (at == null) return;
+    setState(() => _autoFollow = true);
+    _mapController.move(at, 15);
+  }
+
   void _onPosition(Position pos) {
     final sample = _filter.add(pos);
 
@@ -168,7 +201,7 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
     // so the map holds steady even when we're not recording anything.
     final movedMarker = _live == null || _live != sample.point;
     _live = sample.point;
-    if (movedMarker) {
+    if (movedMarker && _autoFollow) {
       _mapController.move(sample.point, _mapController.camera.zoom);
     }
 
@@ -570,7 +603,14 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
       children: [
         FlutterMap(
           mapController: _mapController,
-          options: MapOptions(initialCenter: center, initialZoom: 16),
+          options: MapOptions(
+            initialCenter: center,
+            initialZoom: 13,
+            // Rotation is enabled; panning pauses auto-follow until "locate".
+            onPointerDown: (_, _) {
+              if (_autoFollow) setState(() => _autoFollow = false);
+            },
+          ),
           children: [
             TileLayer(
               urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -664,6 +704,17 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
                 ],
               ],
             ),
+          ),
+        ),
+        Positioned(
+          right: 14,
+          bottom: 88,
+          child: FloatingActionButton.small(
+            heroTag: 'record-locate',
+            backgroundColor: AppColors.white,
+            foregroundColor: _autoFollow ? AppColors.forest700 : AppColors.ink,
+            onPressed: _recenter,
+            child: const Icon(Icons.my_location_rounded),
           ),
         ),
         Positioned(

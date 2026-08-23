@@ -304,8 +304,9 @@ class _FollowJourneyScreenState extends ConsumerState<FollowJourneyScreen> {
               coordinates: _trail,
               padding: const EdgeInsets.all(60),
             ),
+            // Rotation is allowed — some drivers prefer turning the map.
             interactionOptions: const InteractionOptions(
-              flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+              flags: InteractiveFlag.all,
             ),
             // Any manual gesture pauses auto-follow until "recenter".
             onPointerDown: (_, _) {
@@ -349,6 +350,17 @@ class _FollowJourneyScreenState extends ConsumerState<FollowJourneyScreen> {
           ],
         ),
         Positioned(top: 12, left: 12, right: 12, child: _statusBanner()),
+        Positioned(
+          right: 14,
+          bottom: 150,
+          child: FloatingActionButton.small(
+            heroTag: 'reset-north',
+            backgroundColor: AppColors.white,
+            foregroundColor: AppColors.ink,
+            onPressed: () => _map.rotate(0),
+            child: const Icon(Icons.explore_outlined),
+          ),
+        ),
         Positioned(
           right: 14,
           bottom: 96,
