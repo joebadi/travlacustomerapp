@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:vector_tile_renderer/vector_tile_renderer.dart' show Theme, ThemeReader;
 
+import '../data/offline_tiles.dart';
+
 /// Self-hosted Nigeria vector tiles (OpenMapTiles schema) served from the VPS
 /// PMTiles server behind Apache. Overridable at build time.
 const _tileUrl = String.fromEnvironment(
@@ -15,20 +17,24 @@ Theme? _theme;
 /// A flutter_map layer that renders Travla's self-hosted vector basemap.
 /// Drop-in replacement for a raster `TileLayer`. Max data zoom is 14; the
 /// renderer over-zooms beyond that.
-VectorTileLayer travlaVectorTileLayer() {
+///
+/// Pass [offlineJourneyId] to read that journey's downloaded tiles first (works
+/// with no signal), falling back to the network for anything not packed.
+VectorTileLayer travlaVectorTileLayer({String? offlineJourneyId}) {
   _theme ??= ThemeReader().read(
     jsonDecode(_styleJson) as Map<String, dynamic>,
   );
+  final VectorTileProvider provider = offlineJourneyId != null
+      ? OfflineFirstVectorTileProvider(journeyId: offlineJourneyId)
+      : NetworkVectorTileProvider(
+          urlTemplate: _tileUrl,
+          maximumZoom: 14,
+          minimumZoom: 0,
+        );
   return VectorTileLayer(
     theme: _theme!,
     maximumZoom: 20,
-    tileProviders: TileProviders({
-      'openmaptiles': NetworkVectorTileProvider(
-        urlTemplate: _tileUrl,
-        maximumZoom: 14,
-        minimumZoom: 0,
-      ),
-    }),
+    tileProviders: TileProviders({'openmaptiles': provider}),
   );
 }
 

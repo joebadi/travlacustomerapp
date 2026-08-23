@@ -337,7 +337,7 @@ class _FollowJourneyScreenState extends ConsumerState<FollowJourneyScreen> {
           ),
           children: [
             // Self-hosted Nigeria vector basemap (see journey_vector_map).
-            travlaVectorTileLayer(),
+            travlaVectorTileLayer(offlineJourneyId: widget.journeyId),
             PolylineLayer(
               polylines: [
                 Polyline(points: _trail, strokeWidth: 6, color: _trailColor),

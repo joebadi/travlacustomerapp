@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/journeys/data/journey_repository.dart';
+import 'package:travla_customer_app/features/journeys/data/offline_tiles.dart';
 import 'package:travla_customer_app/features/journeys/domain/journey_models.dart';
 
 class JourneyDetailScreen extends ConsumerWidget {
@@ -212,6 +213,8 @@ class JourneyDetailScreen extends ConsumerWidget {
                         icon: const Icon(Icons.navigation_rounded),
                         label: const Text('Follow this journey'),
                       ),
+                      const SizedBox(height: 10),
+                      _OfflineButton(journeyId: journeyId, trail: points),
                     ],
                     if (!journey.isMine) ...[
                       const SizedBox(height: 10),
@@ -468,6 +471,131 @@ class _ShareSheetState extends ConsumerState<_ShareSheet> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Downloads (or removes) this route's map corridor for offline follow. Reads
+/// its own downloaded/size state and shows live progress while packing.
+class _OfflineButton extends StatefulWidget {
+  const _OfflineButton({required this.journeyId, required this.trail});
+
+  final String journeyId;
+  final List<LatLng> trail;
+
+  @override
+  State<_OfflineButton> createState() => _OfflineButtonState();
+}
+
+class _OfflineButtonState extends State<_OfflineButton> {
+  bool _loading = true;
+  bool _downloaded = false;
+  int _bytes = 0;
+  double? _progress; // null when idle, 0..1 while downloading
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    final has = await OfflineTileStore.hasPack(widget.journeyId);
+    final bytes = has ? await OfflineTileStore.packBytes(widget.journeyId) : 0;
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      _downloaded = has;
+      _bytes = bytes;
+    });
+  }
+
+  Future<void> _download() async {
+    setState(() => _progress = 0);
+    try {
+      await downloadJourneyCorridor(
+        widget.journeyId,
+        widget.trail,
+        onProgress: (done, total) {
+          if (mounted && total > 0) setState(() => _progress = done / total);
+        },
+      );
+    } catch (_) {
+      // Best-effort; whatever downloaded stays usable.
+    }
+    if (!mounted) return;
+    setState(() => _progress = null);
+    await _refresh();
+    if (mounted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Map saved for offline use.')));
+    }
+  }
+
+  Future<void> _remove() async {
+    await OfflineTileStore.deletePack(widget.journeyId);
+    await _refresh();
+  }
+
+  String get _sizeLabel {
+    if (_bytes <= 0) return '';
+    final mb = _bytes / (1024 * 1024);
+    return mb >= 1 ? '${mb.toStringAsFixed(1)} MB' : '${(_bytes / 1024).round()} KB';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const SizedBox.shrink();
+
+    if (_progress != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.downloading_rounded, size: 16, color: AppColors.forest700),
+              const SizedBox(width: 8),
+              Text('Saving map… ${((_progress ?? 0) * 100).round()}%',
+                  style: const TextStyle(fontSize: 12.5, color: AppColors.muted)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(value: _progress, minHeight: 6),
+          ),
+        ],
+      );
+    }
+
+    if (_downloaded) {
+      return Row(
+        children: [
+          const Icon(Icons.offline_pin_rounded, size: 18, color: AppColors.forest700),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text('Available offline · $_sizeLabel',
+                style: const TextStyle(fontSize: 12.5, color: AppColors.ink, fontWeight: FontWeight.w600)),
+          ),
+          TextButton(
+            onPressed: _remove,
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            child: const Text('Remove'),
+          ),
+        ],
+      );
+    }
+
+    return OutlinedButton.icon(
+      onPressed: _download,
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size.fromHeight(50),
+        foregroundColor: AppColors.forest700,
+        side: const BorderSide(color: AppColors.forest700),
+      ),
+      icon: const Icon(Icons.download_for_offline_outlined),
+      label: const Text('Download map for offline'),
     );
   }
 }
