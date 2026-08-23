@@ -157,6 +157,51 @@ class JourneyHealth {
   }
 }
 
+/// One of the signed-in user's own road reports (their contributions).
+class MyRoadReport {
+  const MyRoadReport({
+    required this.id,
+    required this.typeLabel,
+    required this.description,
+    required this.status,
+    required this.verificationLabel,
+    required this.confirmations,
+    required this.disputes,
+    required this.createdAt,
+    required this.media,
+  });
+
+  final String id;
+  final String typeLabel;
+  final String? description;
+  final String status; // ACTIVE | EXPIRED | REMOVED
+  final String? verificationLabel;
+  final int confirmations;
+  final int disputes;
+  final String? createdAt;
+  final List<ReportMedia> media;
+
+  factory MyRoadReport.fromJson(Map<String, dynamic> json) {
+    final media = json['media'];
+    return MyRoadReport(
+      id: json['id']?.toString() ?? '',
+      typeLabel: json['type_label']?.toString() ?? json['type']?.toString() ?? 'Report',
+      description: json['description']?.toString(),
+      status: json['status']?.toString() ?? 'ACTIVE',
+      verificationLabel: json['verification_label']?.toString(),
+      confirmations: (json['confirmations'] as num?)?.toInt() ?? 0,
+      disputes: (json['disputes'] as num?)?.toInt() ?? 0,
+      createdAt: json['created_at']?.toString(),
+      media: media is List
+          ? media
+              .whereType<Map>()
+              .map((m) => ReportMedia.fromJson(m.cast<String, dynamic>()))
+              .toList(growable: false)
+          : const [],
+    );
+  }
+}
+
 class RoadReportType {
   const RoadReportType({
     required this.value,

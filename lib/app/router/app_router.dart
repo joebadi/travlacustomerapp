@@ -35,6 +35,7 @@ import 'package:travla_customer_app/features/journeys/presentation/journeys_scre
 import 'package:travla_customer_app/features/journeys/presentation/record_journey_screen.dart';
 import 'package:travla_customer_app/features/journeys/presentation/journey_detail_screen.dart';
 import 'package:travla_customer_app/features/journeys/presentation/follow_journey_screen.dart';
+import 'package:travla_customer_app/features/journeys/presentation/my_road_reports_screen.dart';
 import 'package:travla_customer_app/features/marketplace/presentation/marketplace_screen.dart';
 import 'package:travla_customer_app/features/marketplace/presentation/new_listing_screen.dart';
 import 'package:travla_customer_app/features/news/presentation/car_talk_screen.dart';
@@ -186,6 +187,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                           state.uri.queryParameters['mode'] ?? 'DRIVING',
                       initialVehicleId: state.uri.queryParameters['vehicle_id'],
                     ),
+                  ),
+                  GoRoute(
+                    path: 'reports',
+                    builder: (context, state) => const MyRoadReportsScreen(),
                   ),
                   GoRoute(
                     path: ':journeyId',

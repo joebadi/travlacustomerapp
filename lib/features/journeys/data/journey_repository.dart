@@ -201,6 +201,23 @@ class JourneyRepository {
     }
   }
 
+  /// The signed-in user's own road reports (their contributions).
+  Future<List<MyRoadReport>> myRoadReports() async {
+    try {
+      final response = await _apiClient.dio.get<Map<String, dynamic>>(
+        '/road-reports/mine',
+      );
+      final data = response.data?['data'];
+      if (data is! List) return const [];
+      return data
+          .whereType<Map<String, dynamic>>()
+          .map(MyRoadReport.fromJson)
+          .toList(growable: false);
+    } on DioException catch (exception) {
+      throw ApiFailure.fromDio(exception);
+    }
+  }
+
   /// Confirm or dispute a road report. A DISPUTE ("it's been repaired / not
   /// there") requires photo or video evidence.
   Future<void> voteRoadReport(
@@ -252,4 +269,9 @@ final roadReportCatalogueProvider = FutureProvider.autoDispose<List<RoadReportTy
 final journeyHealthProvider =
     FutureProvider.autoDispose.family<JourneyHealth, String>((ref, id) {
   return ref.watch(journeyRepositoryProvider).health(id);
+});
+
+final myRoadReportsProvider =
+    FutureProvider.autoDispose<List<MyRoadReport>>((ref) {
+  return ref.watch(journeyRepositoryProvider).myRoadReports();
 });

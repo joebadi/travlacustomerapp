@@ -278,6 +278,16 @@ class _JourneysScreenState extends ConsumerState<JourneysScreen>
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     _MapActionButton(
+                      label: 'My Reports',
+                      icon: Icons.add_alert_outlined,
+                      active: false,
+                      onTap: () {
+                        _closeOverlays();
+                        context.push('/journeys/reports');
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    _MapActionButton(
                       label: 'My Journeys',
                       icon: Icons.route_rounded,
                       active: _showJourneys,
