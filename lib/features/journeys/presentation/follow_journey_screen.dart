@@ -15,6 +15,7 @@ import 'package:travla_customer_app/features/journeys/data/journey_repository.da
 import 'package:travla_customer_app/features/journeys/domain/journey_models.dart';
 import 'package:travla_customer_app/features/journeys/domain/trail_guide.dart';
 import 'package:travla_customer_app/features/journeys/presentation/drop_road_tag_sheet.dart';
+import 'package:travla_customer_app/features/journeys/presentation/road_tag_sheet.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 /// Follow a saved trail: shows the route + the driver's live position, and
@@ -242,8 +243,22 @@ class _FollowJourneyScreenState extends ConsumerState<FollowJourneyScreen> {
       final d = _geo.as(LengthUnit.Meter, me, LatLng(r.latitude, r.longitude));
       if (d <= _approachM) {
         _alertedReports.add(r.id);
-        _announce('Caution: ${r.typeLabel} ahead.');
+        final approx = ((d / 50).round() * 50).clamp(50, _approachM.toInt());
+        _announce('${r.typeLabel} in about $approx metres ahead.');
         HapticFeedback.mediumImpact();
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(SnackBar(
+              duration: const Duration(seconds: 6),
+              content: Text('${r.typeLabel} in ~$approx m ahead'),
+              action: SnackBarAction(
+                label: 'View',
+                onPressed: () =>
+                    showRoadTagSheet(context, report: r, onVoted: _loadReports),
+              ),
+            ));
+        }
       }
     }
   }
@@ -469,22 +484,7 @@ class _FollowJourneyScreenState extends ConsumerState<FollowJourneyScreen> {
       width: 30,
       height: 30,
       child: GestureDetector(
-        onTap: () {
-          ScaffoldMessenger.of(context)
-            ..hideCurrentSnackBar()
-            ..showSnackBar(
-              SnackBar(
-                content: Text(
-                  [
-                    r.typeLabel,
-                    if (r.description != null && r.description!.isNotEmpty)
-                      r.description,
-                    if (r.verificationLabel != null) '· ${r.verificationLabel}',
-                  ].whereType<String>().join('  '),
-                ),
-              ),
-            );
-        },
+        onTap: () => showRoadTagSheet(context, report: r, onVoted: _loadReports),
         child: Container(
           decoration: BoxDecoration(
             color: color,
