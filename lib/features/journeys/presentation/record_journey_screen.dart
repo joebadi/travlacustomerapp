@@ -10,6 +10,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
+import 'package:travla_customer_app/features/journeys/presentation/journey_vector_map.dart';
 import 'package:travla_customer_app/core/auth/secure_token_store.dart';
 import 'package:travla_customer_app/core/config/app_config.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
@@ -428,10 +429,7 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
               initialZoom: 5.7,
             ),
             children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'ng.com.travla.customer',
-              ),
+              travlaVectorTileLayer(),
             ],
           ),
           DecoratedBox(
@@ -550,10 +548,7 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
             },
           ),
           children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'ng.com.travla.customer',
-            ),
+            travlaVectorTileLayer(),
             if (_trail.length >= 2)
               PolylineLayer(
                 polylines: [

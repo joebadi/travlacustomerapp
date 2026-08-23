@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
+import 'package:travla_customer_app/features/journeys/presentation/journey_vector_map.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/tracking/data/tracking_map_repository.dart';
 import 'package:travla_customer_app/features/tracking/domain/live_position.dart';
@@ -199,10 +200,7 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
               onTap: (_, _) => setState(() => _selectedId = null),
             ),
             children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'ng.com.travla.customer',
-              ),
+              travlaVectorTileLayer(),
               if (trailPoints.length >= 2)
                 PolylineLayer(
                   polylines: [
