@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,6 +12,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/journeys/data/journey_repository.dart';
+import 'package:travla_customer_app/features/journeys/domain/journey_models.dart';
 import 'package:travla_customer_app/features/journeys/domain/trail_guide.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -38,12 +40,20 @@ class _FollowJourneyScreenState extends ConsumerState<FollowJourneyScreen> {
   static const double _arriveM = 40;
   static const double _maxAccuracyM = 60; // ignore very noisy fixes
 
+  // Road-report proximity.
+  static const double _corridorM = 60; // keep only reports on the route corridor
+  static const double _approachM = 300; // alert this far ahead of a report
+  static const Distance _geo = Distance();
+
   final _map = MapController();
   final _tts = FlutterTts();
 
   StreamSubscription<Position>? _sub;
   TrailGuide? _guide;
   List<LatLng> _trail = const [];
+
+  List<NearbyRoadReport> _reports = const [];
+  final Set<String> _alertedReports = {};
 
   LatLng? _me;
   double? _distToTrail;
@@ -98,6 +108,7 @@ class _FollowJourneyScreenState extends ConsumerState<FollowJourneyScreen> {
       if (!await _ensurePermission()) return;
       _trail = trail;
       _guide = TrailGuide(trail);
+      unawaited(_loadReports()); // best-effort; following doesn't wait on it
       _sub = Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.bestForNavigation,
@@ -115,6 +126,51 @@ class _FollowJourneyScreenState extends ConsumerState<FollowJourneyScreen> {
         _loading = false;
         _error = 'Could not start following: $e';
       });
+    }
+  }
+
+  /// Pre-sync ACTIVE road reports around the route, keeping only those that sit
+  /// on the route corridor (so a pothole on a parallel street doesn't alert).
+  Future<void> _loadReports() async {
+    final trail = _trail;
+    final guide = _guide;
+    if (trail.length < 2 || guide == null) return;
+
+    var minLat = trail.first.latitude, maxLat = trail.first.latitude;
+    var minLng = trail.first.longitude, maxLng = trail.first.longitude;
+    for (final p in trail) {
+      minLat = math.min(minLat, p.latitude);
+      maxLat = math.max(maxLat, p.latitude);
+      minLng = math.min(minLng, p.longitude);
+      maxLng = math.max(maxLng, p.longitude);
+    }
+    final center = LatLng((minLat + maxLat) / 2, (minLng + maxLng) / 2);
+    var reach = 0.0;
+    for (final p in trail) {
+      reach = math.max(reach, _geo.as(LengthUnit.Meter, center, p));
+    }
+    final radiusKm = ((reach + 500) / 1000).clamp(1.0, 25.0);
+
+    try {
+      final all = await ref
+          .read(journeyRepositoryProvider)
+          .nearbyReports(
+            lat: center.latitude,
+            lng: center.longitude,
+            radius: radiusKm,
+          );
+      final onCorridor = all
+          .where(
+            (r) =>
+                guide
+                    .locate(LatLng(r.latitude, r.longitude))
+                    .distanceToTrailM <=
+                _corridorM,
+          )
+          .toList(growable: false);
+      if (mounted) setState(() => _reports = onCorridor);
+    } catch (_) {
+      // Advisory layer only — following still works without it.
     }
   }
 
@@ -165,12 +221,29 @@ class _FollowJourneyScreenState extends ConsumerState<FollowJourneyScreen> {
       HapticFeedback.lightImpact();
     }
 
+    _checkRoadReports(me);
+
     setState(() {
       _me = me;
       _distToTrail = g.distanceToTrailM;
     });
     if (_autoFollow) {
       _map.move(me, _map.camera.zoom < 14 ? 16.5 : _map.camera.zoom);
+    }
+  }
+
+  /// Audio + haptic when approaching an ACTIVE non-directional report. Each
+  /// report alerts once per session. Directional restrictions are advisory
+  /// markers only (no auto wrong-way alert in v1).
+  void _checkRoadReports(LatLng me) {
+    for (final r in _reports) {
+      if (r.isDirectional || _alertedReports.contains(r.id)) continue;
+      final d = _geo.as(LengthUnit.Meter, me, LatLng(r.latitude, r.longitude));
+      if (d <= _approachM) {
+        _alertedReports.add(r.id);
+        _announce('Caution: ${r.typeLabel} ahead.');
+        HapticFeedback.mediumImpact();
+      }
     }
   }
 
@@ -249,6 +322,8 @@ class _FollowJourneyScreenState extends ConsumerState<FollowJourneyScreen> {
                 Polyline(points: _trail, strokeWidth: 6, color: _trailColor),
               ],
             ),
+            if (_reports.isNotEmpty)
+              MarkerLayer(markers: [for (final r in _reports) _reportMarker(r)]),
             MarkerLayer(
               markers: [
                 _pin(_trail.first, AppColors.forest700),
@@ -352,6 +427,50 @@ class _FollowJourneyScreenState extends ConsumerState<FollowJourneyScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Marker _reportMarker(NearbyRoadReport r) {
+    // Directional restrictions are advisory (grey-blue); conditions/hazards
+    // are amber — the ones that also trigger an approach alert.
+    final color = r.isDirectional ? const Color(0xFF6B7A99) : AppColors.orange;
+    return Marker(
+      point: LatLng(r.latitude, r.longitude),
+      width: 30,
+      height: 30,
+      child: GestureDetector(
+        onTap: () {
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              SnackBar(
+                content: Text(
+                  [
+                    r.typeLabel,
+                    if (r.description != null && r.description!.isNotEmpty)
+                      r.description,
+                    if (r.verificationLabel != null) '· ${r.verificationLabel}',
+                  ].whereType<String>().join('  '),
+                ),
+              ),
+            );
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2.5),
+            boxShadow: const [BoxShadow(color: Color(0x44000000), blurRadius: 5)],
+          ),
+          child: Icon(
+            r.isDirectional
+                ? Icons.do_not_disturb_on_outlined
+                : Icons.warning_amber_rounded,
+            color: Colors.white,
+            size: 16,
+          ),
+        ),
       ),
     );
   }

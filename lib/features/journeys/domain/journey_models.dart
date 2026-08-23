@@ -114,25 +114,40 @@ class RoadReportType {
 class NearbyRoadReport {
   const NearbyRoadReport({
     required this.id,
+    required this.type,
     required this.typeLabel,
+    required this.category,
+    required this.isDirectional,
     required this.latitude,
     required this.longitude,
     required this.description,
+    required this.verificationLabel,
   });
 
   final String id;
+  final String type;
   final String typeLabel;
+  final String? category;
+
+  /// Directional restrictions (one-way, no-entry, …) are shown as advisory
+  /// markers only — v1 never fires an automatic wrong-way alert for them.
+  final bool isDirectional;
   final double latitude;
   final double longitude;
   final String? description;
+  final String? verificationLabel;
 
   factory NearbyRoadReport.fromJson(Map<String, dynamic> json) {
     return NearbyRoadReport(
       id: json['id']?.toString() ?? '',
+      type: json['type']?.toString() ?? '',
       typeLabel: json['type_label']?.toString() ?? json['type']?.toString() ?? 'Report',
+      category: json['category']?.toString(),
+      isDirectional: json['is_directional'] == true,
       latitude: (json['latitude'] as num?)?.toDouble() ?? (json['lat'] as num?)?.toDouble() ?? 0,
       longitude: (json['longitude'] as num?)?.toDouble() ?? (json['lng'] as num?)?.toDouble() ?? 0,
       description: json['description']?.toString(),
+      verificationLabel: json['verification_label']?.toString(),
     );
   }
 }
