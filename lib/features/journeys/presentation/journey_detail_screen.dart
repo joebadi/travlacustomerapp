@@ -138,6 +138,18 @@ class JourneyDetailScreen extends ConsumerWidget {
                       const SizedBox(height: 12),
                       Text(journey.description!, style: const TextStyle(color: AppColors.ink, height: 1.4)),
                     ],
+                    if (journey.displayTrail.length >= 2) ...[
+                      const SizedBox(height: 16),
+                      FilledButton.icon(
+                        onPressed: () => context.push('/journeys/$journeyId/follow'),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(52),
+                          backgroundColor: AppColors.forest700,
+                        ),
+                        icon: const Icon(Icons.navigation_rounded),
+                        label: const Text('Follow this journey'),
+                      ),
+                    ],
                   ],
                 ),
               ),
