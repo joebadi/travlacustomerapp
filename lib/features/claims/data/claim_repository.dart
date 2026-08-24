@@ -161,6 +161,47 @@ class ClaimRepository {
     });
   }
 
+  /// Authoritative pre-flight verdict: can a claim on [vehicleId] actually
+  /// benefit the user, given fault and whether the other party is insured?
+  Future<ClaimEligibility> eligibility({
+    required String vehicleId,
+    required bool thirdPartyInvolved,
+    String? fault,
+    required bool otherPartyInsured,
+    String? claimType,
+  }) async {
+    return _guard(() async {
+      final response = await _apiClient.dio.post<Map<String, dynamic>>(
+        '/vehicles/$vehicleId/claim-eligibility',
+        data: {
+          'third_party_involved': thirdPartyInvolved,
+          'fault': ?fault,
+          'other_party_insured': otherPartyInsured,
+          'claim_type': ?claimType,
+        },
+      );
+      return ClaimEligibility.fromJson(_dataMap(response.data));
+    });
+  }
+
+  /// Uploads a locally-captured file (camera photo/video, gallery pick) to a
+  /// claim draft. Used by the scene-capture step, which holds media on-device
+  /// until the draft exists.
+  Future<void> uploadEvidencePath({
+    required String claimId,
+    required String path,
+    required String filename,
+    required String fileType,
+  }) async {
+    return _guard(() async {
+      final form = FormData.fromMap({
+        'file': await MultipartFile.fromFile(path, filename: filename),
+        'file_type': fileType,
+      });
+      await _apiClient.dio.post('/claims/$claimId/evidence', data: form);
+    });
+  }
+
   Future<PlateCheckResult> plateCheck(String plate) async {
     return _guard(() async {
       final response = await _apiClient.dio.post<Map<String, dynamic>>(

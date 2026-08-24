@@ -324,10 +324,21 @@ class PlateCheckResult {
   });
 
   final String plate;
-  final String outcome;
+  final String outcome; // FOUND | NOT_FOUND | ERROR | CAPTCHA_BLOCKED | PENDING
   final bool found;
-  final List<({String? coverageLabel, String? startDate, String? endDate})>
+  final List<
+    ({
+      String? coverageType,
+      String? coverageLabel,
+      String? startDate,
+      String? endDate,
+    })
+  >
   policies;
+
+  /// The check ran but couldn't get a definitive answer (network/anti-bot) —
+  /// distinct from a clean "no record", which does mean uninsured.
+  bool get inconclusive => outcome == 'ERROR' || outcome == 'CAPTCHA_BLOCKED';
 
   factory PlateCheckResult.fromJson(Map<String, dynamic> json) {
     final policies = json['policies'];
@@ -339,12 +350,57 @@ class PlateCheckResult {
           .whereType<Map>()
           .map(
             (e) => (
+              coverageType: e['coverage_type']?.toString(),
               coverageLabel: e['coverage_label']?.toString(),
               startDate: e['start_date']?.toString(),
               endDate: e['end_date']?.toString(),
             ),
           )
           .toList(growable: false),
+    );
+  }
+}
+
+/// The server's authoritative pre-flight verdict on whether a claim can actually
+/// benefit the user (`/vehicles/{id}/claim-eligibility`).
+class ClaimEligibility {
+  const ClaimEligibility({
+    required this.verdict,
+    required this.canBenefit,
+    required this.requiresLiability,
+    required this.title,
+    required this.message,
+    required this.hasActivePolicy,
+    required this.coversOwnDamage,
+    required this.coversTheft,
+    required this.coverageLabel,
+  });
+
+  final String verdict;
+  final bool canBenefit;
+  final bool requiresLiability;
+  final String title;
+  final String message;
+  final bool hasActivePolicy;
+  final bool coversOwnDamage;
+  final bool coversTheft;
+  final String coverageLabel;
+
+  bool get isDeadEnd => verdict == 'DEAD_END' || verdict == 'NO_COVER';
+
+  factory ClaimEligibility.fromJson(Map<String, dynamic> json) {
+    final coverage = json['coverage'];
+    final cov = coverage is Map ? coverage : const {};
+    return ClaimEligibility(
+      verdict: json['verdict']?.toString() ?? 'PROCEED_OWN_DAMAGE',
+      canBenefit: json['can_benefit'] == true,
+      requiresLiability: json['requires_liability'] == true,
+      title: json['title']?.toString() ?? '',
+      message: json['message']?.toString() ?? '',
+      hasActivePolicy: cov['has_active_policy'] == true,
+      coversOwnDamage: cov['covers_own_damage'] == true,
+      coversTheft: cov['covers_theft'] == true,
+      coverageLabel: cov['label']?.toString() ?? '',
     );
   }
 }
