@@ -2,15 +2,18 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/claims/data/claim_repository.dart';
 import 'package:travla_customer_app/features/claims/domain/claim_models.dart';
 import 'package:travla_customer_app/features/claims/presentation/claim_widgets.dart';
+import 'package:travla_customer_app/features/journeys/presentation/journey_vector_map.dart';
 import 'package:travla_customer_app/features/vehicles/data/garage_repository.dart';
 import 'package:travla_customer_app/features/vehicles/domain/garage_snapshot.dart';
 import 'package:travla_customer_app/shared/widgets/travla_app_bar.dart';
@@ -46,7 +49,6 @@ class _NewClaimScreenState extends ConsumerState<NewClaimScreen> {
   String? _vehicleId;
   DateTime _incidentDate = DateTime.now();
   String? _coords;
-  bool _locating = false;
   final List<_Media> _media = [];
   bool _capturing = false;
 
@@ -80,7 +82,6 @@ class _NewClaimScreenState extends ConsumerState<NewClaimScreen> {
   void initState() {
     super.initState();
     _vehicleId = (widget.vehicleId?.isNotEmpty ?? false) ? widget.vehicleId : null;
-    _captureLocation();
   }
 
   @override
@@ -98,29 +99,6 @@ class _NewClaimScreenState extends ConsumerState<NewClaimScreen> {
   bool get _otherPartyInsured => _plateResult?.found ?? false;
 
   // ---- Scene ---------------------------------------------------------------
-
-  Future<void> _captureLocation() async {
-    setState(() => _locating = true);
-    try {
-      if (await Geolocator.isLocationServiceEnabled()) {
-        var p = await Geolocator.checkPermission();
-        if (p == LocationPermission.denied) p = await Geolocator.requestPermission();
-        if (p == LocationPermission.always || p == LocationPermission.whileInUse) {
-          final pos = await Geolocator.getCurrentPosition(
-            locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.high,
-              timeLimit: Duration(seconds: 10),
-            ),
-          );
-          _coords = '${pos.latitude.toStringAsFixed(6)},${pos.longitude.toStringAsFixed(6)}';
-        }
-      }
-    } catch (_) {
-      // Location is a nicety, never a blocker.
-    } finally {
-      if (mounted) setState(() => _locating = false);
-    }
-  }
 
   Future<void> _capturePhoto() => _capture(() async {
         final x = await ImagePicker().pickImage(source: ImageSource.camera, imageQuality: 70);
@@ -242,7 +220,7 @@ class _NewClaimScreenState extends ConsumerState<NewClaimScreen> {
     final payload = <String, dynamic>{
       'claim_type': _claimType,
       'incident_date': _ymd(_incidentDate),
-      'location': _locationCtrl.text.trim(),
+      'location': _locationCtrl.text.trim().isNotEmpty ? _locationCtrl.text.trim() : (_coords ?? ''),
       if (_coords != null) 'location_coordinates': _coords,
       'description': _descriptionCtrl.text.trim(),
       if (_severity != null) 'severity': _severity,
@@ -315,9 +293,7 @@ class _NewClaimScreenState extends ConsumerState<NewClaimScreen> {
         if (_eligibility?.requiresLiability ?? false) return _liabilityAccepted;
         return _eligibility != null && !_assessing;
       case 3:
-        return _claimType != null &&
-            _descriptionCtrl.text.trim().isNotEmpty &&
-            _locationCtrl.text.trim().isNotEmpty;
+        return _claimType != null && _descriptionCtrl.text.trim().isNotEmpty;
       default:
         return true;
     }
@@ -329,7 +305,7 @@ class _NewClaimScreenState extends ConsumerState<NewClaimScreen> {
       return;
     }
     if (_step == 3 && !_canContinue) {
-      setState(() => _error = 'Add the claim type, what happened, and where.');
+      setState(() => _error = 'Add the claim type and what happened.');
       return;
     }
     setState(() => _error = null);
@@ -356,45 +332,46 @@ class _NewClaimScreenState extends ConsumerState<NewClaimScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final meta = ref.watch(claimMetaProvider);
+    final metaAsync = ref.watch(claimMetaProvider);
+    // Only the staged-rollout gate blocks the whole page. Otherwise the wizard
+    // opens immediately — the first steps need no reference data, so the form
+    // never waits on the /claims/meta round-trip to appear.
+    if (metaAsync.hasError && metaAsync.error is ClaimsUnavailable) {
+      return const Scaffold(
+        backgroundColor: AppColors.canvas,
+        appBar: TravlaAppBar(),
+        body: ClaimsComingSoon(),
+      );
+    }
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: const TravlaAppBar(),
-      body: meta.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => error is ClaimsUnavailable
-            ? const ClaimsComingSoon()
-            : ClaimErrorState(
-                message: error is ApiFailure ? error.message : 'The claim form could not be loaded.',
-                onRetry: () => ref.invalidate(claimMetaProvider),
-              ),
-        data: (meta) => Column(
-          children: [
-            _StepHeader(steps: _steps, current: _step),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                children: [
-                  if (_error != null) ...[_Banner(_error!), const SizedBox(height: 14)],
-                  ..._stepBody(meta),
-                ],
-              ),
+      body: Column(
+        children: [
+          _StepHeader(steps: _steps, current: _step),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              children: [
+                if (_error != null) ...[_Banner(_error!), const SizedBox(height: 14)],
+                ..._stepBody(metaAsync),
+              ],
             ),
-            _BottomBar(
-              step: _step,
-              total: _steps.length,
-              busy: _submitting,
-              canContinue: _canContinue,
-              onBack: _submitting ? null : _back,
-              onNext: (_submitting || !_canContinue) ? null : _next,
-            ),
-          ],
-        ),
+          ),
+          _BottomBar(
+            step: _step,
+            total: _steps.length,
+            busy: _submitting,
+            canContinue: _canContinue,
+            onBack: _submitting ? null : _back,
+            onNext: (_submitting || !_canContinue) ? null : _next,
+          ),
+        ],
       ),
     );
   }
 
-  List<Widget> _stepBody(ClaimMeta meta) {
+  List<Widget> _stepBody(AsyncValue<ClaimMeta> metaAsync) {
     switch (_step) {
       case 0:
         return _sceneStep();
@@ -403,10 +380,27 @@ class _NewClaimScreenState extends ConsumerState<NewClaimScreen> {
       case 2:
         return _eligibilityStep();
       case 3:
-        return _detailsStep(meta);
+        return _metaGated(metaAsync, _detailsStep);
       default:
-        return _reviewStep(meta);
+        return _metaGated(metaAsync, _reviewStep);
     }
+  }
+
+  /// Only the last two steps need the reference data; if it's still loading (or
+  /// failed), show that inline instead of blocking the whole wizard.
+  List<Widget> _metaGated(AsyncValue<ClaimMeta> meta, List<Widget> Function(ClaimMeta) body) {
+    return meta.when(
+      loading: () => const [
+        Padding(padding: EdgeInsets.only(top: 40), child: Center(child: CircularProgressIndicator())),
+      ],
+      error: (error, _) => [
+        ClaimErrorState(
+          message: error is ApiFailure ? error.message : 'The claim form could not be loaded.',
+          onRetry: () => ref.invalidate(claimMetaProvider),
+        ),
+      ],
+      data: body,
+    );
   }
 
   // ---- Step 0: Scene -------------------------------------------------------
@@ -425,15 +419,7 @@ class _NewClaimScreenState extends ConsumerState<NewClaimScreen> {
         ),
       ),
       const SizedBox(height: 20),
-      Row(
-        children: [
-          const Expanded(child: _Label('Capture the scene')),
-          if (_locating)
-            const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-          else if (_coords != null)
-            const _Chip(icon: Icons.my_location_rounded, label: 'Location pinned'),
-        ],
-      ),
+      const _Label('Capture the scene'),
       const Text(
         'Take photos and a short video now — of the damage, plates, road and signs. '
         'You can add more later.',
@@ -605,14 +591,22 @@ class _NewClaimScreenState extends ConsumerState<NewClaimScreen> {
         items: meta.types.map((t) => DropdownMenuItem(value: t.value, child: Text(t.label))).toList(),
         onChanged: (v) => setState(() => _claimType = v),
       ),
-      const SizedBox(height: 14),
+      const SizedBox(height: 18),
+      const _Label('Where did it happen?'),
+      const Text(
+        'Drag the map so the pin sits on the exact spot — handy when you\'re filing later. '
+        'Tap the button to jump to where you are now.',
+        style: TextStyle(color: AppColors.muted, fontSize: 12.5, height: 1.4),
+      ),
+      const SizedBox(height: 10),
+      _LocationPicker(onChanged: (c) => _coords = c),
+      const SizedBox(height: 12),
       TextField(
         controller: _locationCtrl,
         decoration: const InputDecoration(
-          labelText: 'Where did it happen?',
+          labelText: 'Landmark or address (optional)',
           prefixIcon: Icon(Icons.location_on_outlined),
         ),
-        onChanged: (_) => setState(() {}),
       ),
       const SizedBox(height: 14),
       TextField(
@@ -664,7 +658,10 @@ class _NewClaimScreenState extends ConsumerState<NewClaimScreen> {
     return [
       _ReviewTile(label: 'Claim type', value: typeLabel),
       _ReviewTile(label: 'When', value: _prettyDateTime(_incidentDate)),
-      _ReviewTile(label: 'Where', value: _locationCtrl.text.trim().isEmpty ? '—' : _locationCtrl.text.trim()),
+      _ReviewTile(
+        label: 'Where',
+        value: _locationCtrl.text.trim().isNotEmpty ? _locationCtrl.text.trim() : (_coords ?? '—'),
+      ),
       _ReviewTile(label: 'Scene evidence', value: '${_media.length} file${_media.length == 1 ? '' : 's'}'),
       _ReviewTile(
         label: 'Other vehicle',
@@ -1159,21 +1156,115 @@ class _ReviewTile extends StatelessWidget {
   }
 }
 
-class _Chip extends StatelessWidget {
-  const _Chip({required this.icon, required this.label});
+/// Map-based location picker: a fixed centre pin with the map panning beneath
+/// it, so the user drags the map to place the pin exactly — including for an
+/// incident that happened earlier, elsewhere. Reports the pin as "lat,lng".
+class _LocationPicker extends StatefulWidget {
+  const _LocationPicker({required this.onChanged});
 
-  final IconData icon;
-  final String label;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_LocationPicker> createState() => _LocationPickerState();
+}
+
+class _LocationPickerState extends State<_LocationPicker> {
+  static const _nigeria = LatLng(9.0820, 8.6753);
+  final MapController _map = MapController();
+  LatLng _center = _nigeria;
+  bool _locating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _report(_center); // ensure a value even if location is never granted
+    WidgetsBinding.instance.addPostFrameCallback((_) => _locate());
+  }
+
+  void _report(LatLng c) =>
+      widget.onChanged('${c.latitude.toStringAsFixed(6)},${c.longitude.toStringAsFixed(6)}');
+
+  Future<void> _locate() async {
+    setState(() => _locating = true);
+    try {
+      if (await Geolocator.isLocationServiceEnabled()) {
+        var p = await Geolocator.checkPermission();
+        if (p == LocationPermission.denied) p = await Geolocator.requestPermission();
+        if (p == LocationPermission.always || p == LocationPermission.whileInUse) {
+          final pos = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.high,
+              timeLimit: Duration(seconds: 10),
+            ),
+          );
+          final here = LatLng(pos.latitude, pos.longitude);
+          _center = here;
+          _map.move(here, 16);
+          _report(here);
+        }
+      }
+    } catch (_) {
+      // Location is a convenience; the user can always drag to the spot.
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 13, color: AppColors.forest700),
-        const SizedBox(width: 4),
-        Text(label, style: const TextStyle(color: AppColors.forest700, fontSize: 11, fontWeight: FontWeight.w700)),
-      ],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: SizedBox(
+        height: 210,
+        child: Stack(
+          children: [
+            FlutterMap(
+              mapController: _map,
+              options: MapOptions(
+                initialCenter: _center,
+                initialZoom: 5.7,
+                interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                ),
+                onPositionChanged: (camera, hasGesture) {
+                  _center = camera.center;
+                  _report(_center);
+                },
+              ),
+              children: [travlaVectorTileLayer()],
+            ),
+            // The pin stays fixed at the centre; the map moves under it. The
+            // bottom padding lifts the tip to the exact centre point.
+            const IgnorePointer(
+              child: Center(
+                child: Padding(
+                  padding: EdgeInsets.only(bottom: 34),
+                  child: Icon(Icons.location_on, size: 42, color: AppColors.orange),
+                ),
+              ),
+            ),
+            Positioned(
+              right: 10,
+              bottom: 10,
+              child: Material(
+                color: AppColors.white,
+                shape: const CircleBorder(),
+                elevation: 2,
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: _locating ? null : _locate,
+                  child: Padding(
+                    padding: const EdgeInsets.all(9),
+                    child: _locating
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.my_location_rounded, size: 18, color: AppColors.forest700),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
