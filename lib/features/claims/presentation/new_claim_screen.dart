@@ -55,8 +55,6 @@ class _NewClaimScreenState extends ConsumerState<NewClaimScreen> {
   final _otherPlateCtrl = TextEditingController();
   PlateCheckResult? _plateResult;
   bool _plateChecking = false;
-  final _otherInsurerCtrl = TextEditingController();
-  final _otherPolicyCtrl = TextEditingController();
 
   // Eligibility
   ClaimEligibility? _eligibility;
@@ -87,8 +85,6 @@ class _NewClaimScreenState extends ConsumerState<NewClaimScreen> {
   @override
   void dispose() {
     _otherPlateCtrl.dispose();
-    _otherInsurerCtrl.dispose();
-    _otherPolicyCtrl.dispose();
     _locationCtrl.dispose();
     _descriptionCtrl.dispose();
     _damageCtrl.dispose();
@@ -98,8 +94,7 @@ class _NewClaimScreenState extends ConsumerState<NewClaimScreen> {
     super.dispose();
   }
 
-  bool get _otherPartyInsured =>
-      (_plateResult?.found ?? false) || _otherInsurerCtrl.text.trim().isNotEmpty;
+  bool get _otherPartyInsured => _plateResult?.found ?? false;
 
   // ---- Scene ---------------------------------------------------------------
 
@@ -298,12 +293,10 @@ class _NewClaimScreenState extends ConsumerState<NewClaimScreen> {
   }
 
   Map<String, dynamic>? _otherVehicleDetails() {
-    final insurer = _plateResult?.found ?? false
-        ? (_plateResult!.policies.firstOrNull?.coverageLabel ?? 'Insured (NIID)')
-        : _otherInsurerCtrl.text.trim();
+    final insured = _plateResult?.found ?? false;
     final details = <String, dynamic>{
-      if (insurer.isNotEmpty) 'insurer': insurer,
-      if (_otherPolicyCtrl.text.trim().isNotEmpty) 'policy_number': _otherPolicyCtrl.text.trim(),
+      if (insured)
+        'insurer': _plateResult!.policies.firstOrNull?.coverageLabel ?? 'Insured (NIID)',
       if (_plateResult != null) 'niid_status': _plateResult!.outcome,
     };
     return details.isEmpty ? null : details;
@@ -509,20 +502,27 @@ class _NewClaimScreenState extends ConsumerState<NewClaimScreen> {
           const SizedBox(height: 12),
           _NiidCard(result: _plateResult!),
         ],
-        // Manual fallback whenever NIID didn't confirm cover — the database is
-        // incomplete, so let the motorist enter what's on the certificate.
+        // NIID didn't confirm cover. Rather than hand-enter details (error-prone
+        // and unverifiable), let them re-run the check — the plate above is
+        // editable, so a typo can be fixed and checked again.
         if (_plateResult != null && !_plateResult!.found) ...[
-          const SizedBox(height: 12),
-          const _Label('Their insurer (from their certificate)'),
-          TextField(
-            controller: _otherInsurerCtrl,
-            decoration: const InputDecoration(hintText: 'Insurer name (optional)'),
-            onChanged: (_) => setState(() => _eligibility = null),
-          ),
           const SizedBox(height: 10),
-          TextField(
-            controller: _otherPolicyCtrl,
-            decoration: const InputDecoration(hintText: 'Policy / certificate number (optional)'),
+          OutlinedButton.icon(
+            onPressed: _plateChecking ? null : _checkPlate,
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(46),
+              foregroundColor: AppColors.forest700,
+              side: const BorderSide(color: AppColors.forest700),
+            ),
+            icon: _plateChecking
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.refresh_rounded),
+            label: const Text('Check again'),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Fix the plate above if it was mistyped, then check again.',
+            style: TextStyle(color: AppColors.muted, fontSize: 11.5),
           ),
         ],
         const SizedBox(height: 20),
@@ -943,13 +943,13 @@ class _NiidCard extends StatelessWidget {
       fg = AppColors.orangeDark;
       icon = Icons.help_outline_rounded;
       title = 'Couldn\'t confirm on NIID';
-      subtitle = 'The check didn\'t complete. Enter their insurer below if you have it.';
+      subtitle = 'The check didn\'t complete. Try again in a moment.';
     } else {
       bg = const Color(0xFFFFE3E1);
       fg = AppColors.danger;
       icon = Icons.gpp_bad_rounded;
       title = 'No cover found on NIID';
-      subtitle = 'NIID has no active policy for this plate. Enter their insurer below if they show you one.';
+      subtitle = 'NIID has no active policy for this plate. Double-check the plate and try again.';
     }
 
     return Container(
