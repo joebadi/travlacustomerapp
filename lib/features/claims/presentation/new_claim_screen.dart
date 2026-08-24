@@ -13,6 +13,7 @@ import 'package:travla_customer_app/features/claims/domain/claim_models.dart';
 import 'package:travla_customer_app/features/claims/presentation/claim_widgets.dart';
 import 'package:travla_customer_app/features/vehicles/data/garage_repository.dart';
 import 'package:travla_customer_app/features/vehicles/domain/garage_snapshot.dart';
+import 'package:travla_customer_app/shared/widgets/travla_app_bar.dart';
 
 /// A locally-captured piece of scene evidence, held on-device until the draft
 /// exists and it can be uploaded.
@@ -358,7 +359,7 @@ class _NewClaimScreenState extends ConsumerState<NewClaimScreen> {
     final meta = ref.watch(claimMetaProvider);
     return Scaffold(
       backgroundColor: AppColors.canvas,
-      appBar: AppBar(title: const Text('File a claim')),
+      appBar: const TravlaAppBar(),
       body: meta.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => error is ClaimsUnavailable

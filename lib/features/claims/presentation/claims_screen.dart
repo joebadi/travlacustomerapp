@@ -6,6 +6,7 @@ import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/claims/data/claim_repository.dart';
 import 'package:travla_customer_app/features/claims/domain/claim_models.dart';
 import 'package:travla_customer_app/features/claims/presentation/claim_widgets.dart';
+import 'package:travla_customer_app/shared/widgets/travla_app_bar.dart';
 
 class ClaimsScreen extends ConsumerWidget {
   const ClaimsScreen({super.key});
@@ -16,7 +17,7 @@ class ClaimsScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
-      appBar: AppBar(title: const Text('Claims')),
+      appBar: const TravlaAppBar(),
       floatingActionButton: claims.maybeWhen(
         data: (_) => FloatingActionButton.extended(
           backgroundColor: AppColors.orange,
