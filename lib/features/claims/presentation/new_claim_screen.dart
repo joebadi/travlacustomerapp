@@ -288,7 +288,7 @@ class _NewClaimScreenState extends ConsumerState<NewClaimScreen> {
       case 0:
         return _vehicleId != null;
       case 1:
-        return !_thirdParty || _fault != null;
+        return true;
       case 2:
         if (_eligibility?.requiresLiability ?? false) return _liabilityAccepted;
         return _eligibility != null && !_assessing;
@@ -418,6 +418,26 @@ class _NewClaimScreenState extends ConsumerState<NewClaimScreen> {
           onChanged: (v) => setState(() => _vehicleId = v),
         ),
       ),
+      const SizedBox(height: 18),
+      const _Label('Who was at fault?'),
+      DropdownButtonFormField<String>(
+        initialValue: _fault,
+        isExpanded: true,
+        decoration: const InputDecoration(
+          labelText: 'Fault',
+          prefixIcon: Icon(Icons.balance_outlined),
+        ),
+        items: const [
+          DropdownMenuItem(value: 'OTHER', child: Text('The other party')),
+          DropdownMenuItem(value: 'SELF', child: Text('I was at fault')),
+          DropdownMenuItem(value: 'SHARED', child: Text('Shared fault')),
+          DropdownMenuItem(value: 'UNSURE', child: Text('Not sure yet')),
+        ],
+        onChanged: (v) => setState(() {
+          _fault = v;
+          _eligibility = null; // fault feeds the verdict — re-assess
+        }),
+      ),
       const SizedBox(height: 20),
       const _Label('Capture the scene'),
       const Text(
@@ -441,7 +461,11 @@ class _NewClaimScreenState extends ConsumerState<NewClaimScreen> {
       ],
       const SizedBox(height: 20),
       const _Label('When did it happen?'),
-      _DateTile(value: _incidentDate, onTap: _pickDate),
+      _DateTile(
+        value: _incidentDate,
+        onTap: _pickDate,
+        onNow: () => setState(() => _incidentDate = DateTime.now()),
+      ),
     ];
   }
 
@@ -512,12 +536,6 @@ class _NewClaimScreenState extends ConsumerState<NewClaimScreen> {
             style: TextStyle(color: AppColors.muted, fontSize: 11.5),
           ),
         ],
-        const SizedBox(height: 20),
-        const _Label('Who was at fault?'),
-        _FaultSelector(value: _fault, onChanged: (v) => setState(() {
-          _fault = v;
-          _eligibility = null;
-        })),
       ],
     ];
   }
@@ -974,59 +992,6 @@ class _NiidCard extends StatelessWidget {
   }
 }
 
-class _FaultSelector extends StatelessWidget {
-  const _FaultSelector({required this.value, required this.onChanged});
-
-  final String? value;
-  final ValueChanged<String> onChanged;
-
-  static const _options = [
-    ('OTHER', 'The other party'),
-    ('SELF', 'I was at fault'),
-    ('SHARED', 'Shared fault'),
-    ('UNSURE', 'Not sure yet'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: _options.map((o) {
-        final selected = value == o.$1;
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: InkWell(
-            onTap: () => onChanged(o.$1),
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: selected ? AppColors.forest700 : AppColors.border,
-                  width: selected ? 1.6 : 1,
-                ),
-                color: selected ? AppColors.forest50 : AppColors.white,
-              ),
-              child: Row(
-                children: [
-                  Icon(selected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
-                      size: 20, color: selected ? AppColors.forest700 : AppColors.muted),
-                  const SizedBox(width: 12),
-                  Text(o.$2, style: TextStyle(
-                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                    color: selected ? AppColors.forest700 : AppColors.ink,
-                    fontSize: 13.5,
-                  )),
-                ],
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-}
-
 class _VerdictCard extends StatelessWidget {
   const _VerdictCard({required this.eligibility});
 
@@ -1303,10 +1268,11 @@ class _VehiclePicker extends StatelessWidget {
 }
 
 class _DateTile extends StatelessWidget {
-  const _DateTile({required this.value, required this.onTap});
+  const _DateTile({required this.value, required this.onTap, required this.onNow});
 
   final DateTime value;
   final VoidCallback onTap;
+  final VoidCallback onNow;
 
   @override
   Widget build(BuildContext context) {
@@ -1314,9 +1280,21 @@ class _DateTile extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       onTap: onTap,
       child: InputDecorator(
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           labelText: 'Incident date & time',
-          prefixIcon: Icon(Icons.event_outlined),
+          prefixIcon: const Icon(Icons.event_outlined),
+          // A one-tap shortcut for "it just happened" — avoids picking the
+          // date and time by hand in the heat of the moment.
+          suffixIcon: TextButton.icon(
+            onPressed: onNow,
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.forest700,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+            ),
+            icon: const Icon(Icons.bolt_rounded, size: 16),
+            label: const Text('Now', style: TextStyle(fontWeight: FontWeight.w800)),
+          ),
+          suffixIconConstraints: const BoxConstraints(minWidth: 84, minHeight: 44),
         ),
         child: Text(_prettyDateTime(value),
             style: const TextStyle(color: AppColors.ink, fontWeight: FontWeight.w600)),
