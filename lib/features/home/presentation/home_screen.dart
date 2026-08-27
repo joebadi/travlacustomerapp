@@ -453,6 +453,15 @@ class _ReadinessSectionState extends State<_ReadinessSection> {
 
 /// A compact, right-aligned "All vehicles" + per-vehicle dropdown filter for
 /// the readiness donut — replaces the earlier horizontal chip row.
+
+/// "Model · PLATE" so two vehicles of the same model can be told apart at a
+/// glance; the plate is dropped only when a vehicle has none on file.
+String _vehicleLabel(VehicleSummary vehicle) {
+  final name = vehicle.displayName.isEmpty ? 'Vehicle' : vehicle.displayName;
+  final plate = vehicle.plateNumber?.trim();
+  return (plate != null && plate.isNotEmpty) ? '$name · $plate' : name;
+}
+
 class _VehicleFilterDropdown extends StatelessWidget {
   const _VehicleFilterDropdown({
     required this.vehicles,
@@ -477,7 +486,10 @@ class _VehicleFilterDropdown extends StatelessWidget {
         child: DropdownButton<String?>(
           value: selectedId,
           isDense: true,
-          alignment: Alignment.centerRight,
+          // Fill the card width so every option — and the plate beside each
+          // model — stays fully visible, even in the open menu.
+          isExpanded: true,
+          alignment: Alignment.centerLeft,
           icon: const Icon(
             Icons.keyboard_arrow_down_rounded,
             size: 18,
@@ -494,9 +506,7 @@ class _VehicleFilterDropdown extends StatelessWidget {
               (vehicle) => DropdownMenuItem(
                 value: vehicle.id,
                 child: Text(
-                  vehicle.displayName.isEmpty
-                      ? (vehicle.plateNumber ?? 'Vehicle')
-                      : vehicle.displayName,
+                  _vehicleLabel(vehicle),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
