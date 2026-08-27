@@ -2331,11 +2331,16 @@ String _customerVerificationTitle(DocumentVerificationSummary verification) {
 
 String? _customerVerificationMessage(DocumentVerificationSummary verification) {
   if (verification.isPositive) return null;
-  if (verification.isNegative) {
-    return 'Travla could not confirm this document. Open the details to verify it manually.';
-  }
   if (verification.isPending) {
     return 'Travla is checking this document. The result will update automatically.';
+  }
+  // Prefer the server's specific reason — it's written for the customer and
+  // explains exactly why this document couldn't be confirmed. Fall back to a
+  // generic line only when no reason was provided.
+  final reason = verification.message?.trim();
+  if (reason != null && reason.isNotEmpty) return reason;
+  if (verification.isNegative) {
+    return 'Travla could not confirm this document. Open the details to verify it manually.';
   }
   return 'Travla could not complete an automatic confirmation. Open the details to verify it manually.';
 }
