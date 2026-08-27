@@ -473,49 +473,80 @@ class _VehicleFilterDropdown extends StatelessWidget {
   final String? selectedId;
   final ValueChanged<String?> onSelect;
 
+  static const _labelStyle = TextStyle(
+    color: AppColors.ink,
+    fontSize: 12,
+    fontWeight: FontWeight.w800,
+  );
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      decoration: BoxDecoration(
-        color: AppColors.canvas,
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String?>(
-          value: selectedId,
-          isDense: true,
-          // Fill the card width so every option — and the plate beside each
-          // model — stays fully visible, even in the open menu.
-          isExpanded: true,
-          alignment: Alignment.centerLeft,
-          icon: const Icon(
-            Icons.keyboard_arrow_down_rounded,
-            size: 18,
-            color: AppColors.muted,
+    // Size the field to the widest option so any "Model · PLATE" fits on one
+    // line, but no wider — and never past the card edge. Keeps it a compact,
+    // right-aligned pill instead of spanning the whole card.
+    final labels = ['All vehicles', ...vehicles.map(_vehicleLabel)];
+    var textWidth = 0.0;
+    for (final label in labels) {
+      final painter = TextPainter(
+        text: TextSpan(text: label, style: _labelStyle),
+        maxLines: 1,
+        textDirection: TextDirection.ltr,
+      )..layout();
+      if (painter.width > textWidth) textWidth = painter.width;
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // text + dropdown icon + gap + the container's horizontal padding.
+        final desired = textWidth + 18 + 6 + 24 + 2;
+        final width = desired < constraints.maxWidth
+            ? desired
+            : constraints.maxWidth;
+        return Container(
+          width: width,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+          decoration: BoxDecoration(
+            color: AppColors.canvas,
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: AppColors.border),
           ),
-          style: const TextStyle(
-            color: AppColors.ink,
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-          ),
-          items: [
-            const DropdownMenuItem(value: null, child: Text('All vehicles')),
-            ...vehicles.map(
-              (vehicle) => DropdownMenuItem(
-                value: vehicle.id,
-                child: Text(
-                  _vehicleLabel(vehicle),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String?>(
+              value: selectedId,
+              isDense: true,
+              isExpanded: true,
+              alignment: Alignment.centerLeft,
+              icon: const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 18,
+                color: AppColors.muted,
               ),
+              style: const TextStyle(
+                color: AppColors.ink,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+              items: [
+                const DropdownMenuItem(
+                  value: null,
+                  child: Text('All vehicles'),
+                ),
+                ...vehicles.map(
+                  (vehicle) => DropdownMenuItem(
+                    value: vehicle.id,
+                    child: Text(
+                      _vehicleLabel(vehicle),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ],
+              onChanged: onSelect,
             ),
-          ],
-          onChanged: onSelect,
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
