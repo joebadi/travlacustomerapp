@@ -92,48 +92,36 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final states = ref.watch(profileStatesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile & security')),
+      backgroundColor: AppColors.canvas,
+      appBar: AppBar(
+        title: const Text('Profile'),
+        backgroundColor: AppColors.canvas,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+      ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 6, 16, 36),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 40),
         children: [
           _ProfileHeader(user: user, busy: _busy, onAvatarPressed: _pickAvatar),
-          const SizedBox(height: 14),
-          SegmentedButton<_ProfileSection>(
-            segments: const [
-              ButtonSegment(
-                value: _ProfileSection.identity,
-                icon: Icon(Icons.verified_user_outlined),
-                label: Text('Identity'),
-              ),
-              ButtonSegment(
-                value: _ProfileSection.personal,
-                icon: Icon(Icons.person_outline_rounded),
-                label: Text('Details'),
-              ),
-              ButtonSegment(
-                value: _ProfileSection.security,
-                icon: Icon(Icons.lock_outline_rounded),
-                label: Text('Security'),
-              ),
-            ],
-            selected: {_section},
-            showSelectedIcon: false,
-            onSelectionChanged: _busy
-                ? null
-                : (selection) => setState(() {
-                    _section = selection.first;
-                    _clearMessage();
-                  }),
+          const SizedBox(height: 16),
+          _SegTabs(
+            selected: _section,
+            enabled: !_busy,
+            onSelect: (section) => setState(() {
+              _section = section;
+              _clearMessage();
+            }),
           ),
           if (_error != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             _MessagePanel(message: _error!, isError: true),
           ],
           if (_notice != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             _MessagePanel(message: _notice!, isError: false),
           ],
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 240),
             switchInCurve: Curves.easeOut,
@@ -260,7 +248,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ? 'Enter your first and last name.'
                   : null,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             TextFormField(
               controller: _email,
               keyboardType: TextInputType.emailAddress,
@@ -276,7 +264,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     : null;
               },
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             TextFormField(
               controller: _phone,
               keyboardType: TextInputType.phone,
@@ -291,7 +279,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ? 'Use the format +2348012345678.'
                   : null,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             InkWell(
               onTap: _busy ? null : _pickDateOfBirth,
               child: InputDecorator(
@@ -306,7 +294,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             TextFormField(
               controller: _address,
               textCapitalization: TextCapitalization.sentences,
@@ -318,7 +306,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 alignLabelWithHint: true,
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             TextFormField(
               controller: _city,
               textCapitalization: TextCapitalization.words,
@@ -328,7 +316,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 prefixIcon: Icon(Icons.location_city_outlined),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             states.when(
               loading: () => const LinearProgressIndicator(minHeight: 2),
               error: (_, _) => TextFormField(
@@ -354,7 +342,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     : (value) => setState(() => _state = value),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             TextFormField(
               controller: _nin,
               keyboardType: TextInputType.number,
@@ -377,25 +365,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               },
             ),
             if (user.isBankVerified) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               const _ChangeWarning(
                 text:
                     'Changing your full name removes bank verification until Paystack confirms the new name.',
               ),
             ],
-            const SizedBox(height: 18),
-            FilledButton.icon(
+            const SizedBox(height: 20),
+            _PrimaryButton(
+              busy: _busy,
               onPressed: _busy ? null : _saveProfile,
-              icon: _busy
-                  ? const SizedBox.square(
-                      dimension: 17,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : const Icon(Icons.save_outlined),
-              label: Text(_busy ? 'Saving changes…' : 'Save changes'),
+              icon: Icons.save_outlined,
+              label: 'Save changes',
+              busyLabel: 'Saving changes…',
             ),
           ],
         ),
@@ -409,7 +391,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       title: 'Change password',
       subtitle:
           'Use at least eight characters and avoid a password used on another service.',
-      icon: Icons.password_rounded,
+      icon: Icons.lock_outline_rounded,
       child: Form(
         key: _passwordKey,
         child: Column(
@@ -435,7 +417,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               validator: (value) =>
                   (value ?? '').isEmpty ? 'Enter your current password.' : null,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             TextFormField(
               controller: _newPassword,
               obscureText: !_showNewPassword,
@@ -457,7 +439,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ? 'Use at least eight characters.'
                   : null,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             TextFormField(
               controller: _confirmPassword,
               obscureText: !_showNewPassword,
@@ -470,19 +452,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ? 'The new passwords do not match.'
                   : null,
             ),
-            const SizedBox(height: 18),
-            FilledButton.icon(
+            const SizedBox(height: 20),
+            _PrimaryButton(
+              busy: _busy,
               onPressed: _busy ? null : _changePassword,
-              icon: _busy
-                  ? const SizedBox.square(
-                      dimension: 17,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : const Icon(Icons.security_rounded),
-              label: Text(_busy ? 'Updating password…' : 'Update password'),
+              icon: Icons.security_rounded,
+              label: 'Update password',
+              busyLabel: 'Updating password…',
             ),
           ],
         ),
@@ -626,6 +602,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 }
 
+/// A premium, flat identity header: a deep-forest panel with a centred avatar,
+/// name, email and trust chips.
 class _ProfileHeader extends StatelessWidget {
   const _ProfileHeader({
     required this.user,
@@ -640,27 +618,26 @@ class _ProfileHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 26, 20, 22),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.forest950, AppColors.forest700],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
+        color: AppColors.forest900,
+        borderRadius: BorderRadius.circular(24),
       ),
-      child: Row(
+      child: Column(
         children: [
           Stack(
             clipBehavior: Clip.none,
             children: [
-              _Avatar(user: user, radius: 34),
+              _Avatar(user: user, radius: 42),
               Positioned(
-                right: -3,
-                bottom: -3,
+                right: -2,
+                bottom: -2,
                 child: Material(
                   color: AppColors.orange,
-                  shape: const CircleBorder(),
+                  shape: const CircleBorder(
+                    side: BorderSide(color: AppColors.forest900, width: 2.5),
+                  ),
                   child: InkWell(
                     customBorder: const CircleBorder(),
                     onTap: busy ? null : onAvatarPressed,
@@ -676,7 +653,7 @@ class _ProfileHeader extends StatelessWidget {
                             )
                           : const Icon(
                               Icons.photo_camera_outlined,
-                              size: 14,
+                              size: 15,
                               color: Colors.white,
                             ),
                     ),
@@ -685,48 +662,127 @@ class _ProfileHeader extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  user.fullName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  user.email,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFFBBD8CD),
-                    fontSize: 11,
-                  ),
-                ),
-                const SizedBox(height: 9),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    _HeaderPill(label: user.roleLabel),
-                    _HeaderPill(
-                      label: user.isFinancialIdentityVerified
-                          ? 'Financially verified'
-                          : 'Identity action required',
-                      orange: !user.isFinancialIdentityVerified,
-                    ),
-                  ],
-                ),
-              ],
+          const SizedBox(height: 14),
+          Text(
+            user.fullName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.2,
             ),
           ),
+          const SizedBox(height: 4),
+          Text(
+            user.email,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Color(0xFFAECBBF), fontSize: 12.5),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            alignment: WrapAlignment.center,
+            children: [
+              _HeaderPill(label: user.roleLabel),
+              _HeaderPill(
+                label: user.isFinancialIdentityVerified
+                    ? 'Verified'
+                    : 'Action required',
+                orange: !user.isFinancialIdentityVerified,
+                icon: user.isFinancialIdentityVerified
+                    ? Icons.verified_rounded
+                    : Icons.error_outline_rounded,
+              ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+}
+
+/// A flat, branded three-way segmented control (Identity · Details · Security).
+class _SegTabs extends StatelessWidget {
+  const _SegTabs({
+    required this.selected,
+    required this.enabled,
+    required this.onSelect,
+  });
+
+  final _ProfileSection selected;
+  final bool enabled;
+  final ValueChanged<_ProfileSection> onSelect;
+
+  static const _items = [
+    (_ProfileSection.identity, 'Identity', Icons.verified_user_outlined),
+    (_ProfileSection.personal, 'Details', Icons.person_outline_rounded),
+    (_ProfileSection.security, 'Security', Icons.lock_outline_rounded),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: _items
+            .map((item) {
+              final active = item.$1 == selected;
+              return Expanded(
+                child: Semantics(
+                  button: true,
+                  selected: active,
+                  label: item.$2,
+                  child: Material(
+                    color: active ? AppColors.forest700 : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: enabled ? () => onSelect(item.$1) : null,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 11),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              item.$3,
+                              size: 16,
+                              color: active ? Colors.white : AppColors.muted,
+                            ),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                item.$2,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: active
+                                      ? Colors.white
+                                      : AppColors.muted,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            })
+            .toList(growable: false),
       ),
     );
   }
@@ -740,24 +796,31 @@ class _IdentityHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final verified = user.isFinancialIdentityVerified;
+    final accent = verified ? AppColors.forest700 : AppColors.orange;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: verified ? AppColors.forest50 : AppColors.orangeSoft,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: verified ? const Color(0xFFB9DECF) : const Color(0xFFF5C5B5),
+          color: verified ? const Color(0xFFC4E3D6) : const Color(0xFFF5C5B5),
         ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            backgroundColor: verified ? AppColors.forest700 : AppColors.orange,
-            foregroundColor: Colors.white,
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: accent,
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Icon(
               verified ? Icons.verified_rounded : Icons.shield_outlined,
+              color: Colors.white,
+              size: 22,
             ),
           ),
           const SizedBox(width: 13),
@@ -769,7 +832,11 @@ class _IdentityHero extends StatelessWidget {
                   verified
                       ? 'Protected services unlocked'
                       : 'Unlock protected payments and fleets',
-                  style: const TextStyle(fontWeight: FontWeight.w900),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 14,
+                    color: AppColors.ink,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -804,30 +871,62 @@ class _VerificationStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accent = verified ? AppColors.forest600 : AppColors.orange;
     return Container(
-      constraints: const BoxConstraints(minHeight: 116),
-      padding: const EdgeInsets.all(13),
+      constraints: const BoxConstraints(minHeight: 122),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            verified ? Icons.check_circle_rounded : Icons.error_outline_rounded,
-            color: verified ? AppColors.forest600 : AppColors.orange,
-            size: 23,
+          Row(
+            children: [
+              Icon(
+                verified
+                    ? Icons.check_circle_rounded
+                    : Icons.error_outline_rounded,
+                color: accent,
+                size: 22,
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: verified ? AppColors.forest50 : AppColors.orangeSoft,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: Text(
+                  verified ? 'Verified' : 'Action',
+                  style: TextStyle(
+                    color: verified
+                        ? AppColors.forest700
+                        : AppColors.orangeDark,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w900)),
+          const SizedBox(height: 10),
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.w900,
+              fontSize: 13,
+              color: AppColors.ink,
+            ),
+          ),
           const SizedBox(height: 3),
           Text(
             detail,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: AppColors.muted, fontSize: 10),
+            style: const TextStyle(color: AppColors.muted, fontSize: 10.5),
           ),
         ],
       ),
@@ -835,6 +934,8 @@ class _VerificationStatus extends StatelessWidget {
   }
 }
 
+/// A flat, bordered content card with an icon-chip header. Replaces the earlier
+/// elevated Material Card for a cleaner, premium look.
 class _SectionCard extends StatelessWidget {
   const _SectionCard({
     super.key,
@@ -851,49 +952,100 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  backgroundColor: AppColors.forest100,
-                  foregroundColor: AppColors.forest700,
-                  child: Icon(icon, size: 20),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w900),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        subtitle,
-                        style: const TextStyle(
-                          color: AppColors.muted,
-                          fontSize: 11,
-                          height: 1.4,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 18),
-            child,
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border),
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppColors.forest50,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, size: 20, color: AppColors.forest700),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 15,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 11.5,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+/// A full-width flat primary action button in the brand's forest tone.
+class _PrimaryButton extends StatelessWidget {
+  const _PrimaryButton({
+    required this.busy,
+    required this.onPressed,
+    required this.icon,
+    required this.label,
+    required this.busyLabel,
+  });
+
+  final bool busy;
+  final VoidCallback? onPressed;
+  final IconData icon;
+  final String label;
+  final String busyLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton.icon(
+      onPressed: onPressed,
+      style: FilledButton.styleFrom(
+        backgroundColor: AppColors.forest700,
+        foregroundColor: Colors.white,
+        minimumSize: const Size.fromHeight(52),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+      ),
+      icon: busy
+          ? const SizedBox.square(
+              dimension: 17,
+              child: CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 2,
+              ),
+            )
+          : Icon(icon, size: 19),
+      label: Text(busy ? busyLabel : label),
     );
   }
 }
@@ -940,7 +1092,7 @@ class _BankForm extends StatelessWidget {
               .toList(growable: false),
           onChanged: busy ? null : onBankChanged,
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         TextField(
           controller: accountNumber,
           keyboardType: TextInputType.number,
@@ -953,25 +1105,18 @@ class _BankForm extends StatelessWidget {
             prefixIcon: Icon(Icons.numbers_rounded),
           ),
         ),
-        const SizedBox(height: 15),
-        FilledButton.icon(
+        const SizedBox(height: 16),
+        _PrimaryButton(
+          busy: busy,
           onPressed: busy ? null : onSubmit,
-          icon: busy
-              ? const SizedBox.square(
-                  dimension: 17,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2,
-                  ),
-                )
-              : const Icon(Icons.verified_outlined),
-          label: Text(
-            busy ? 'Verifying with Paystack…' : 'Verify bank account',
-          ),
+          icon: Icons.verified_outlined,
+          label: 'Verify bank account',
+          busyLabel: 'Verifying with Paystack…',
         ),
         if (canCancel)
           TextButton(
             onPressed: busy ? null : onCancel,
+            style: TextButton.styleFrom(foregroundColor: AppColors.muted),
             child: const Text('Keep current bank'),
           ),
       ],
@@ -988,27 +1133,53 @@ class _VerifiedBank extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: AppColors.forest50,
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFC4E3D6)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            user.bankAccountName ?? 'Verified account',
-            style: const TextStyle(fontWeight: FontWeight.w900),
+          Row(
+            children: [
+              const Icon(
+                Icons.check_circle_rounded,
+                color: AppColors.forest600,
+                size: 18,
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  user.bankAccountName ?? 'Verified account',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.ink,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 4),
-          Text(
-            '${user.bankName ?? 'Bank'} · ${_maskAccount(user.bankAccountNumber)}',
-            style: const TextStyle(color: AppColors.muted, fontSize: 12),
+          Padding(
+            padding: const EdgeInsets.only(left: 25),
+            child: Text(
+              '${user.bankName ?? 'Bank'} · ${_maskAccount(user.bankAccountNumber)}',
+              style: const TextStyle(color: AppColors.muted, fontSize: 12),
+            ),
           ),
           const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: onChange,
-            icon: const Icon(Icons.edit_outlined),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.forest700,
+              side: const BorderSide(color: Color(0xFFC4E3D6)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            icon: const Icon(Icons.edit_outlined, size: 18),
             label: const Text('Use another account'),
           ),
         ],
@@ -1025,25 +1196,63 @@ class _NinAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-        leading: const Icon(
-          Icons.fingerprint_rounded,
-          color: AppColors.forest700,
-        ),
-        title: Text(
-          hasNin ? 'NIN awaiting verification' : 'Add your NIN',
-          style: const TextStyle(fontWeight: FontWeight.w900),
-        ),
-        subtitle: Text(
-          hasNin
-              ? 'You can update it from Personal details if it is incorrect.'
-              : 'Enter the 11 digits from your NIN record.',
-          style: const TextStyle(fontSize: 11),
-        ),
-        trailing: const Icon(Icons.chevron_right_rounded),
+    return Material(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
         onTap: onPressed,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.orangeSoft,
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: const Icon(
+                  Icons.fingerprint_rounded,
+                  color: AppColors.orange,
+                  size: 21,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      hasNin ? 'NIN awaiting verification' : 'Add your NIN',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 13.5,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      hasNin
+                          ? 'You can update it from Details if it is incorrect.'
+                          : 'Enter the 11 digits from your NIN record.',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: AppColors.muted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1054,22 +1263,30 @@ class _PrivacyNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(Icons.lock_person_outlined, size: 17, color: AppColors.muted),
-        SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            'Travla does not show your NIN or bank details to marketplace buyers, sellers, agents or riders.',
-            style: TextStyle(
-              color: AppColors.muted,
-              fontSize: 10,
-              height: 1.45,
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: AppColors.canvas,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.lock_person_outlined, size: 17, color: AppColors.muted),
+          SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              'Travla does not show your NIN or bank details to marketplace buyers, sellers, agents or riders.',
+              style: TextStyle(
+                color: AppColors.muted,
+                fontSize: 10.5,
+                height: 1.45,
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -1085,7 +1302,7 @@ class _ChangeWarning extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.orangeSoft,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1095,11 +1312,11 @@ class _ChangeWarning extends StatelessWidget {
             size: 18,
             color: AppColors.orangeDark,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 9),
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(color: AppColors.muted, fontSize: 10),
+              style: const TextStyle(color: AppColors.orangeDark, fontSize: 11),
             ),
           ),
         ],
@@ -1117,12 +1334,12 @@ class _MessagePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
         color: isError ? const Color(0xFFFFE9E6) : AppColors.forest50,
-        borderRadius: BorderRadius.circular(11),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isError ? const Color(0xFFF0C6C2) : const Color(0xFFB9DECF),
+          color: isError ? const Color(0xFFF0C6C2) : const Color(0xFFC4E3D6),
         ),
       ),
       child: Row(
@@ -1132,13 +1349,18 @@ class _MessagePanel extends StatelessWidget {
                 ? Icons.error_outline_rounded
                 : Icons.check_circle_outline_rounded,
             color: isError ? AppColors.danger : AppColors.forest700,
-            size: 19,
+            size: 20,
           ),
-          const SizedBox(width: 9),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                fontSize: 11.5,
+                height: 1.35,
+                fontWeight: FontWeight.w700,
+                color: isError ? AppColors.danger : AppColors.forest800,
+              ),
             ),
           ),
         ],
@@ -1197,33 +1419,44 @@ class _Avatar extends StatelessWidget {
 }
 
 class _HeaderPill extends StatelessWidget {
-  const _HeaderPill({required this.label, this.orange = false});
+  const _HeaderPill({required this.label, this.orange = false, this.icon});
 
   final String label;
   final bool orange;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
+    final fg = orange ? const Color(0xFFFFC3AF) : const Color(0xFFCDE6DC);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: orange
-            ? AppColors.orange.withValues(alpha: .2)
-            : Colors.white.withValues(alpha: .1),
+            ? AppColors.orange.withValues(alpha: .18)
+            : Colors.white.withValues(alpha: .10),
         borderRadius: BorderRadius.circular(99),
         border: Border.all(
           color: orange
-              ? AppColors.orange.withValues(alpha: .5)
-              : Colors.white.withValues(alpha: .15),
+              ? AppColors.orange.withValues(alpha: .45)
+              : Colors.white.withValues(alpha: .16),
         ),
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: orange ? const Color(0xFFFFB59E) : const Color(0xFFD4E7E0),
-          fontSize: 9,
-          fontWeight: FontWeight.w800,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 11, color: fg),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              color: fg,
+              fontSize: 9.5,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
       ),
     );
   }
