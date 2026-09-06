@@ -8,10 +8,9 @@ import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/insurance/data/insurance_repository.dart';
 import 'package:travla_customer_app/features/insurance/domain/insurance_models.dart';
 
-/// Add a policy, or edit one already on file — including a NIID-verified
-/// policy the auto-check found, which can still be corrected and given a
-/// certificate. Dual-purpose so the two flows share one well-tested form
-/// instead of drifting apart, mirroring the web's single PolicyModal.
+/// Add or edit a manually entered policy. Automatically verified policy facts
+/// are read-only; for those records this screen becomes a certificate-only
+/// uploader so authority-sourced details cannot be overwritten by the user.
 class PolicyFormScreen extends ConsumerStatefulWidget {
   const PolicyFormScreen({super.key, required this.vehicleId, this.policy});
 
@@ -43,6 +42,7 @@ class _PolicyFormScreenState extends ConsumerState<PolicyFormScreen> {
   String? _error;
 
   bool get _editing => widget.policy != null;
+  bool get _certificateOnly => widget.policy?.isVerified == true;
 
   @override
   void initState() {
@@ -53,7 +53,9 @@ class _PolicyFormScreenState extends ConsumerState<PolicyFormScreen> {
       _coverageType = policy.coverageType;
       _startDate = DateTime.tryParse(policy.startDate ?? '');
       _endDate = DateTime.tryParse(policy.endDate ?? '');
-      if (policy.premiumNaira != '0.00') _premiumCtrl.text = policy.premiumNaira;
+      if (policy.premiumNaira != '0.00') {
+        _premiumCtrl.text = policy.premiumNaira;
+      }
       if (policy.excessNaira != '0.00') _excessCtrl.text = policy.excessNaira;
     }
   }
@@ -128,6 +130,44 @@ class _PolicyFormScreenState extends ConsumerState<PolicyFormScreen> {
 
   Future<void> _submit(List<InsuranceCompany> insurers) async {
     setState(() => _error = null);
+
+    if (_certificateOnly) {
+      if (_document == null) {
+        setState(
+          () => _error = widget.policy!.hasDocument
+              ? 'Choose a replacement certificate.'
+              : 'Choose the certificate you want to upload.',
+        );
+        return;
+      }
+      setState(() => _submitting = true);
+      try {
+        await ref
+            .read(insuranceRepositoryProvider)
+            .updatePolicy(policyId: widget.policy!.id, document: _document);
+        ref.invalidate(vehicleInsuranceProvider(widget.vehicleId));
+        ref.invalidate(expiringPoliciesProvider);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(
+                widget.policy!.hasDocument
+                    ? 'Certificate replaced.'
+                    : 'Certificate uploaded.',
+              ),
+            ),
+          );
+        context.pop();
+      } on ApiFailure catch (failure) {
+        if (mounted) setState(() => _error = failure.message);
+      } finally {
+        if (mounted) setState(() => _submitting = false);
+      }
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) return;
     if (_coverageType == null) {
       setState(() => _error = 'Choose a coverage type.');
@@ -154,7 +194,9 @@ class _PolicyFormScreenState extends ConsumerState<PolicyFormScreen> {
     setState(() => _submitting = true);
     try {
       if (_editing) {
-        await ref.read(insuranceRepositoryProvider).updatePolicy(
+        await ref
+            .read(insuranceRepositoryProvider)
+            .updatePolicy(
               policyId: widget.policy!.id,
               insuranceCompanyId: companyId,
               provider: provider,
@@ -167,7 +209,9 @@ class _PolicyFormScreenState extends ConsumerState<PolicyFormScreen> {
               document: _document,
             );
       } else {
-        await ref.read(insuranceRepositoryProvider).addPolicy(
+        await ref
+            .read(insuranceRepositoryProvider)
+            .addPolicy(
               vehicleId: widget.vehicleId,
               insuranceCompanyId: companyId,
               provider: provider,
@@ -186,7 +230,9 @@ class _PolicyFormScreenState extends ConsumerState<PolicyFormScreen> {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
-          SnackBar(content: Text(_editing ? 'Policy updated.' : 'Policy added.')),
+          SnackBar(
+            content: Text(_editing ? 'Policy updated.' : 'Policy added.'),
+          ),
         );
       context.pop();
     } on ApiFailure catch (failure) {
@@ -198,13 +244,19 @@ class _PolicyFormScreenState extends ConsumerState<PolicyFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_certificateOnly) return _certificateUploadScreen();
+
     final insurersAsync = ref.watch(insurersProvider);
     final insurers = insurersAsync.value ?? const <InsuranceCompany>[];
     _prefillInsurer(insurers);
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
-      appBar: AppBar(title: Text(_editing ? 'Edit insurance policy' : 'Add insurance policy')),
+      appBar: AppBar(
+        title: Text(
+          _editing ? 'Edit insurance policy' : 'Add insurance policy',
+        ),
+      ),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -257,10 +309,8 @@ class _PolicyFormScreenState extends ConsumerState<PolicyFormScreen> {
               decoration: const InputDecoration(labelText: 'Coverage type'),
               items: coverageTypeOptions
                   .map(
-                    (o) => DropdownMenuItem(
-                      value: o.value,
-                      child: Text(o.label),
-                    ),
+                    (o) =>
+                        DropdownMenuItem(value: o.value, child: Text(o.label)),
                   )
                   .toList(),
               onChanged: (value) => setState(() => _coverageType = value),
@@ -351,12 +401,144 @@ class _PolicyFormScreenState extends ConsumerState<PolicyFormScreen> {
     );
   }
 
+  Widget _certificateUploadScreen() {
+    final policy = widget.policy!;
+    return Scaffold(
+      backgroundColor: AppColors.canvas,
+      appBar: AppBar(
+        title: Text(
+          policy.hasDocument ? 'Replace certificate' : 'Upload certificate',
+        ),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 40),
+        children: [
+          if (_error != null) ...[
+            _ErrorBanner(_error!),
+            const SizedBox(height: 14),
+          ],
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDDF2E8),
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                      child: const Icon(
+                        Icons.verified_user_rounded,
+                        color: AppColors.forest700,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 11),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            policy.coverageLabel ?? 'Insurance policy',
+                            style: const TextStyle(
+                              color: AppColors.ink,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const Text(
+                            'Automatically verified policy',
+                            style: TextStyle(
+                              color: AppColors.forest700,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Policy ${policy.policyNumber ?? '—'}',
+                  style: const TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                const Text(
+                  'The verified policy details are locked. You can attach or '
+                  'replace its certificate without changing those details.',
+                  style: TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 11.5,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          _DocumentPicker(
+            file: _document,
+            hasExisting: policy.hasDocument,
+            onPick: _pickDocument,
+            onClear: () => setState(() => _document = null),
+          ),
+          const SizedBox(height: 24),
+          FilledButton.icon(
+            onPressed: _submitting
+                ? null
+                : () => _submit(const <InsuranceCompany>[]),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(52),
+              backgroundColor: AppColors.forest700,
+            ),
+            icon: _submitting
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.upload_file_rounded),
+            label: Text(
+              _submitting
+                  ? 'Uploading…'
+                  : policy.hasDocument
+                  ? 'Replace certificate'
+                  : 'Upload certificate',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _ymd(DateTime date) =>
       '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 }
 
 class _DateTile extends StatelessWidget {
-  const _DateTile({required this.label, required this.value, required this.onTap});
+  const _DateTile({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
 
   final String label;
   final DateTime? value;
@@ -431,7 +613,10 @@ class _DocumentPicker extends StatelessWidget {
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 2),
-                Text(subtitle, style: const TextStyle(color: AppColors.muted, fontSize: 11)),
+                Text(
+                  subtitle,
+                  style: const TextStyle(color: AppColors.muted, fontSize: 11),
+                ),
               ],
             ),
           ),

@@ -152,6 +152,14 @@ class InsuranceRepository {
     }
   }
 
+  Future<void> deletePolicy(String policyId) async {
+    try {
+      await _apiClient.dio.delete<dynamic>('/insurance/policies/$policyId');
+    } on DioException catch (exception) {
+      throw ApiFailure.fromDio(exception);
+    }
+  }
+
   /// Whether insurance is fulfilled instantly (automated provider) or by an
   /// agent (physical handover, delivery fee) — drives the checkout UI.
   Future<bool> renewalAutomated() async {
@@ -278,7 +286,9 @@ class InsuranceRepository {
   Map<String, dynamic> _dataMap(Map<String, dynamic>? envelope) {
     final data = _map(envelope?['data']);
     if (data == null) {
-      throw const ApiFailure('Travla returned an unexpected insurance response.');
+      throw const ApiFailure(
+        'Travla returned an unexpected insurance response.',
+      );
     }
     return data;
   }
