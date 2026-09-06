@@ -198,8 +198,18 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
       key: kJourneyPointsUrl,
       value: '${AppConfig.apiBaseUrl}/journeys/$journeyId/points',
     );
-    await FlutterForegroundTask.saveData(key: kJourneyBearer, value: token ?? '');
-    await FlutterForegroundTask.saveData(key: kJourneyAppType, value: AppConfig.appType);
+    await FlutterForegroundTask.saveData(
+      key: kJourneyBearer,
+      value: token ?? '',
+    );
+    await FlutterForegroundTask.saveData(
+      key: kJourneyAppType,
+      value: AppConfig.appType,
+    );
+    await FlutterForegroundTask.saveData(
+      key: kJourneyTransportMode,
+      value: _mode,
+    );
 
     FlutterForegroundTask.init(
       androidNotificationOptions: AndroidNotificationOptions(
@@ -265,7 +275,12 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
   /// movement, so this reliably separates "I actually went somewhere" from "I
   /// stood still and GPS jittered". Saving a no-movement trail produced a
   /// single-point journey that then errored when opened.
-  static const double _minSaveDistanceM = 25;
+  double get _minSaveDistanceM {
+    if (_mode == 'WALKING') return 8;
+    if (_mode == 'OTHER') return 12;
+    return 25;
+  }
+
   bool get _hasRealTrail =>
       _trail.length >= 2 && _distanceM >= _minSaveDistanceM;
 
@@ -366,7 +381,9 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
         context: context,
         builder: (c) => AlertDialog(
           title: const Text('Finish this journey?'),
-          content: const Text('Save what you have recorded so far, or keep going.'),
+          content: const Text(
+            'Save what you have recorded so far, or keep going.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(c).pop('keep'),
@@ -399,7 +416,9 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
   void _snackWaiting() {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('Waiting for your GPS position…')));
+      ..showSnackBar(
+        const SnackBar(content: Text('Waiting for your GPS position…')),
+      );
   }
 
   @override
@@ -428,9 +447,7 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
               initialCenter: LatLng(9.0820, 8.6753),
               initialZoom: 5.7,
             ),
-            children: [
-              travlaVectorTileLayer(),
-            ],
+            children: [travlaVectorTileLayer()],
           ),
           DecoratedBox(
             decoration: BoxDecoration(
@@ -534,7 +551,8 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
 
   Widget _recordingView() {
     final center =
-        _live ?? (_trail.isNotEmpty ? _trail.last : const LatLng(9.0820, 8.6753));
+        _live ??
+        (_trail.isNotEmpty ? _trail.last : const LatLng(9.0820, 8.6753));
     return Stack(
       children: [
         FlutterMap(
@@ -625,7 +643,9 @@ class _RecordJourneyScreenState extends ConsumerState<RecordJourneyScreen> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'Waiting for movement…',
+                        _mode == 'WALKING'
+                            ? 'Walk a little to build your trail…'
+                            : 'Waiting for movement…',
                         style: TextStyle(
                           color: AppColors.muted,
                           fontSize: 11.5,

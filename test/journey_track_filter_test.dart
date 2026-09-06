@@ -59,7 +59,11 @@ void main() {
         const bearings = [0.0, 90, 180, 270, 45, 135, 225, 315];
         for (var i = 0; i < 60; i++) {
           t = t.add(const Duration(seconds: 1));
-          final jittered = _geo.offset(_base, 14.0, bearings[i % bearings.length]);
+          final jittered = _geo.offset(
+            _base,
+            14.0,
+            bearings[i % bearings.length],
+          );
           final s = f.add(
             _fix(jittered, accuracy: 6, speed: 0, speedAccuracy: 0.5, t: t),
           );
@@ -85,7 +89,11 @@ void main() {
         const bearings = [0.0, 90, 180, 270, 30, 150, 210, 330];
         for (var i = 0; i < 60; i++) {
           t = t.add(const Duration(seconds: 1));
-          final jittered = _geo.offset(_base, 7.0, bearings[i % bearings.length]);
+          final jittered = _geo.offset(
+            _base,
+            7.0,
+            bearings[i % bearings.length],
+          );
           final s = f.add(
             _fix(jittered, accuracy: 6, speed: 0, speedAccuracy: 9, t: t),
           );
@@ -130,6 +138,74 @@ void main() {
       final far = _geo.offset(_base, 5000, 90);
       final s = f.add(_fix(far, accuracy: 6, speed: 0, speedAccuracy: 9, t: t));
       expect(s.decision, TrackDecision.rejected);
+    });
+
+    test(
+      'walking records slow progress even when device speed stays at zero',
+      () {
+        final f = JourneyTrackFilter.forTransportMode('walking');
+        var t = DateTime(2026, 1, 1, 8);
+        f.add(_fix(_base, accuracy: 5, speed: 0, speedAccuracy: 0.1, t: t));
+
+        var here = _base;
+        final accepted = <TrackSample>[];
+        // A deliberately slow 0.5 m/s walk. Some Android devices report a
+        // Doppler speed of zero at this pace, so position must remain decisive.
+        for (var i = 0; i < 12; i++) {
+          t = t.add(const Duration(seconds: 2));
+          here = _geo.offset(here, 1, 37);
+          final sample = f.add(
+            _fix(here, accuracy: 5, speed: 0, speedAccuracy: 0.1, t: t),
+          );
+          if (sample.decision == TrackDecision.moved) accepted.add(sample);
+        }
+
+        expect(accepted, isNotEmpty);
+        expect(
+          accepted.fold<double>(
+            0,
+            (total, sample) => total + sample.movedMeters,
+          ),
+          greaterThanOrEqualTo(8),
+        );
+      },
+    );
+
+    test('walking preserves the raw off-road coordinate when it moves', () {
+      final f = JourneyTrackFilter.forTransportMode('WALKING');
+      var t = DateTime(2026, 1, 1, 8);
+      f.add(_fix(_base, accuracy: 4, t: t));
+
+      t = t.add(const Duration(seconds: 5));
+      final footpathPoint = _geo.offset(_base, 7, 23);
+      final sample = f.add(
+        _fix(footpathPoint, accuracy: 4, speed: 0, speedAccuracy: 0.1, t: t),
+      );
+
+      expect(sample.decision, TrackDecision.moved);
+      expect(sample.point.latitude, closeTo(footpathPoint.latitude, 0.0000001));
+      expect(
+        sample.point.longitude,
+        closeTo(footpathPoint.longitude, 0.0000001),
+      );
+    });
+
+    test('walking still holds ordinary sub-accuracy GPS wobble', () {
+      final f = JourneyTrackFilter.forTransportMode('WALKING');
+      var t = DateTime(2026, 1, 1, 8);
+      f.add(_fix(_base, accuracy: 6, t: t));
+
+      var moves = 0;
+      for (var i = 0; i < 24; i++) {
+        t = t.add(const Duration(seconds: 2));
+        final jittered = _geo.offset(_base, 3, (i * 45) % 360);
+        final sample = f.add(
+          _fix(jittered, accuracy: 6, speed: 0, speedAccuracy: 0.1, t: t),
+        );
+        if (sample.decision == TrackDecision.moved) moves++;
+      }
+
+      expect(moves, 0);
     });
   });
 }

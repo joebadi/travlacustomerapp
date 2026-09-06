@@ -77,7 +77,32 @@ class JourneyTrackFilter {
     this.maxSpeedMps = 70,
     this.speedAccuracyCapMps = 2.5,
     this.recenterAlpha = 0.2,
+    this.useStationarySpeedVeto = true,
   });
+
+  /// Builds a filter tuned for how the selected transport mode moves.
+  ///
+  /// Walking deliberately uses the raw GPS path. Its anchor remains fixed
+  /// while a fix is being held, allowing a slow walker to accumulate enough
+  /// displacement to escape GPS uncertainty. Reported speed is useful for the
+  /// HUD but never vetoes walking movement because some phones keep returning
+  /// zero at a slow pace or on footpaths with weak satellite visibility.
+  factory JourneyTrackFilter.forTransportMode(String? transportMode) {
+    if (transportMode?.trim().toUpperCase() == 'WALKING') {
+      return JourneyTrackFilter(
+        maxAccuracyM: 40,
+        minMoveM: 3,
+        moveFactor: 1,
+        speedFloorMps: 0.25,
+        maxSpeedMps: 6,
+        speedAccuracyCapMps: 2,
+        recenterAlpha: 0,
+        useStationarySpeedVeto: false,
+      );
+    }
+
+    return JourneyTrackFilter();
+  }
 
   /// Drop fixes worse than this many metres of accuracy — the biggest single
   /// source of drift.
@@ -100,7 +125,13 @@ class JourneyTrackFilter {
   final double speedAccuracyCapMps;
 
   /// EMA weight for re-centring the anchor on the running mean while parked.
+  /// Set to zero to hold the anchor exactly until movement is accepted.
   final double recenterAlpha;
+
+  /// Whether a confidently low device speed can override positional movement.
+  /// This remains valuable for motor vehicles but is disabled for walking,
+  /// where Android devices can report zero speed during genuine slow movement.
+  final bool useStationarySpeedVeto;
 
   static const Distance _distance = Distance();
 
@@ -144,12 +175,20 @@ class JourneyTrackFilter {
     }
 
     final moved = _distance.as(LengthUnit.Meter, _anchor!, raw);
-    final gate = math.max(minMoveM, moveFactor * math.max(_anchorAccuracy, acc));
+    final gate = math.max(
+      minMoveM,
+      moveFactor * math.max(_anchorAccuracy, acc),
+    );
 
     // 3) Doppler-speed signal — only trusted when reported tightly.
     final hasSpeed =
-        p.speed >= 0 && p.speedAccuracy > 0 && p.speedAccuracy <= speedAccuracyCapMps;
-    final speedStationary = hasSpeed && (p.speed + p.speedAccuracy) < speedFloorMps;
+        p.speed >= 0 &&
+        p.speedAccuracy > 0 &&
+        p.speedAccuracy <= speedAccuracyCapMps;
+    final speedStationary =
+        useStationarySpeedVeto &&
+        hasSpeed &&
+        (p.speed + p.speedAccuracy) < speedFloorMps;
     final speedMoving = hasSpeed && (p.speed - p.speedAccuracy) > speedFloorMps;
 
     final movedFar = moved > gate;
@@ -168,20 +207,25 @@ class JourneyTrackFilter {
     }
 
     if (!isMovement) {
-      // Parked: re-centre the anchor on the running mean (snap to a strictly
-      // better fix), but never grow the trail.
-      if (acc < _anchorAccuracy) {
-        _anchor = raw;
-        _anchorAccuracy = acc;
-      } else {
-        _anchor = LatLng(
-          _anchor!.latitude + (raw.latitude - _anchor!.latitude) * recenterAlpha,
-          _anchor!.longitude + (raw.longitude - _anchor!.longitude) * recenterAlpha,
-        );
-        _anchorAccuracy =
-            _anchorAccuracy + (acc - _anchorAccuracy) * recenterAlpha;
+      // Parked: road modes can gently re-centre around a resting vehicle.
+      // Walking sets alpha to zero so the anchor cannot chase a slow walker;
+      // displacement accumulates from the last accepted position instead.
+      if (recenterAlpha > 0) {
+        if (acc < _anchorAccuracy) {
+          _anchor = raw;
+          _anchorAccuracy = acc;
+        } else {
+          _anchor = LatLng(
+            _anchor!.latitude +
+                (raw.latitude - _anchor!.latitude) * recenterAlpha,
+            _anchor!.longitude +
+                (raw.longitude - _anchor!.longitude) * recenterAlpha,
+          );
+          _anchorAccuracy =
+              _anchorAccuracy + (acc - _anchorAccuracy) * recenterAlpha;
+        }
+        _anchorTime = now;
       }
-      _anchorTime = now;
       return TrackSample(
         decision: TrackDecision.holding,
         point: _anchor!,

@@ -7,6 +7,7 @@ import 'package:travla_customer_app/features/journeys/domain/journey_track_filte
 const kJourneyPointsUrl = 'journey_points_url';
 const kJourneyBearer = 'journey_bearer';
 const kJourneyAppType = 'journey_app_type';
+const kJourneyTransportMode = 'journey_transport_mode';
 
 /// Entry point for the isolate that keeps recording GPS to the journey while
 /// the app is backgrounded or the screen is locked, behind a persistent
@@ -18,7 +19,7 @@ void journeyRecordCallback() {
 
 class _JourneyRecordTaskHandler extends TaskHandler {
   final Dio _dio = Dio();
-  final JourneyTrackFilter _filter = JourneyTrackFilter();
+  JourneyTrackFilter _filter = JourneyTrackFilter();
   final List<Map<String, dynamic>> _pending = [];
 
   String? _url;
@@ -33,7 +34,13 @@ class _JourneyRecordTaskHandler extends TaskHandler {
   Future<void> onStart(DateTime timestamp, TaskStarter starter) async {
     _url = await FlutterForegroundTask.getData<String>(key: kJourneyPointsUrl);
     _bearer = await FlutterForegroundTask.getData<String>(key: kJourneyBearer);
-    _appType = await FlutterForegroundTask.getData<String>(key: kJourneyAppType);
+    _appType = await FlutterForegroundTask.getData<String>(
+      key: kJourneyAppType,
+    );
+    final transportMode = await FlutterForegroundTask.getData<String>(
+      key: kJourneyTransportMode,
+    );
+    _filter = JourneyTrackFilter.forTransportMode(transportMode);
   }
 
   @override
@@ -100,11 +107,15 @@ class _JourneyRecordTaskHandler extends TaskHandler {
       await _dio.post<dynamic>(
         url,
         data: {'points': batch},
-        options: Options(headers: {
-          'Accept': 'application/json',
-          if (_bearer != null && _bearer!.isNotEmpty) 'Authorization': 'Bearer $_bearer',
-          if (_appType != null && _appType!.isNotEmpty) 'X-App-Type': _appType,
-        }),
+        options: Options(
+          headers: {
+            'Accept': 'application/json',
+            if (_bearer != null && _bearer!.isNotEmpty)
+              'Authorization': 'Bearer $_bearer',
+            if (_appType != null && _appType!.isNotEmpty)
+              'X-App-Type': _appType,
+          },
+        ),
       );
     } catch (_) {
       // Re-queue so the next flush retries (idempotent on (journey, sequence)).
