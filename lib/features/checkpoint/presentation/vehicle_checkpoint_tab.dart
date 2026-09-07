@@ -44,29 +44,31 @@ class _VehicleCheckpointOverviewCardState
           height: 168,
           child: Center(child: CircularProgressIndicator(strokeWidth: 2.5)),
         ),
-        error: (error, stackTrace) => const Padding(
-          padding: EdgeInsets.all(18),
+        error: (error, stackTrace) => Padding(
+          padding: const EdgeInsets.all(18),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _CheckpointMark(active: false),
-              SizedBox(width: 13),
+              const _CheckpointMark(active: false),
+              const SizedBox(width: 13),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Travla Checkpoint',
+                    const Text(
+                      'Checkpoint could not load',
                       style: TextStyle(
                         color: AppColors.ink,
                         fontSize: 15,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    SizedBox(height: 5),
+                    const SizedBox(height: 5),
                     Text(
-                      'Your printable vehicle QR will appear here when Checkpoint is available.',
-                      style: TextStyle(
+                      error is ApiFailure
+                          ? error.message
+                          : 'Please check your connection and try again.',
+                      style: const TextStyle(
                         color: AppColors.muted,
                         fontSize: 11,
                         height: 1.45,
@@ -135,7 +137,7 @@ class _VehicleCheckpointOverviewCardState
               ),
               const SizedBox(height: 13),
               const Text(
-                'Scan to open a mobile-friendly public page with this vehicle’s current paper status. This is optional and does not replace original papers or official roadside checks.',
+                'Scan to open a mobile-friendly public page with this vehicle’s current paper status. It does not replace original papers or official roadside checks.',
                 style: TextStyle(
                   color: AppColors.muted,
                   fontSize: 11,
@@ -223,18 +225,6 @@ class _VehicleCheckpointOverviewCardState
                     ),
                   ],
                 ),
-              ] else ...[
-                const SizedBox(height: 16),
-                FilledButton.icon(
-                  onPressed: !state.eligible || _busy ? null : _enable,
-                  icon: _busy
-                      ? const SizedBox.square(
-                          dimension: 17,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.qr_code_2_rounded, size: 19),
-                  label: const Text('Set up Checkpoint QR'),
-                ),
               ],
             ],
           ),
@@ -242,11 +232,6 @@ class _VehicleCheckpointOverviewCardState
       ],
     );
   }
-
-  Future<void> _enable() => _run(
-    () => ref.read(checkpointRepositoryProvider).enable(widget.vehicleId),
-    'Checkpoint QR is now active.',
-  );
 
   Future<void> _openPublic(String value) async {
     final uri = Uri.tryParse(value);
@@ -371,15 +356,6 @@ class _VehicleCheckpointOverviewCardState
               subtitle: const Text('Existing printed copies will stop working.'),
               onTap: () => Navigator.pop(context, 'rotate'),
             ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.link_off_rounded, color: AppColors.danger),
-              title: const Text(
-                'Disable QR',
-                style: TextStyle(color: AppColors.danger),
-              ),
-              onTap: () => Navigator.pop(context, 'disable'),
-            ),
           ],
         ),
       ),
@@ -394,14 +370,13 @@ class _VehicleCheckpointOverviewCardState
 
   Future<void> _confirm(String action) async {
     final replace = action == 'rotate';
+    if (!replace) return;
     final accepted = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(replace ? 'Replace this QR?' : 'Disable this QR?'),
-        content: Text(
-          replace
-              ? 'Every existing printed copy will become inactive. Download and print the replacement after continuing.'
-              : 'Every printed copy will become inactive. This code cannot be restored.',
+        title: const Text('Replace this QR?'),
+        content: const Text(
+          'Every existing printed copy will become inactive. Download and print the replacement after continuing.',
         ),
         actions: [
           TextButton(
@@ -410,12 +385,8 @@ class _VehicleCheckpointOverviewCardState
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: replace
-                  ? AppColors.forest700
-                  : AppColors.danger,
-            ),
-            child: Text(replace ? 'Replace QR' : 'Disable QR'),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.forest700),
+            child: const Text('Replace QR'),
           ),
         ],
       ),
@@ -423,12 +394,8 @@ class _VehicleCheckpointOverviewCardState
     if (accepted != true || !mounted) return;
     await _run(() async {
       final repository = ref.read(checkpointRepositoryProvider);
-      if (replace) {
-        await repository.rotate(widget.vehicleId);
-      } else {
-        await repository.disable(widget.vehicleId);
-      }
-    }, replace ? 'A replacement QR is active.' : 'Checkpoint QR disabled.');
+      await repository.rotate(widget.vehicleId);
+    }, 'A replacement QR is active.');
   }
 
   Future<void> _run(Future<void> Function() action, String success) async {

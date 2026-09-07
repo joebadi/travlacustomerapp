@@ -10,7 +10,7 @@ void main() {
   const payload = <String, dynamic>{
     'eligible': true,
     'active': true,
-    'disclaimer': 'Optional aid',
+    'disclaimer': 'Consolidated vehicle-status aid',
     'credential': {
       'id': 'credential-1',
       'version': 2,
