@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:travla_customer_app/features/checkpoint/data/checkpoint_repository.dart';
 import 'package:travla_customer_app/features/checkpoint/domain/checkpoint_models.dart';
 import 'package:travla_customer_app/features/checkpoint/presentation/vehicle_checkpoint_tab.dart';
+import 'package:travla_customer_app/features/vehicles/presentation/vehicle_detail_screen.dart';
 
 void main() {
   const payload = <String, dynamic>{
@@ -13,6 +16,7 @@ void main() {
       'version': 2,
       'display_code': 'ABCD-EFGH-IJKL',
       'public_url': 'https://travla.com.ng/checkpoint/token',
+      'qr_data_uri': 'data:image/svg+xml;base64,PHN2Zy8+',
       'enabled_at': '2026-08-15T12:00:00Z',
       'snapshot_updated_at': '2026-08-15T12:01:00Z',
       'print_urls': {'a4': '/a4', 'compact': '/compact'},
@@ -58,6 +62,7 @@ void main() {
 
     expect(state.active, isTrue);
     expect(state.credential?.version, 2);
+    expect(state.credential?.qrDataUri, startsWith('data:image/svg+xml'));
     expect(state.snapshot?.vehicle.plateNumber, 'SMK664DE');
     expect(state.snapshot?.documents.single.validity.status, 'VALID');
     expect(
@@ -91,5 +96,49 @@ void main() {
     expect(find.text('SMK664DE'), findsOneWidget);
     expect(find.text('Vehicle Licence'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Overview QR card remains usable in a narrow portrait viewport', (
+    tester,
+  ) async {
+    final state = CheckpointState.fromJson(payload);
+    tester.view.physicalSize = const Size(360, 760);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          checkpointProvider(
+            'vehicle-1',
+          ).overrideWith((ref) async => state),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              padding: EdgeInsets.all(12),
+              child: VehicleCheckpointOverviewCard(
+                vehicleId: 'vehicle-1',
+                plateNumber: 'SMK664DE',
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Your vehicle’s roadside QR'), findsOneWidget);
+    expect(find.text('View Checkpoint page'), findsOneWidget);
+    expect(find.text('SMK664DE'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  test('vehicle detail navigation no longer exposes a Checkpoint tab', () {
+    expect(
+      VehicleDetailTab.values.map((tab) => tab.name),
+      isNot(contains('checkpoint')),
+    );
   });
 }

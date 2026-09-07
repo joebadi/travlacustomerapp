@@ -162,7 +162,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                       initialTab: switch (state.uri.queryParameters['tab']) {
                         'documents' => VehicleDetailTab.documents,
                         'insurance' => VehicleDetailTab.insurance,
-                        'checkpoint' => VehicleDetailTab.checkpoint,
+                        // Legacy deep links now land on Overview, where the
+                        // vehicle's owner-facing Checkpoint QR lives.
+                        'checkpoint' => VehicleDetailTab.overview,
                         'tracking' => VehicleDetailTab.tracking,
                         'services' => VehicleDetailTab.services,
                         _ => VehicleDetailTab.overview,

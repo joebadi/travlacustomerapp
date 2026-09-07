@@ -27,7 +27,6 @@ enum VehicleDetailTab {
   overview,
   documents,
   insurance,
-  checkpoint,
   tracking,
   services,
 }
@@ -147,10 +146,6 @@ class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
       ),
       VehicleDetailTab.insurance => VehicleInsuranceTab(
         key: const ValueKey('insurance'),
-        vehicleId: vehicle.id,
-      ),
-      VehicleDetailTab.checkpoint => VehicleCheckpointTab(
-        key: const ValueKey('checkpoint'),
         vehicleId: vehicle.id,
       ),
       VehicleDetailTab.tracking => VehicleTrackingTab(
@@ -597,12 +592,6 @@ class _DetailTabSelector extends StatelessWidget {
               onTap: () => onChanged(VehicleDetailTab.insurance),
             ),
             _DetailTabButton(
-              label: 'Checkpoint',
-              icon: Icons.qr_code_2_rounded,
-              selected: selected == VehicleDetailTab.checkpoint,
-              onTap: () => onChanged(VehicleDetailTab.checkpoint),
-            ),
-            _DetailTabButton(
               label: 'Tracking',
               icon: Icons.near_me_outlined,
               selected: selected == VehicleDetailTab.tracking,
@@ -752,6 +741,11 @@ class _OverviewTab extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+          const SizedBox(height: 14),
+          VehicleCheckpointOverviewCard(
+            vehicleId: vehicle.id,
+            plateNumber: vehicle.plateNumber,
           ),
           const SizedBox(height: 22),
           VehicleQuickActions(vehicleId: vehicle.id),

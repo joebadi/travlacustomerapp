@@ -41,6 +41,7 @@ class CheckpointCredential {
     required this.version,
     required this.displayCode,
     required this.publicUrl,
+    required this.qrDataUri,
     required this.printUrls,
     this.enabledAt,
     this.snapshotUpdatedAt,
@@ -55,6 +56,7 @@ class CheckpointCredential {
       version: int.tryParse(json['version']?.toString() ?? '') ?? 1,
       displayCode: json['display_code']?.toString() ?? '',
       publicUrl: json['public_url']?.toString() ?? '',
+      qrDataUri: json['qr_data_uri']?.toString() ?? '',
       enabledAt: DateTime.tryParse(json['enabled_at']?.toString() ?? ''),
       snapshotUpdatedAt: DateTime.tryParse(
         json['snapshot_updated_at']?.toString() ?? '',
@@ -70,6 +72,7 @@ class CheckpointCredential {
   final int version;
   final String displayCode;
   final String publicUrl;
+  final String qrDataUri;
   final DateTime? enabledAt;
   final DateTime? snapshotUpdatedAt;
   final CheckpointPrintUrls printUrls;

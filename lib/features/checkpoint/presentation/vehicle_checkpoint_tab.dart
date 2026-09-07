@@ -2,12 +2,507 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/checkpoint/data/checkpoint_repository.dart';
 import 'package:travla_customer_app/features/checkpoint/domain/checkpoint_models.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+/// Compact owner control shown inside the vehicle Overview. The QR opens the
+/// public, browser-based Checkpoint page; the app does not recreate the
+/// officer-facing result as a native tab.
+class VehicleCheckpointOverviewCard extends ConsumerStatefulWidget {
+  const VehicleCheckpointOverviewCard({
+    required this.vehicleId,
+    required this.plateNumber,
+    super.key,
+  });
+
+  final String vehicleId;
+  final String plateNumber;
+
+  @override
+  ConsumerState<VehicleCheckpointOverviewCard> createState() =>
+      _VehicleCheckpointOverviewCardState();
+}
+
+class _VehicleCheckpointOverviewCardState
+    extends ConsumerState<VehicleCheckpointOverviewCard> {
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final workspace = ref.watch(checkpointProvider(widget.vehicleId));
+
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: workspace.when(
+        loading: () => const SizedBox(
+          height: 168,
+          child: Center(child: CircularProgressIndicator(strokeWidth: 2.5)),
+        ),
+        error: (error, stackTrace) => const Padding(
+          padding: EdgeInsets.all(18),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _CheckpointMark(active: false),
+              SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Travla Checkpoint',
+                      style: TextStyle(
+                        color: AppColors.ink,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    SizedBox(height: 5),
+                    Text(
+                      'Your printable vehicle QR will appear here when Checkpoint is available.',
+                      style: TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 11,
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        data: _buildState,
+      ),
+    );
+  }
+
+  Widget _buildState(CheckpointState state) {
+    final credential = state.credential;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(height: 4, color: AppColors.orange),
+        Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  _CheckpointMark(active: state.active),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'TRAVLA CHECKPOINT',
+                          style: TextStyle(
+                            color: AppColors.forest700,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.25,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          state.active
+                              ? 'Your vehicle’s roadside QR'
+                              : 'One QR for this vehicle’s papers',
+                          style: const TextStyle(
+                            color: AppColors.ink,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _StatusPill(
+                    label: state.active ? 'ACTIVE' : 'NOT SET UP',
+                    color: state.active
+                        ? AppColors.forest700
+                        : AppColors.muted,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 13),
+              const Text(
+                'Scan to open a mobile-friendly public page with this vehicle’s current paper status. This is optional and does not replace original papers or official roadside checks.',
+                style: TextStyle(
+                  color: AppColors.muted,
+                  fontSize: 11,
+                  height: 1.5,
+                ),
+              ),
+              if (!state.eligible && state.eligibilityMessage != null) ...[
+                const SizedBox(height: 12),
+                _Notice(text: state.eligibilityMessage!),
+              ],
+              if (state.active && credential != null) ...[
+                const SizedBox(height: 18),
+                Center(
+                  child: Container(
+                    width: 184,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: AppColors.border),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x10021B13),
+                          blurRadius: 18,
+                          offset: Offset(0, 7),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        SizedBox.square(
+                          dimension: 154,
+                          child: _CheckpointQr(dataUri: credential.qrDataUri),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          widget.plateNumber.isEmpty
+                              ? 'TRAVLA VEHICLE'
+                              : widget.plateNumber,
+                          style: const TextStyle(
+                            color: AppColors.ink,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: .8,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        const Text(
+                          'Scan to view current paper status',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 8,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: _busy
+                      ? null
+                      : () => _openPublic(credential.publicUrl),
+                  icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                  label: const Text('View Checkpoint page'),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _busy
+                            ? null
+                            : () => _download(compact: false),
+                        icon: const Icon(Icons.download_outlined, size: 18),
+                        label: const Text('Printable QR'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton.outlined(
+                      tooltip: 'Manage Checkpoint QR',
+                      onPressed: _busy ? null : () => _showManagement(state),
+                      icon: const Icon(Icons.tune_rounded),
+                    ),
+                  ],
+                ),
+              ] else ...[
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: !state.eligible || _busy ? null : _enable,
+                  icon: _busy
+                      ? const SizedBox.square(
+                          dimension: 17,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.qr_code_2_rounded, size: 19),
+                  label: const Text('Set up Checkpoint QR'),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _enable() => _run(
+    () => ref.read(checkpointRepositoryProvider).enable(widget.vehicleId),
+    'Checkpoint QR is now active.',
+  );
+
+  Future<void> _openPublic(String value) async {
+    final uri = Uri.tryParse(value);
+    if (uri == null ||
+        !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      _message('The public Checkpoint page could not be opened.', error: true);
+    }
+  }
+
+  Future<void> _download({required bool compact}) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    File? file;
+    try {
+      file = await ref
+          .read(checkpointRepositoryProvider)
+          .download(widget.vehicleId, compact: compact);
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path, mimeType: 'application/pdf')],
+          subject: 'Travla Checkpoint',
+          text: 'Save or print this Travla Checkpoint credential.',
+        ),
+      );
+    } on ApiFailure catch (failure) {
+      _message(failure.message, error: true);
+    } finally {
+      if (file != null && await file.exists()) await file.delete();
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _showManagement(CheckpointState state) async {
+    final credential = state.credential;
+    if (credential == null) return;
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      useSafeArea: true,
+      backgroundColor: AppColors.canvas,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      builder: (context) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          12,
+          20,
+          18 + MediaQuery.viewPaddingOf(context).bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 42,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              'Manage Checkpoint QR',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'FALLBACK CODE',
+                    style: TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    credential.displayCode,
+                    style: const TextStyle(
+                      color: AppColors.forest700,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.8,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Public status refreshed ${_formatDateTime(credential.snapshotUpdatedAt)}',
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.picture_as_pdf_outlined),
+              title: const Text('Download compact card'),
+              onTap: () => Navigator.pop(context, 'compact'),
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.autorenew_rounded),
+              title: const Text('Replace QR code'),
+              subtitle: const Text('Existing printed copies will stop working.'),
+              onTap: () => Navigator.pop(context, 'rotate'),
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.link_off_rounded, color: AppColors.danger),
+              title: const Text(
+                'Disable QR',
+                style: TextStyle(color: AppColors.danger),
+              ),
+              onTap: () => Navigator.pop(context, 'disable'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || action == null) return;
+    if (action == 'compact') {
+      await _download(compact: true);
+      return;
+    }
+    await _confirm(action);
+  }
+
+  Future<void> _confirm(String action) async {
+    final replace = action == 'rotate';
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(replace ? 'Replace this QR?' : 'Disable this QR?'),
+        content: Text(
+          replace
+              ? 'Every existing printed copy will become inactive. Download and print the replacement after continuing.'
+              : 'Every printed copy will become inactive. This code cannot be restored.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: replace
+                  ? AppColors.forest700
+                  : AppColors.danger,
+            ),
+            child: Text(replace ? 'Replace QR' : 'Disable QR'),
+          ),
+        ],
+      ),
+    );
+    if (accepted != true || !mounted) return;
+    await _run(() async {
+      final repository = ref.read(checkpointRepositoryProvider);
+      if (replace) {
+        await repository.rotate(widget.vehicleId);
+      } else {
+        await repository.disable(widget.vehicleId);
+      }
+    }, replace ? 'A replacement QR is active.' : 'Checkpoint QR disabled.');
+  }
+
+  Future<void> _run(Future<void> Function() action, String success) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await action();
+      ref.invalidate(checkpointProvider(widget.vehicleId));
+      _message(success);
+    } on ApiFailure catch (failure) {
+      _message(failure.message, error: true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _message(String value, {bool error = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(value),
+        backgroundColor: error ? AppColors.danger : AppColors.forest800,
+      ),
+    );
+  }
+}
+
+class _CheckpointQr extends StatelessWidget {
+  const _CheckpointQr({required this.dataUri});
+
+  final String dataUri;
+
+  @override
+  Widget build(BuildContext context) {
+    try {
+      final svg = UriData.parse(dataUri).contentAsString();
+      return SvgPicture.string(svg, fit: BoxFit.contain);
+    } catch (_) {
+      return const DecoratedBox(
+        decoration: BoxDecoration(color: Color(0xFFF3F6F4)),
+        child: Center(
+          child: Icon(
+            Icons.qr_code_2_rounded,
+            color: AppColors.forest700,
+            size: 82,
+          ),
+        ),
+      );
+    }
+  }
+}
+
+class _CheckpointMark extends StatelessWidget {
+  const _CheckpointMark({required this.active});
+
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 42,
+      height: 42,
+      decoration: BoxDecoration(
+        color: active ? const Color(0xFFE9F8F1) : const Color(0xFFF1F4F2),
+        borderRadius: BorderRadius.circular(13),
+      ),
+      child: Icon(
+        Icons.qr_code_2_rounded,
+        color: active ? AppColors.forest700 : AppColors.muted,
+        size: 23,
+      ),
+    );
+  }
+}
 
 class VehicleCheckpointTab extends ConsumerStatefulWidget {
   const VehicleCheckpointTab({required this.vehicleId, super.key});

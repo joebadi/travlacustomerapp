@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:travla_customer_app/features/checkpoint/data/checkpoint_repository.dart';
+import 'package:travla_customer_app/features/checkpoint/domain/checkpoint_models.dart';
 import 'package:travla_customer_app/features/vehicles/data/vehicle_detail_repository.dart';
 import 'package:travla_customer_app/features/vehicles/domain/vehicle_detail.dart';
 import 'package:travla_customer_app/features/vehicles/presentation/add_vehicle_document_sheet.dart';
@@ -174,6 +176,13 @@ void main() {
             vehicleDetailProvider(
               'verified-vehicle',
             ).overrideWith((ref) async => vehicle),
+            checkpointProvider('verified-vehicle').overrideWith(
+              (ref) async => const CheckpointState(
+                eligible: true,
+                active: false,
+                disclaimer: 'Optional aid',
+              ),
+            ),
           ],
           child: const MaterialApp(
             home: VehicleDetailScreen(vehicleId: 'verified-vehicle'),
@@ -253,6 +262,13 @@ void main() {
           vehicleDetailProvider(
             'vehicle-1',
           ).overrideWith((ref) async => vehicle),
+          checkpointProvider('vehicle-1').overrideWith(
+            (ref) async => const CheckpointState(
+              eligible: true,
+              active: false,
+              disclaimer: 'Optional aid',
+            ),
+          ),
         ],
         child: const MaterialApp(
           home: VehicleDetailScreen(vehicleId: 'vehicle-1'),
