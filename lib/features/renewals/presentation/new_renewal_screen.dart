@@ -338,11 +338,21 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
     return automated != true;
   }
 
+  /// A vehicle has live cover when any non-pending policy is active and unexpired.
+  /// In that case an *expired* policy is no longer offered for renewal.
+  static bool _hasActiveCover(List<InsurancePolicy> policies) => policies.any(
+    (p) => !p.isPending && p.status == 'ACTIVE' && !p.isExpired,
+  );
+
+  static bool _isRenewable(InsurancePolicy policy, bool hasActiveCover) =>
+      policy.canRenew && !(policy.isExpired && hasActiveCover);
+
   List<InsurancePolicy> _renewablePolicies() {
     final data = ref.watch(vehicleInsuranceProvider(_vehicleId)).asData?.value;
     if (data == null) return const [];
+    final hasActive = _hasActiveCover(data.policies);
     return data.policies
-        .where((policy) => policy.canRenew)
+        .where((policy) => _isRenewable(policy, hasActive))
         .toList(growable: false);
   }
 
@@ -353,9 +363,12 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
     final automated = ref.read(insuranceAutomatedProvider).asData?.value;
     if (automated == true) return const [];
     final data = ref.read(vehicleInsuranceProvider(_vehicleId)).asData?.value;
-    final renewable =
-        data?.policies.where((p) => p.canRenew).map((p) => p.id).toSet() ??
-        const <String>{};
+    final policies = data?.policies ?? const <InsurancePolicy>[];
+    final hasActive = _hasActiveCover(policies);
+    final renewable = policies
+        .where((p) => _isRenewable(p, hasActive))
+        .map((p) => p.id)
+        .toSet();
     return _selectedInsurancePolicies
         .where(renewable.contains)
         .toList(growable: false);
@@ -1091,7 +1104,7 @@ class _DocumentChoice extends StatelessWidget {
                 ),
               ),
               Text(
-                'From ₦${_money(document.renewalCostNaira)}',
+                '₦${_money(document.renewalCostNaira)}',
                 style: const TextStyle(
                   color: AppColors.forest700,
                   fontSize: 10,
