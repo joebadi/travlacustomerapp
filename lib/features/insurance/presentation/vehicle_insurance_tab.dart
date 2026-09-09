@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -24,7 +26,6 @@ class VehicleInsuranceTab extends ConsumerStatefulWidget {
 }
 
 class _VehicleInsuranceTabState extends ConsumerState<VehicleInsuranceTab> {
-  bool _checking = false;
   String? _removingPolicyId;
   bool _expiredExpanded = true;
 
@@ -33,20 +34,6 @@ class _VehicleInsuranceTabState extends ConsumerState<VehicleInsuranceTab> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  Future<void> _checkNow() async {
-    if (_checking) return;
-    setState(() => _checking = true);
-    try {
-      await ref.read(insuranceRepositoryProvider).verify(widget.vehicleId);
-      ref.invalidate(vehicleInsuranceProvider(widget.vehicleId));
-      ref.invalidate(expiringPoliciesProvider);
-    } on ApiFailure catch (failure) {
-      _snack(failure.message);
-    } finally {
-      if (mounted) setState(() => _checking = false);
-    }
   }
 
   void _openDocument(String? url) {
@@ -69,8 +56,8 @@ class _VehicleInsuranceTabState extends ConsumerState<VehicleInsuranceTab> {
     );
   }
 
-  Future<void> _removePolicy(InsurancePolicy policy) async {
-    if (_removingPolicyId != null) return;
+  Future<bool> _removePolicy(InsurancePolicy policy) async {
+    if (_removingPolicyId != null) return false;
     final verified = policy.isVerified;
     final confirmed = await showDialog<bool>(
       context: context,
@@ -97,7 +84,7 @@ class _VehicleInsuranceTabState extends ConsumerState<VehicleInsuranceTab> {
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !mounted) return false;
 
     setState(() => _removingPolicyId = policy.id);
     try {
@@ -110,6 +97,9 @@ class _VehicleInsuranceTabState extends ConsumerState<VehicleInsuranceTab> {
     } finally {
       if (mounted) setState(() => _removingPolicyId = null);
     }
+    // The list rebuilds without the deleted card, so keep the Dismissible in
+    // place rather than letting it run its own removal animation.
+    return false;
   }
 
   @override
@@ -152,15 +142,18 @@ class _VehicleInsuranceTabState extends ConsumerState<VehicleInsuranceTab> {
             .toList(growable: false)
           ..sort(_expiredSort);
 
+    // Any live (non-pending) cover means an expired policy can no longer be
+    // renewed — the user already has current insurance in force.
+    final hasActiveCover = active.any((policy) => !policy.isPending);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        _PolicySectionHeader(
+        _ActivePoliciesHeader(
           count: active.length,
-          verification: data.verification,
-          checking: _checking,
-          onCheckNow: _checkNow,
+          onAdd: () => context.push('/more/insurance/${widget.vehicleId}/add'),
+          onBuy: () => context.push('/more/insurance/${widget.vehicleId}/buy'),
         ),
         const SizedBox(height: 12),
         if (active.isEmpty)
@@ -171,19 +164,11 @@ class _VehicleInsuranceTabState extends ConsumerState<VehicleInsuranceTab> {
             onAdd: () =>
                 context.push('/more/insurance/${widget.vehicleId}/add'),
           )
-        else ...[
+        else
           for (var i = 0; i < active.length; i++) ...[
             if (i > 0) const SizedBox(height: 14),
-            _policyCard(active[i]),
+            _policyCard(active[i], allowRenew: true),
           ],
-          const SizedBox(height: 14),
-          OutlinedButton.icon(
-            onPressed: () =>
-                context.push('/more/insurance/${widget.vehicleId}/add'),
-            icon: const Icon(Icons.note_add_outlined, size: 18),
-            label: const Text('Add an existing policy'),
-          ),
-        ],
         const SizedBox(height: 30),
         _ExpiredHeader(
           count: expired.length,
@@ -196,7 +181,7 @@ class _VehicleInsuranceTabState extends ConsumerState<VehicleInsuranceTab> {
           const SizedBox(height: 12),
           for (var i = 0; i < expired.length; i++) ...[
             if (i > 0) const SizedBox(height: 14),
-            _policyCard(expired[i]),
+            _policyCard(expired[i], allowRenew: !hasActiveCover),
           ],
         ] else if (expired.isEmpty) ...[
           const SizedBox(height: 10),
@@ -218,19 +203,28 @@ class _VehicleInsuranceTabState extends ConsumerState<VehicleInsuranceTab> {
     );
   }
 
-  Widget _policyCard(InsurancePolicy policy) {
-    return _PolicyCard(
+  Widget _policyCard(InsurancePolicy policy, {required bool allowRenew}) {
+    final card = _PolicyCard(
       policy: policy,
-      removing: _removingPolicyId == policy.id,
       onViewDocument: () => _openDocument(policy.documentUrl),
       onCertificate: () => _openPolicy(policy),
       onEdit: policy.isVerified ? null : () => _openPolicy(policy),
-      onRenew: policy.canRenew
+      onRenew: (allowRenew && policy.canRenew)
           ? () => context.push(
               '/more/insurance/${widget.vehicleId}/renew/${policy.id}',
             )
           : null,
-      onRemove: () => _removePolicy(policy),
+    );
+
+    // Swipe left to reveal / confirm removal (replaces the inline Remove link).
+    return Dismissible(
+      key: ValueKey('policy-${policy.id}'),
+      direction: DismissDirection.endToStart,
+      background: _SwipeRemoveBackground(
+        label: policy.isVerified ? 'Remove' : 'Delete',
+      ),
+      confirmDismiss: (_) => _removePolicy(policy),
+      child: card,
     );
   }
 
@@ -246,97 +240,138 @@ class _VehicleInsuranceTabState extends ConsumerState<VehicleInsuranceTab> {
       DateTime.tryParse(value ?? '') ?? DateTime(1900);
 }
 
-class _PolicySectionHeader extends StatelessWidget {
-  const _PolicySectionHeader({
+/// Active-policies title + two icon actions (add existing / buy new). Each
+/// action is icon-only; the first tap expands it to a full labelled button, and
+/// a second tap runs it. Opening one collapses the other.
+class _ActivePoliciesHeader extends StatefulWidget {
+  const _ActivePoliciesHeader({
     required this.count,
-    required this.verification,
-    required this.checking,
-    required this.onCheckNow,
+    required this.onAdd,
+    required this.onBuy,
   });
 
   final int count;
-  final InsuranceVerification verification;
-  final bool checking;
-  final VoidCallback onCheckNow;
+  final VoidCallback onAdd;
+  final VoidCallback onBuy;
+
+  @override
+  State<_ActivePoliciesHeader> createState() => _ActivePoliciesHeaderState();
+}
+
+class _ActivePoliciesHeaderState extends State<_ActivePoliciesHeader> {
+  int? _open; // 0 = add, 1 = buy, null = both collapsed
+  Timer? _collapseTimer;
+
+  @override
+  void dispose() {
+    _collapseTimer?.cancel();
+    super.dispose();
+  }
+
+  void _handle(int index, VoidCallback action) {
+    if (_open == index) {
+      action();
+      _collapseTimer?.cancel();
+      setState(() => _open = null);
+      return;
+    }
+    setState(() => _open = index);
+    _collapseTimer?.cancel();
+    _collapseTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted) setState(() => _open = null);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final checked = _formatDate(verification.checkedAt);
-    final next = _formatDate(verification.nextCheckAt);
-    final status = switch (verification.outcome) {
-      'FOUND' => checked == null ? 'Insurance confirmed' : 'Checked $checked',
-      'NOT_FOUND' =>
-        checked == null
-            ? 'No active cover found'
-            : 'No active cover found · $checked',
-      'ERROR' || 'CAPTCHA_BLOCKED' =>
-        next == null ? 'Check unavailable' : 'Check unavailable · retry $next',
-      'PENDING' => 'Insurance check pending',
-      _ =>
-        verification.hasValidPlate
-            ? 'Not checked yet'
-            : 'Add a valid plate to enable checks',
-    };
-    final schedule = [
-      status,
-      if (next != null && verification.outcome == 'FOUND') 'Next $next',
-    ].join(' · ');
-
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Text(
-                    'Active Policies',
-                    style: TextStyle(
-                      color: AppColors.ink,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  _CountBadge(count: count),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                schedule,
-                style: TextStyle(
-                  color:
-                      verification.outcome == 'ERROR' ||
-                          verification.outcome == 'CAPTCHA_BLOCKED'
-                      ? AppColors.orangeDark
-                      : AppColors.muted,
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+        const Text(
+          'Active Policies',
+          style: TextStyle(
+            color: AppColors.ink,
+            fontSize: 16,
+            fontWeight: FontWeight.w900,
           ),
         ),
-        IconButton(
-          onPressed: checking || !verification.hasValidPlate
-              ? null
-              : onCheckNow,
-          tooltip: 'Check insurance now',
-          style: IconButton.styleFrom(
-            foregroundColor: AppColors.forest700,
-            backgroundColor: const Color(0xFFE8F4EF),
-          ),
-          icon: checking
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.refresh_rounded, size: 20),
+        const SizedBox(width: 8),
+        _CountBadge(count: widget.count),
+        const Spacer(),
+        _ExpandingAction(
+          icon: Icons.note_add_outlined,
+          label: 'Add existing',
+          color: AppColors.forest700,
+          expanded: _open == 0,
+          onTap: () => _handle(0, widget.onAdd),
+        ),
+        const SizedBox(width: 8),
+        _ExpandingAction(
+          icon: Icons.add_shopping_cart_rounded,
+          label: 'Buy new',
+          color: AppColors.orange,
+          expanded: _open == 1,
+          onTap: () => _handle(1, widget.onBuy),
         ),
       ],
+    );
+  }
+}
+
+class _ExpandingAction extends StatelessWidget {
+  const _ExpandingAction({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.expanded,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final bool expanded;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: expanded ? color : color.withValues(alpha: .12),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: expanded ? 12 : 8,
+              vertical: 8,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  icon,
+                  size: 18,
+                  color: expanded ? Colors.white : color,
+                ),
+                if (expanded) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -413,239 +448,194 @@ class _CountBadge extends StatelessWidget {
   }
 }
 
+class _SwipeRemoveBackground extends StatelessWidget {
+  const _SwipeRemoveBackground({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      alignment: Alignment.centerRight,
+      padding: const EdgeInsets.symmetric(horizontal: 22),
+      decoration: BoxDecoration(
+        color: AppColors.danger,
+        borderRadius: BorderRadius.circular(17),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.delete_outline_rounded, color: Colors.white),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PolicyCard extends StatelessWidget {
   const _PolicyCard({
     required this.policy,
-    required this.removing,
     required this.onViewDocument,
     required this.onCertificate,
     required this.onEdit,
     required this.onRenew,
-    required this.onRemove,
   });
 
   final InsurancePolicy policy;
-  final bool removing;
   final VoidCallback onViewDocument;
   final VoidCallback onCertificate;
   final VoidCallback? onEdit;
   final VoidCallback? onRenew;
-  final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
-    final statusTone = _statusTone(policy);
-    final provider = policy.provider?.trim() ?? '';
-    final showProvider = provider.isNotEmpty && provider != 'Verified via NIID';
+    final statusColor = _statusColor(policy);
+    final insurer = _insurerLabel(policy);
     final money = <String>[
-      if (_hasAmount(policy.premiumNaira)) 'Premium ₦${policy.premiumNaira}',
-      if (_hasAmount(policy.excessNaira)) 'Excess ₦${policy.excessNaira}',
+      if (_hasAmount(policy.premiumNaira)) '₦${policy.premiumNaira}',
     ];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(13),
-          decoration: BoxDecoration(
-            color: AppColors.white,
-            borderRadius: BorderRadius.circular(17),
-            border: Border.all(color: AppColors.border),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.ink.withValues(alpha: .035),
-                blurRadius: 14,
-                offset: const Offset(0, 5),
-              ),
-            ],
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.ink.withValues(alpha: .035),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _CertificateThumbnail(policy: policy, onView: onViewDocument),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            policy.coverageLabel ?? 'Insurance policy',
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: AppColors.ink,
-                              fontSize: 13.5,
-                              height: 1.2,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 7),
-                        _StatusBadge(
-                          label: policy.isPending
-                              ? 'Being arranged'
-                              : policy.statusLabel,
-                          foreground: statusTone.$1,
-                          background: statusTone.$2,
-                        ),
-                      ],
-                    ),
-                    if (showProvider) ...[
-                      const SizedBox(height: 5),
-                      Text(
-                        provider,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.muted,
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 10),
-                    if (policy.isPending)
-                      const Text(
-                        'An agent is arranging this cover. The policy details '
-                        'and certificate will appear when it is issued.',
-                        style: TextStyle(
-                          color: AppColors.muted,
-                          fontSize: 10.5,
-                          height: 1.4,
-                        ),
-                      )
-                    else ...[
-                      _PolicyFact(
-                        label: 'Policy number',
-                        value: policy.policyNumber ?? '—',
-                      ),
-                      const SizedBox(height: 7),
-                      _PolicyFact(
-                        label: 'Cover period',
-                        value: _period(policy),
-                      ),
-                      if (money.isNotEmpty) ...[
-                        const SizedBox(height: 7),
-                        Text(
-                          money.join(' · '),
-                          style: const TextStyle(
-                            color: AppColors.muted,
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ],
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        if (!policy.isPending && policy.isVerified)
-                          const _SourceBadge(),
-                        if (onRenew != null)
-                          _CompactAction(
-                            label: 'Renew',
-                            icon: Icons.autorenew_rounded,
-                            color: AppColors.orangeDark,
-                            onPressed: onRenew!,
-                          ),
-                        if (onEdit != null)
-                          _CompactAction(
-                            label: 'Edit',
-                            icon: Icons.edit_outlined,
-                            color: AppColors.forest700,
-                            onPressed: onEdit!,
-                          ),
-                        _CompactAction(
-                          label: policy.isVerified ? 'Remove' : 'Delete',
-                          icon: Icons.delete_outline_rounded,
-                          color: AppColors.danger,
-                          onPressed: removing ? null : onRemove,
-                          loading: removing,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _CertificateThumbnail(
+            policy: policy,
+            onView: onViewDocument,
+            onCertificate: onCertificate,
           ),
-        ),
-        if (!policy.isPending) ...[
-          const SizedBox(height: 6),
-          Material(
-            color: policy.hasDocument
-                ? const Color(0xFFE8F4EF)
-                : const Color(0xFFFFEEE8),
-            borderRadius: BorderRadius.circular(13),
-            child: InkWell(
-              onTap: onCertificate,
-              borderRadius: BorderRadius.circular(13),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 13,
-                  vertical: 11,
-                ),
-                child: Row(
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Coverage type on one line (scrolls if it overflows) + the
+                // status and verified labels pinned to the top-right.
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Icon(
-                      policy.hasDocument
-                          ? Icons.change_circle_outlined
-                          : Icons.upload_file_rounded,
-                      size: 18,
-                      color: policy.hasDocument
-                          ? AppColors.forest700
-                          : AppColors.orangeDark,
-                    ),
-                    const SizedBox(width: 9),
                     Expanded(
-                      child: Text(
-                        policy.hasDocument
-                            ? 'Replace certificate'
-                            : 'Upload certificate',
-                        style: TextStyle(
-                          color: policy.hasDocument
-                              ? AppColors.forest700
-                              : AppColors.orangeDark,
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w800,
+                      child: _MarqueeText(
+                        text: policy.coverageLabel ?? 'Insurance policy',
+                        style: const TextStyle(
+                          color: AppColors.ink,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
                     ),
-                    Icon(
-                      Icons.arrow_forward_rounded,
-                      size: 17,
-                      color: policy.hasDocument
-                          ? AppColors.forest700
-                          : AppColors.orangeDark,
+                    const SizedBox(width: 7),
+                    if (!policy.isPending && policy.isVerified) ...[
+                      const _OpaqueBadge(
+                        label: 'VERIFIED',
+                        color: AppColors.forest700,
+                      ),
+                      const SizedBox(width: 5),
+                    ],
+                    _OpaqueBadge(
+                      label: policy.isPending
+                          ? 'Being arranged'
+                          : policy.statusLabel,
+                      color: statusColor,
                     ),
                   ],
                 ),
-              ),
+                const SizedBox(height: 10),
+                if (policy.isPending)
+                  const Text(
+                    'An agent is arranging this cover. The policy details '
+                    'and certificate will appear when it is issued.',
+                    style: TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 10.5,
+                      height: 1.4,
+                    ),
+                  )
+                else ...[
+                  _FactRow(label: 'Insurer', value: insurer),
+                  const SizedBox(height: 6),
+                  _FactRow(
+                    label: 'Policy number',
+                    value: policy.policyNumber ?? '—',
+                  ),
+                  const SizedBox(height: 6),
+                  _FactRow(label: 'Cover period', value: _period(policy)),
+                  if (money.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    _FactRow(label: 'Premium', value: money.first),
+                  ],
+                  if (_hasAmount(policy.excessNaira)) ...[
+                    const SizedBox(height: 6),
+                    _FactRow(label: 'Excess', value: '₦${policy.excessNaira}'),
+                  ],
+                ],
+                if (onRenew != null || onEdit != null) ...[
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      if (onRenew != null)
+                        _CompactAction(
+                          label: 'Renew',
+                          icon: Icons.autorenew_rounded,
+                          color: AppColors.orangeDark,
+                          onPressed: onRenew!,
+                        ),
+                      if (onEdit != null)
+                        _CompactAction(
+                          label: 'Edit',
+                          icon: Icons.edit_outlined,
+                          color: AppColors.forest700,
+                          onPressed: onEdit!,
+                        ),
+                    ],
+                  ),
+                ],
+              ],
             ),
           ),
         ],
-      ],
+      ),
     );
   }
 
-  static (Color, Color) _statusTone(InsurancePolicy policy) {
-    if (policy.isPending) {
-      return (AppColors.orangeDark, const Color(0xFFFFE9E1));
-    }
+  static Color _statusColor(InsurancePolicy policy) {
+    if (policy.isPending) return AppColors.orangeDark;
     if (policy.isExpired || policy.status == 'CANCELLED') {
-      return (AppColors.danger, const Color(0xFFFFE3E1));
+      return AppColors.danger;
     }
-    if ((policy.daysToExpiry ?? 999) <= 30) {
-      return (AppColors.orangeDark, const Color(0xFFFFE9E1));
-    }
-    return (AppColors.forest700, const Color(0xFFDDF2E8));
+    if ((policy.daysToExpiry ?? 999) <= 30) return AppColors.orangeDark;
+    return AppColors.forest700;
+  }
+
+  static String _insurerLabel(InsurancePolicy policy) {
+    final provider = policy.provider?.trim() ?? '';
+    if (provider.isEmpty || provider == 'Verified via NIID') return '—';
+    return provider;
   }
 
   static bool _hasAmount(String value) =>
@@ -658,16 +648,109 @@ class _PolicyCard extends StatelessWidget {
   }
 }
 
+/// A single, non-wrapping line that scrolls left↔right when the text is wider
+/// than the space available, so long coverage names stay on one line.
+class _MarqueeText extends StatefulWidget {
+  const _MarqueeText({required this.text, required this.style});
+
+  final String text;
+  final TextStyle style;
+
+  @override
+  State<_MarqueeText> createState() => _MarqueeTextState();
+}
+
+class _MarqueeTextState extends State<_MarqueeText>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(vsync: this);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final painter = TextPainter(
+          text: TextSpan(text: widget.text, style: widget.style),
+          maxLines: 1,
+          textDirection: TextDirection.ltr,
+        )..layout();
+
+        final overflow = painter.width > constraints.maxWidth;
+        if (!overflow) {
+          if (_controller.isAnimating) _controller.stop();
+          return Text(
+            widget.text,
+            maxLines: 1,
+            softWrap: false,
+            overflow: TextOverflow.clip,
+            style: widget.style,
+          );
+        }
+
+        final distance = painter.width - constraints.maxWidth + 8;
+        _controller.duration = Duration(
+          milliseconds: (distance * 45).round().clamp(2500, 12000),
+        );
+        if (!_controller.isAnimating) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && !_controller.isAnimating) {
+              _controller.repeat(reverse: true);
+            }
+          });
+        }
+
+        return ClipRect(
+          child: AnimatedBuilder(
+            animation: _controller,
+            builder: (_, _) => Align(
+              alignment: Alignment.centerLeft,
+              child: Transform.translate(
+                offset: Offset(
+                  -distance * Curves.easeInOut.transform(_controller.value),
+                  0,
+                ),
+                child: Text(
+                  widget.text,
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.visible,
+                  style: widget.style,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _CertificateThumbnail extends StatelessWidget {
-  const _CertificateThumbnail({required this.policy, required this.onView});
+  const _CertificateThumbnail({
+    required this.policy,
+    required this.onView,
+    required this.onCertificate,
+  });
 
   final InsurancePolicy policy;
   final VoidCallback onView;
+  final VoidCallback onCertificate;
 
   @override
   Widget build(BuildContext context) {
     final hasDocument =
         policy.hasDocument && policy.documentUrl?.isNotEmpty == true;
+    // The certificate action lives here (under the thumbnail), not as a
+    // separate row below the card. Sharp (non-rounded) thumbnail edges.
+    final caption = hasDocument ? 'Replace certificate' : 'Upload certificate';
+    final captionColor = hasDocument
+        ? AppColors.forest700
+        : AppColors.orangeDark;
 
     return SizedBox(
       width: 78,
@@ -675,10 +758,11 @@ class _CertificateThumbnail extends StatelessWidget {
         children: [
           Material(
             color: const Color(0xFFF1F5F3),
-            borderRadius: BorderRadius.circular(12),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
-              onTap: hasDocument ? onView : null,
+              onTap: policy.isPending
+                  ? null
+                  : (hasDocument ? onView : onCertificate),
               child: SizedBox(
                 width: 78,
                 height: 98,
@@ -698,17 +782,21 @@ class _CertificateThumbnail extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          Text(
-            hasDocument ? 'View certificate' : 'No certificate',
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            style: TextStyle(
-              color: hasDocument ? AppColors.forest700 : AppColors.muted,
-              fontSize: 9,
-              height: 1.2,
-              fontWeight: FontWeight.w700,
+          if (!policy.isPending)
+            InkWell(
+              onTap: onCertificate,
+              child: Text(
+                caption,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                style: TextStyle(
+                  color: captionColor,
+                  fontSize: 9.5,
+                  height: 1.2,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -758,29 +846,33 @@ class _DocumentPlaceholder extends StatelessWidget {
   }
 }
 
-class _PolicyFact extends StatelessWidget {
-  const _PolicyFact({required this.label, required this.value});
+/// Label on the left, value pinned to the far right of the same line.
+class _FactRow extends StatelessWidget {
+  const _FactRow({required this.label, required this.value});
 
   final String label;
   final String value;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(color: AppColors.muted, fontSize: 9),
+          style: const TextStyle(color: AppColors.muted, fontSize: 10.5),
         ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: const TextStyle(
-            color: AppColors.ink,
-            fontSize: 11,
-            height: 1.25,
-            fontWeight: FontWeight.w700,
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              color: AppColors.ink,
+              fontSize: 11,
+              height: 1.25,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ],
@@ -788,54 +880,27 @@ class _PolicyFact extends StatelessWidget {
   }
 }
 
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({
-    required this.label,
-    required this.foreground,
-    required this.background,
-  });
+/// A fully-opaque status/verified pill with white text.
+class _OpaqueBadge extends StatelessWidget {
+  const _OpaqueBadge({required this.label, required this.color});
 
   final String label;
-  final Color foreground;
-  final Color background;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: background,
+        color: color,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         label,
-        style: TextStyle(
-          color: foreground,
+        style: const TextStyle(
+          color: Colors.white,
           fontSize: 8.5,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
-}
-
-class _SourceBadge extends StatelessWidget {
-  const _SourceBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE8F4EF),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: const Text(
-        'VERIFIED',
-        style: TextStyle(
-          color: AppColors.forest700,
-          fontSize: 8,
-          letterSpacing: .4,
+          letterSpacing: .3,
           fontWeight: FontWeight.w900,
         ),
       ),
@@ -849,14 +914,12 @@ class _CompactAction extends StatelessWidget {
     required this.icon,
     required this.color,
     required this.onPressed,
-    this.loading = false,
   });
 
   final String label;
   final IconData icon;
   final Color color;
   final VoidCallback? onPressed;
-  final bool loading;
 
   @override
   Widget build(BuildContext context) {
@@ -868,17 +931,7 @@ class _CompactAction extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (loading)
-              SizedBox(
-                width: 13,
-                height: 13,
-                child: CircularProgressIndicator(
-                  strokeWidth: 1.8,
-                  color: color,
-                ),
-              )
-            else
-              Icon(icon, size: 14, color: color),
+            Icon(icon, size: 14, color: color),
             const SizedBox(width: 4),
             Text(
               label,

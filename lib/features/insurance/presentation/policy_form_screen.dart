@@ -140,11 +140,27 @@ class _PolicyFormScreenState extends ConsumerState<PolicyFormScreen> {
         );
         return;
       }
+      // Insurer is optional here, but if chosen it fills in the policy's
+      // insurer so the verified record is complete.
+      String? certCompanyId;
+      String? certProvider;
+      if (_insurerId != null) {
+        certCompanyId = _isOther ? null : _insurerId;
+        final name = _isOther
+            ? _providerCtrl.text.trim()
+            : insurers.firstWhere((c) => c.id == _insurerId).name;
+        if (name.isNotEmpty) certProvider = name;
+      }
       setState(() => _submitting = true);
       try {
         await ref
             .read(insuranceRepositoryProvider)
-            .updatePolicy(policyId: widget.policy!.id, document: _document);
+            .updatePolicy(
+              policyId: widget.policy!.id,
+              insuranceCompanyId: certCompanyId,
+              provider: certProvider,
+              document: _document,
+            );
         ref.invalidate(vehicleInsuranceProvider(widget.vehicleId));
         ref.invalidate(expiringPoliciesProvider);
         if (!mounted) return;
@@ -244,11 +260,11 @@ class _PolicyFormScreenState extends ConsumerState<PolicyFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_certificateOnly) return _certificateUploadScreen();
-
     final insurersAsync = ref.watch(insurersProvider);
     final insurers = insurersAsync.value ?? const <InsuranceCompany>[];
     _prefillInsurer(insurers);
+
+    if (_certificateOnly) return _certificateUploadScreen(insurers);
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
@@ -401,7 +417,7 @@ class _PolicyFormScreenState extends ConsumerState<PolicyFormScreen> {
     );
   }
 
-  Widget _certificateUploadScreen() {
+  Widget _certificateUploadScreen(List<InsuranceCompany> insurers) {
     final policy = widget.policy!;
     return Scaffold(
       backgroundColor: AppColors.canvas,
@@ -491,6 +507,33 @@ class _PolicyFormScreenState extends ConsumerState<PolicyFormScreen> {
             ),
           ),
           const SizedBox(height: 14),
+          DropdownButtonFormField<String>(
+            initialValue: _insurerId,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Insurer (optional)',
+              helperText: 'Set who issued this policy so its record is complete.',
+            ),
+            items: [
+              ...insurers.map(
+                (c) => DropdownMenuItem(value: c.id, child: Text(c.name)),
+              ),
+              const DropdownMenuItem(
+                value: _otherInsurer,
+                child: Text('Other (type the name)'),
+              ),
+            ],
+            onChanged: (value) => setState(() => _insurerId = value),
+          ),
+          if (_isOther) ...[
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _providerCtrl,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(labelText: 'Insurer name'),
+            ),
+          ],
+          const SizedBox(height: 14),
           _DocumentPicker(
             file: _document,
             hasExisting: policy.hasDocument,
@@ -499,9 +542,7 @@ class _PolicyFormScreenState extends ConsumerState<PolicyFormScreen> {
           ),
           const SizedBox(height: 24),
           FilledButton.icon(
-            onPressed: _submitting
-                ? null
-                : () => _submit(const <InsuranceCompany>[]),
+            onPressed: _submitting ? null : () => _submit(insurers),
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(52),
               backgroundColor: AppColors.forest700,
