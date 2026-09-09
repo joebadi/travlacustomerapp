@@ -159,6 +159,8 @@ class VehicleDocument {
 
   bool get isRenewable => category == 'RENEWABLE';
   bool get isExpired => (daysUntilExpiry ?? 0) < 0 || status == 'EXPIRED';
+  /// A renewal order is already placed for this document — don't offer renew again.
+  bool get renewalInProgress => status == 'PENDING_RENEWAL';
   bool get hasFile => documentUrl?.isNotEmpty == true;
 
   List<DocumentVersion> get displayVersions {

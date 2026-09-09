@@ -825,7 +825,7 @@ class _DocumentsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final expiredCount = vehicle.renewableDocuments
-        .where((d) => d.isExpired)
+        .where((d) => d.isExpired && !d.renewalInProgress)
         .length;
 
     return Padding(
@@ -1415,7 +1415,7 @@ class _DocumentTile extends StatelessWidget {
                         children: [
                           // Identity block: name + status pill, doc number.
                           Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Expanded(
                                 child: Text(
@@ -1430,6 +1430,24 @@ class _DocumentTile extends StatelessWidget {
                                   ),
                                 ),
                               ),
+                              // Verification result sits at the extreme top-right
+                              // of the card.
+                              if (verification != null)
+                                GestureDetector(
+                                  onTap: onView,
+                                  behavior: HitTestBehavior.opaque,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(left: 8),
+                                    child: Text(
+                                      'See verification result →',
+                                      style: TextStyle(
+                                        color: _verificationColor(verification),
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                             ],
                           ),
                           const SizedBox(height: 4),
@@ -1464,25 +1482,6 @@ class _DocumentTile extends StatelessWidget {
                                   background: _verificationColor(
                                     verification,
                                   ).withValues(alpha: .09),
-                                ),
-                              if (verification != null)
-                                TextButton(
-                                  onPressed: onView,
-                                  style: TextButton.styleFrom(
-                                    minimumSize: const Size(0, 26),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 4,
-                                    ),
-                                    tapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                  ),
-                                  child: const Text(
-                                    'See verification result →',
-                                    style: TextStyle(
-                                      fontSize: 9.5,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
                                 ),
                             ],
                           ),
@@ -1649,7 +1648,29 @@ class _DocumentTile extends StatelessWidget {
                             ),
                           ),
                           const Spacer(),
-                          if (document.isExpired)
+                          // A renewal already placed for this document can't be
+                          // renewed again — show its state instead of a button.
+                          if (document.renewalInProgress)
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                Icon(
+                                  Icons.hourglass_top_rounded,
+                                  size: 13,
+                                  color: AppColors.forest700,
+                                ),
+                                SizedBox(width: 5),
+                                Text(
+                                  'Renewal in progress',
+                                  style: TextStyle(
+                                    color: AppColors.forest700,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
+                            )
+                          else if (document.isExpired)
                             FilledButton.icon(
                               onPressed: () => context.push(
                                 '/more/renewals/new?vehicle=$vehicleId&preselect=expired',
