@@ -786,7 +786,7 @@ class _SheetHeader extends StatelessWidget {
                       ),
                       child: const Icon(
                         Icons.post_add_rounded,
-                        color: AppColors.orange,
+                        color: AppColors.white,
                         size: 23,
                       ),
                     ),
@@ -865,14 +865,18 @@ class _FormSection extends StatelessWidget {
                 height: 30,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: AppColors.forest950,
-                  borderRadius: BorderRadius.circular(9),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [AppColors.forest700, AppColors.forest600],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   number,
                   style: const TextStyle(
-                    color: AppColors.orange,
-                    fontSize: 9,
+                    color: AppColors.white,
+                    fontSize: 10.5,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
