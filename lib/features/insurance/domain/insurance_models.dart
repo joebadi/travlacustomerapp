@@ -47,6 +47,7 @@ class InsurancePolicy {
     required this.isPending,
     required this.hasDocument,
     required this.documentUrl,
+    required this.documentMime,
     required this.vehicleName,
     required this.vehiclePlate,
   });
@@ -70,6 +71,7 @@ class InsurancePolicy {
   final bool isPending;
   final bool hasDocument;
   final String? documentUrl;
+  final String? documentMime;
   final String? vehicleName;
   final String? vehiclePlate;
 
@@ -113,6 +115,7 @@ class InsurancePolicy {
       isPending: json['is_pending'] == true,
       hasDocument: json['has_document'] == true,
       documentUrl: json['document_url']?.toString(),
+      documentMime: json['document_mime']?.toString(),
       vehicleName: name.isEmpty ? null : name,
       vehiclePlate: vehicleJson['plate_number']?.toString(),
     );

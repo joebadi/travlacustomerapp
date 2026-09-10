@@ -1,9 +1,13 @@
 import 'dart:async';
+import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pdfx/pdfx.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
+import 'package:travla_customer_app/core/auth/auth_controller.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/insurance/data/insurance_repository.dart';
 import 'package:travla_customer_app/features/insurance/domain/insurance_models.dart';
@@ -730,6 +734,9 @@ class _MarqueeTextState extends State<_MarqueeText>
   }
 }
 
+const double _thumbW = 84;
+const double _thumbH = 106;
+
 class _CertificateThumbnail extends StatelessWidget {
   const _CertificateThumbnail({
     required this.policy,
@@ -745,73 +752,219 @@ class _CertificateThumbnail extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasDocument =
         policy.hasDocument && policy.documentUrl?.isNotEmpty == true;
-    // The certificate action lives here (under the thumbnail), not as a
-    // separate row below the card. Sharp (non-rounded) thumbnail edges.
-    final caption = hasDocument ? 'Replace certificate' : 'Upload certificate';
-    final captionColor = hasDocument
-        ? AppColors.forest700
-        : AppColors.orangeDark;
 
+    // The certificate action is overlaid ON the thumbnail (no caption below),
+    // so it never leaves whitespace beside the policy facts. Square edges.
     return SizedBox(
-      width: 78,
-      child: Column(
-        children: [
-          Material(
-            color: const Color(0xFFF1F5F3),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: policy.isPending
-                  ? null
-                  : (hasDocument ? onView : onCertificate),
-              child: SizedBox(
-                width: 78,
-                height: 98,
-                child: hasDocument
-                    ? Image.network(
-                        policy.documentUrl!,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (context, child, progress) =>
-                            progress == null
-                            ? child
-                            : const _DocumentPlaceholder(compact: true),
-                        errorBuilder: (_, _, _) =>
-                            const _DocumentPlaceholder(compact: false),
-                      )
-                    : const _DocumentPlaceholder(compact: true),
-              ),
-            ),
-          ),
-          const SizedBox(height: 6),
-          if (!policy.isPending)
-            InkWell(
-              onTap: onCertificate,
-              child: Text(
-                caption,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                style: TextStyle(
-                  color: captionColor,
-                  fontSize: 9.5,
-                  height: 1.2,
-                  fontWeight: FontWeight.w800,
+      width: _thumbW,
+      height: _thumbH,
+      child: Material(
+        color: hasDocument ? AppColors.ink : AppColors.forest50,
+        clipBehavior: Clip.antiAlias,
+        child: policy.isPending
+            ? const _CertPreview(url: null, mime: null)
+            : hasDocument
+            ? Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Tap the preview to view the full certificate.
+                  InkWell(
+                    onTap: onView,
+                    child: _CertPreview(
+                      url: policy.documentUrl,
+                      mime: policy.documentMime,
+                    ),
+                  ),
+                  // A slim "Replace" action pinned to the bottom edge.
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: _OverlayAction(
+                      icon: Icons.autorenew_rounded,
+                      label: 'Replace',
+                      onTap: onCertificate,
+                    ),
+                  ),
+                ],
+              )
+            // No certificate yet — the whole tile is the upload action.
+            : InkWell(
+                onTap: onCertificate,
+                child: const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.file_upload_outlined,
+                        color: AppColors.forest700,
+                        size: 26,
+                      ),
+                      SizedBox(height: 6),
+                      Text(
+                        'Upload\nCertificate',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: AppColors.forest700,
+                          fontSize: 10.5,
+                          height: 1.15,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-        ],
       ),
     );
   }
 }
 
-class _DocumentPlaceholder extends StatelessWidget {
-  const _DocumentPlaceholder({required this.compact});
+/// A slim translucent action bar overlaid on the bottom of a thumbnail.
+class _OverlayAction extends StatelessWidget {
+  const _OverlayAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
-  final bool compact;
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        color: Colors.white.withValues(alpha: .92),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 12, color: AppColors.forest700),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.forest700,
+                fontSize: 9.5,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Renders an actual preview of the stored certificate: an image straight from
+/// the signed URL, or a PDF's first page rendered to a bitmap (pdfx). Falls back
+/// to a neutral icon while loading or if it can't be rendered.
+class _CertPreview extends ConsumerStatefulWidget {
+  const _CertPreview({required this.url, required this.mime});
+
+  final String? url;
+  final String? mime;
+
+  @override
+  ConsumerState<_CertPreview> createState() => _CertPreviewState();
+}
+
+class _CertPreviewState extends ConsumerState<_CertPreview> {
+  // First-page renders are cached across rebuilds (the card rebuilds often).
+  static final Map<String, Uint8List> _pdfCache = {};
+  Uint8List? _pdfBytes;
+  bool _rendering = false;
+
+  bool get _isPdf {
+    final mime = widget.mime?.toLowerCase() ?? '';
+    if (mime.contains('pdf')) return true;
+    if (mime.startsWith('image/')) return false;
+    return (widget.url ?? '').toLowerCase().contains('.pdf');
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.url != null && _isPdf) _loadPdf();
+  }
+
+  @override
+  void didUpdateWidget(covariant _CertPreview old) {
+    super.didUpdateWidget(old);
+    if (old.url != widget.url) {
+      _pdfBytes = null;
+      if (widget.url != null && _isPdf) _loadPdf();
+    }
+  }
+
+  Future<void> _loadPdf() async {
+    final url = widget.url!;
+    final cached = _pdfCache[url];
+    if (cached != null) {
+      setState(() => _pdfBytes = cached);
+      return;
+    }
+    if (_rendering) return;
+    _rendering = true;
+    try {
+      final response = await ref
+          .read(apiClientProvider)
+          .dio
+          .get<List<int>>(url, options: Options(responseType: ResponseType.bytes));
+      final doc = await PdfDocument.openData(
+        Uint8List.fromList(response.data ?? const []),
+      );
+      final page = await doc.getPage(1);
+      final image = await page.render(
+        width: page.width * 2,
+        height: page.height * 2,
+        format: PdfPageImageFormat.png,
+      );
+      await page.close();
+      await doc.close();
+      final bytes = image?.bytes;
+      if (bytes != null) _pdfCache[url] = bytes;
+      if (mounted) setState(() => _pdfBytes = bytes);
+    } catch (_) {
+      // Leave the placeholder in place.
+    } finally {
+      _rendering = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.url == null) return const _PreviewFallback();
+
+    if (_isPdf) {
+      if (_pdfBytes != null) {
+        return Image.memory(_pdfBytes!, fit: BoxFit.cover, width: _thumbW);
+      }
+      return const _PreviewFallback();
+    }
+
+    return Image.network(
+      widget.url!,
+      fit: BoxFit.cover,
+      width: _thumbW,
+      loadingBuilder: (context, child, progress) =>
+          progress == null ? child : const _PreviewFallback(),
+      errorBuilder: (_, _, _) => const _PreviewFallback(),
+    );
+  }
+}
+
+class _PreviewFallback extends StatelessWidget {
+  const _PreviewFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return const DecoratedBox(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -819,27 +972,10 @@ class _DocumentPlaceholder extends StatelessWidget {
         ),
       ),
       child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              compact
-                  ? Icons.description_outlined
-                  : Icons.picture_as_pdf_outlined,
-              color: compact ? AppColors.forest700 : AppColors.danger,
-              size: 27,
-            ),
-            const SizedBox(height: 5),
-            Text(
-              compact ? 'CERTIFICATE' : 'PDF',
-              style: const TextStyle(
-                color: AppColors.muted,
-                fontSize: 7.5,
-                fontWeight: FontWeight.w900,
-                letterSpacing: .7,
-              ),
-            ),
-          ],
+        child: Icon(
+          Icons.description_outlined,
+          color: AppColors.forest700,
+          size: 26,
         ),
       ),
     );
