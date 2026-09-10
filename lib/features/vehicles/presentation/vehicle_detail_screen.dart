@@ -1430,70 +1430,49 @@ class _DocumentTile extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Title + number on the left; verification icon and
-                          // the auto-renew control stacked on the right.
+                          // Title takes the full width (only the verification
+                          // icon sits beside it) so it no longer wraps early.
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      document.name,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: AppColors.ink,
-                                        fontSize: 15,
-                                        height: 1.15,
-                                        fontWeight: FontWeight.w900,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 3),
-                                    Text(
-                                      document.documentNumber?.isNotEmpty == true
-                                          ? 'No. ${document.documentNumber}'
-                                          : document.isRenewable
-                                          ? 'Number not recorded'
-                                          : 'Permanent record',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: AppColors.muted,
-                                        fontSize: 10.5,
-                                      ),
-                                    ),
-                                  ],
+                                child: Text(
+                                  document.name,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: AppColors.ink,
+                                    fontSize: 15,
+                                    height: 1.15,
+                                    fontWeight: FontWeight.w900,
+                                  ),
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (verification != null)
-                                    Icon(
-                                      _verificationIcon(verification),
-                                      size: 20,
-                                      color: _verificationColor(verification),
-                                    ),
-                                  if (document.isRenewable) ...[
-                                    if (verification != null)
-                                      const SizedBox(height: 8),
-                                    _AutoRenewToggle(
-                                      value: document.autoRenew,
-                                      onTap: () =>
-                                          onAutoRenew(!document.autoRenew),
-                                    ),
-                                  ],
-                                ],
-                              ),
+                              if (verification != null) ...[
+                                const SizedBox(width: 8),
+                                Icon(
+                                  _verificationIcon(verification),
+                                  size: 20,
+                                  color: _verificationColor(verification),
+                                ),
+                              ],
                             ],
                           ),
-                          // Expiry status gets the full width, so it never
-                          // truncates or collides with the controls above.
+                          const SizedBox(height: 3),
+                          Text(
+                            document.documentNumber?.isNotEmpty == true
+                                ? 'No. ${document.documentNumber}'
+                                : document.isRenewable
+                                ? 'Number not recorded'
+                                : 'Permanent record',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 10.5,
+                            ),
+                          ),
+                          // Expiry status on the left, auto-renew on the right.
                           if (document.isRenewable) ...[
                             const SizedBox(height: 8),
                             Row(
@@ -1524,78 +1503,94 @@ class _DocumentTile extends StatelessWidget {
                                     ),
                                   ),
                                 ),
+                                const SizedBox(width: 8),
+                                _AutoRenewToggle(
+                                  value: document.autoRenew,
+                                  onTap: () => onAutoRenew(!document.autoRenew),
+                                ),
                               ],
                             ),
                           ],
-                          if (needsRenew) ...[
+                          // Bottom line: Renew now (left) + Verified date (right).
+                          if (needsRenew || verification != null) ...[
                             const SizedBox(height: 10),
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: FilledButton.icon(
-                                onPressed: () => context.push(
-                                  '/more/renewals/new?vehicle=$vehicleId&preselect=expired',
-                                ),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: AppColors.orange,
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 8,
-                                  ),
-                                  minimumSize: Size.zero,
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                                icon: const Icon(Icons.autorenew_rounded, size: 15),
-                                label: const Text(
-                                  'Renew now',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                          // Bottom-right: when it was verified (tap to open the
-                          // full verification result).
-                          if (verification != null) ...[
-                            const SizedBox(height: 8),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: GestureDetector(
-                                onTap: onView,
-                                behavior: HitTestBehavior.opaque,
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(
-                                      Icons.verified_outlined,
-                                      size: 12,
-                                      color: AppColors.muted,
+                            Row(
+                              children: [
+                                if (needsRenew) ...[
+                                  FilledButton.icon(
+                                    onPressed: () => context.push(
+                                      '/more/renewals/new?vehicle=$vehicleId&preselect=expired',
                                     ),
-                                    const SizedBox(width: 5),
-                                    Text(
-                                      _verifiedWhen(verification),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: AppColors.muted,
-                                        fontSize: 10,
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: AppColors.orange,
+                                      foregroundColor: Colors.white,
+                                      elevation: 0,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 8,
+                                      ),
+                                      minimumSize: Size.zero,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
                                       ),
                                     ),
-                                    const SizedBox(width: 3),
-                                    const Icon(
-                                      Icons.arrow_forward_rounded,
-                                      size: 11,
-                                      color: AppColors.muted,
+                                    icon: const Icon(
+                                      Icons.autorenew_rounded,
+                                      size: 15,
                                     ),
-                                  ],
+                                    label: const Text(
+                                      'Renew now',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                ],
+                                Expanded(
+                                  child: verification != null
+                                      ? Align(
+                                          alignment: Alignment.centerRight,
+                                          child: FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            alignment: Alignment.centerRight,
+                                            child: GestureDetector(
+                                              onTap: onView,
+                                              behavior: HitTestBehavior.opaque,
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(
+                                                    Icons.verified_outlined,
+                                                    size: 12,
+                                                    color: AppColors.muted,
+                                                  ),
+                                                  const SizedBox(width: 5),
+                                                  Text(
+                                                    _verifiedWhen(verification),
+                                                    maxLines: 1,
+                                                    style: const TextStyle(
+                                                      color: AppColors.muted,
+                                                      fontSize: 10,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 3),
+                                                  const Icon(
+                                                    Icons.arrow_forward_rounded,
+                                                    size: 11,
+                                                    color: AppColors.muted,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        )
+                                      : const SizedBox.shrink(),
                                 ),
-                              ),
+                              ],
                             ),
                           ],
                         ],
