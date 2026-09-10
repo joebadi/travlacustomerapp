@@ -1459,18 +1459,32 @@ class _DocumentTile extends StatelessWidget {
                             ],
                           ),
                           const SizedBox(height: 3),
-                          Text(
-                            document.documentNumber?.isNotEmpty == true
-                                ? 'No. ${document.documentNumber}'
-                                : document.isRenewable
-                                ? 'Number not recorded'
-                                : 'Permanent record',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: AppColors.muted,
-                              fontSize: 10.5,
-                            ),
+                          // Document number on the left, auto-renew on the right.
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  document.documentNumber?.isNotEmpty == true
+                                      ? 'No. ${document.documentNumber}'
+                                      : document.isRenewable
+                                      ? 'Number not recorded'
+                                      : 'Permanent record',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: AppColors.muted,
+                                    fontSize: 10.5,
+                                  ),
+                                ),
+                              ),
+                              if (document.isRenewable) ...[
+                                const SizedBox(width: 8),
+                                _AutoRenewToggle(
+                                  value: document.autoRenew,
+                                  onTap: () => onAutoRenew(!document.autoRenew),
+                                ),
+                              ],
+                            ],
                           ),
                           // Expiry status on the left, auto-renew on the right.
                           if (document.isRenewable) ...[
@@ -1502,11 +1516,6 @@ class _DocumentTile extends StatelessWidget {
                                       fontWeight: FontWeight.w800,
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                _AutoRenewToggle(
-                                  value: document.autoRenew,
-                                  onTap: () => onAutoRenew(!document.autoRenew),
                                 ),
                               ],
                             ),
