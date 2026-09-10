@@ -1430,11 +1430,11 @@ class _DocumentTile extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          // Title + number on the left; verification icon and
+                          // the auto-renew control stacked on the right.
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Left: title, number, expiry, and (when due) a
-                              // Renew action.
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1465,83 +1465,10 @@ class _DocumentTile extends StatelessWidget {
                                         fontSize: 10.5,
                                       ),
                                     ),
-                                    if (document.isRenewable) ...[
-                                      const SizedBox(height: 6),
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            Icons.schedule_rounded,
-                                            size: 13,
-                                            color: expiryColor,
-                                          ),
-                                          const SizedBox(width: 5),
-                                          Flexible(
-                                            child: Text(
-                                              _expiryText(document),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                color: expiryColor,
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w800,
-                                              ),
-                                            ),
-                                          ),
-                                          if (document.renewalInProgress) ...[
-                                            const SizedBox(width: 6),
-                                            const _MiniChip(
-                                              label: 'Renewal in progress',
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                    ],
-                                    if (needsRenew) ...[
-                                      const SizedBox(height: 8),
-                                      GestureDetector(
-                                        onTap: () => context.push(
-                                          '/more/renewals/new?vehicle=$vehicleId&preselect=expired',
-                                        ),
-                                        behavior: HitTestBehavior.opaque,
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 5,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.orange,
-                                            borderRadius: BorderRadius.circular(
-                                              30,
-                                            ),
-                                          ),
-                                          child: const Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(
-                                                Icons.autorenew_rounded,
-                                                size: 13,
-                                                color: Colors.white,
-                                              ),
-                                              SizedBox(width: 4),
-                                              Text(
-                                                'Renew',
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w800,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ],
                                   ],
                                 ),
                               ),
-                              const SizedBox(width: 10),
-                              // Right: verification icon, then the auto-renew
-                              // control directly beneath it.
+                              const SizedBox(width: 8),
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 mainAxisSize: MainAxisSize.min,
@@ -1565,6 +1492,74 @@ class _DocumentTile extends StatelessWidget {
                               ),
                             ],
                           ),
+                          // Expiry status gets the full width, so it never
+                          // truncates or collides with the controls above.
+                          if (document.isRenewable) ...[
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Icon(
+                                  document.renewalInProgress
+                                      ? Icons.hourglass_top_rounded
+                                      : Icons.schedule_rounded,
+                                  size: 13,
+                                  color: document.renewalInProgress
+                                      ? AppColors.forest700
+                                      : expiryColor,
+                                ),
+                                const SizedBox(width: 5),
+                                Expanded(
+                                  child: Text(
+                                    document.renewalInProgress
+                                        ? 'Renewal in progress'
+                                        : _expiryText(document),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: document.renewalInProgress
+                                          ? AppColors.forest700
+                                          : expiryColor,
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                          if (needsRenew) ...[
+                            const SizedBox(height: 10),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: FilledButton.icon(
+                                onPressed: () => context.push(
+                                  '/more/renewals/new?vehicle=$vehicleId&preselect=expired',
+                                ),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: AppColors.orange,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                icon: const Icon(Icons.autorenew_rounded, size: 15),
+                                label: const Text(
+                                  'Renew now',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                           // Bottom-right: when it was verified (tap to open the
                           // full verification result).
                           if (verification != null) ...[
@@ -1583,15 +1578,13 @@ class _DocumentTile extends StatelessWidget {
                                       color: AppColors.muted,
                                     ),
                                     const SizedBox(width: 5),
-                                    Flexible(
-                                      child: Text(
-                                        _verifiedWhen(verification),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          color: AppColors.muted,
-                                          fontSize: 10,
-                                        ),
+                                    Text(
+                                      _verifiedWhen(verification),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: AppColors.muted,
+                                        fontSize: 10,
                                       ),
                                     ),
                                     const SizedBox(width: 3),
@@ -1669,31 +1662,6 @@ class _AutoRenewToggle extends StatelessWidget {
 }
 
 /// A tiny inline chip, e.g. for "Renewal in progress".
-class _MiniChip extends StatelessWidget {
-  const _MiniChip({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: AppColors.forest50,
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: AppColors.forest700,
-          fontSize: 8.5,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
-}
-
 /// The red background revealed when swiping a document tile to delete.
 class _SwipeDeleteBackground extends StatelessWidget {
   const _SwipeDeleteBackground();
