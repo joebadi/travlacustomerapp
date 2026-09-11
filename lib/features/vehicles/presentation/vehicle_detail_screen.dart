@@ -1973,7 +1973,7 @@ class _DocumentDetailsSheet extends StatelessWidget {
                   )
                 else
                   SizedBox(
-                    height: 168,
+                    height: 232,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: versions.length,
@@ -2478,6 +2478,12 @@ class _VersionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasFile = version.documentUrl?.isNotEmpty == true;
+    final title = version.documentNumber?.isNotEmpty == true
+        ? version.documentNumber!
+        : version.originalFilename ?? 'Document file';
+    final subtitle = version.expiryDate == null
+        ? _displayApiDate(version.issuedDate)
+        : 'Expires ${_displayApiDate(version.expiryDate)}';
 
     return Material(
       color: AppColors.white,
@@ -2486,7 +2492,6 @@ class _VersionCard extends StatelessWidget {
       child: InkWell(
         onTap: hasFile ? onOpen : null,
         child: Container(
-          width: 166,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
@@ -2494,84 +2499,101 @@ class _VersionCard extends StatelessWidget {
               width: version.isCurrent ? 1.5 : 1,
             ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Thumbnail preview of this exact version's file.
-              Stack(
-                children: [
-                  SizedBox(
-                    height: 104,
-                    width: double.infinity,
-                    child: DocumentThumbnail(
-                      url: hasFile ? version.documentUrl : null,
-                      mime: version.mimeType,
-                      iconSize: 30,
-                    ),
-                  ),
-                  if (version.isCurrent)
-                    const Positioned(
-                      top: 8,
-                      left: 8,
-                      child: _VersionTag(
-                        label: 'CURRENT',
-                        color: AppColors.forest700,
-                      ),
-                    ),
-                  if (version.isOriginal)
-                    const Positioned(
-                      top: 8,
-                      right: 8,
-                      child: _VersionTag(label: 'ORIGINAL', color: AppColors.ink),
-                    ),
-                  Positioned(
-                    bottom: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.all(5),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: .92),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.open_in_new_rounded,
-                        size: 15,
-                        color: AppColors.forest700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      version.documentNumber?.isNotEmpty == true
-                          ? version.documentNumber!
-                          : version.originalFilename ?? 'Document file',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.ink,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      version.expiryDate == null
-                          ? _displayApiDate(version.issuedDate)
-                          : 'Expires ${_displayApiDate(version.expiryDate)}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: AppColors.muted, fontSize: 9),
-                    ),
-                  ],
+          clipBehavior: Clip.antiAlias,
+          // A standing A4 document (210×297), matching the agent app; the label
+          // and dates overlay the page rather than sitting in a strip below it.
+          child: AspectRatio(
+            aspectRatio: 210 / 297,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                DocumentThumbnail(
+                  url: hasFile ? version.documentUrl : null,
+                  mime: version.mimeType,
+                  iconSize: 34,
                 ),
-              ),
-            ],
+                // Bottom scrim so the overlaid text stays legible on any page.
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(11, 22, 11, 11),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                        colors: [Color(0xF2021B13), Color(0x00021B13)],
+                      ),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                subtitle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Color(0xFFBBD8CD),
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (hasFile) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: .92),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.open_in_new_rounded,
+                              size: 14,
+                              color: AppColors.forest700,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                if (version.isCurrent)
+                  const Positioned(
+                    top: 8,
+                    left: 8,
+                    child: _VersionTag(
+                      label: 'CURRENT',
+                      color: AppColors.forest700,
+                    ),
+                  ),
+                if (version.isOriginal)
+                  const Positioned(
+                    top: 8,
+                    right: 8,
+                    child: _VersionTag(label: 'ORIGINAL', color: AppColors.ink),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -2587,18 +2609,21 @@ class _VersionTag extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Sits on top of the document image, so it needs a solid fill and white
+    // text to stay readable over any page.
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: .1),
+        color: color.withValues(alpha: .92),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
         label,
-        style: TextStyle(
-          color: color,
-          fontSize: 7,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 7.5,
           fontWeight: FontWeight.w900,
+          letterSpacing: .4,
         ),
       ),
     );
