@@ -609,6 +609,8 @@ class _NeedsAttentionCard extends StatelessWidget {
     final items = <_AttentionItem>[];
 
     for (final vehicle in snapshot?.vehicles ?? const <VehicleSummary>[]) {
+      // A vehicle can have both — show each so an expiring paper isn't hidden
+      // behind an already-expired one.
       if (vehicle.expiredDocumentsCount > 0) {
         items.add(
           _AttentionItem(
@@ -619,7 +621,8 @@ class _NeedsAttentionCard extends StatelessWidget {
             onTap: () => context.push('/vehicles/${vehicle.id}?tab=documents'),
           ),
         );
-      } else if (vehicle.expiringSoonCount > 0) {
+      }
+      if (vehicle.expiringSoonCount > 0) {
         items.add(
           _AttentionItem(
             title: 'Papers expiring soon',

@@ -309,12 +309,14 @@ class _ActivePoliciesHeaderState extends State<_ActivePoliciesHeader> {
           onTap: () => _handle(0, widget.onAdd),
         ),
         const SizedBox(width: 8),
+        // Buy stays open with its label showing, and acts on a single tap —
+        // it's the primary action, so it shouldn't need the expand handshake.
         _ExpandingAction(
           icon: Icons.add_shopping_cart_rounded,
-          label: 'Buy new',
+          label: 'Buy policy',
           color: AppColors.orange,
-          expanded: _open == 1,
-          onTap: () => _handle(1, widget.onBuy),
+          expanded: true,
+          onTap: widget.onBuy,
         ),
       ],
     );
