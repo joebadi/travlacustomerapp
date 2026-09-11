@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,6 +17,7 @@ class NewRenewalScreen extends ConsumerStatefulWidget {
   const NewRenewalScreen({
     this.vehicleId = '',
     this.preselectExpired = false,
+    this.preselectType = '',
     super.key,
   });
 
@@ -24,6 +27,12 @@ class NewRenewalScreen extends ConsumerStatefulWidget {
   /// action), every already-expired eligible paper is auto-checked once the
   /// renewable-documents list loads — mirrors the web's `preselect=expired`.
   final bool preselectExpired;
+
+  /// The document *type* (e.g. `PROOF_OF_OWNERSHIP`) a per-document "Renew now"
+  /// button was tapped for. When set, only that paper is auto-checked once the
+  /// renewable-documents list loads, so the user lands on exactly what they
+  /// asked to renew instead of an empty selection.
+  final String preselectType;
 
   @override
   ConsumerState<NewRenewalScreen> createState() => _NewRenewalScreenState();
@@ -42,22 +51,31 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
   String _city = '';
   String _state = '';
   RenewalQuote? _quote;
-  bool _quoting = false;
   bool _submitting = false;
   String? _error;
+  Timer? _quoteDebounce;
 
   @override
   void initState() {
     super.initState();
     _vehicleId = widget.vehicleId;
     _step = _vehicleId.isEmpty ? 1 : 2;
+    // The checkout step gates the pay button on a delivery address being typed,
+    // so rebuild as the field changes to keep that button in sync.
+    _address.addListener(_onAddressChanged);
   }
 
   @override
   void dispose() {
+    _quoteDebounce?.cancel();
+    _address.removeListener(_onAddressChanged);
     _address.dispose();
     _notes.dispose();
     super.dispose();
+  }
+
+  void _onAddressChanged() {
+    if (mounted && _step == 3) setState(() {});
   }
 
   @override
@@ -175,7 +193,7 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
         onRetry: () => ref.invalidate(renewableDocumentsProvider(_vehicleId)),
       ),
       data: (items) {
-        _applyExpiredPreselect(items);
+        _applyPreselect(items);
         return _StageCard(
         key: const ValueKey('documents'),
         eyebrow: 'STEP 2',
@@ -229,10 +247,13 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
                         _selectedDocuments.isEmpty &&
                             _selectedInsurancePolicies.isEmpty
                         ? null
-                        : () => setState(() {
-                            _step = 3;
-                            _error = null;
-                          }),
+                        : () {
+                            setState(() {
+                              _step = 3;
+                              _error = null;
+                            });
+                            _scheduleQuote();
+                          },
                     child: Text(
                       _selectedDocuments.isEmpty &&
                               _selectedInsurancePolicies.isEmpty
@@ -250,23 +271,45 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
     );
   }
 
-  /// Auto-checks already-expired eligible papers once, when this screen was
-  /// opened via a "Renew N expired" deep link. Guarded by [_preselectApplied]
-  /// so it only runs once and never fights the user's own selections.
-  void _applyExpiredPreselect(List<RenewableDocumentOption> items) {
-    if (!widget.preselectExpired || _preselectApplied) return;
-    final expiredIds = items
-        .where((item) => item.eligible && (item.daysToExpiry ?? 1) < 0)
-        .map((item) => item.id)
-        .toSet();
-    if (expiredIds.isEmpty) {
+  /// Auto-checks the paper(s) this screen was deep-linked for, once, when the
+  /// renewable-documents list loads. Two entry points feed this:
+  ///   * `preselectType` — a single document's "Renew now" button; only that
+  ///     matching eligible paper is checked so the user lands on exactly what
+  ///     they tapped.
+  ///   * `preselectExpired` — the "Renew N expired" bulk action; every
+  ///     already-expired eligible paper is checked.
+  /// Guarded by [_preselectApplied] so it runs once and never fights later
+  /// user selections.
+  void _applyPreselect(List<RenewableDocumentOption> items) {
+    if (_preselectApplied) return;
+    if (widget.preselectType.isEmpty && !widget.preselectExpired) return;
+
+    final Set<String> ids;
+    if (widget.preselectType.isNotEmpty) {
+      ids = items
+          .where(
+            (item) =>
+                item.eligible &&
+                item.type.toUpperCase() ==
+                    widget.preselectType.toUpperCase(),
+          )
+          .map((item) => item.id)
+          .toSet();
+    } else {
+      ids = items
+          .where((item) => item.eligible && (item.daysToExpiry ?? 1) < 0)
+          .map((item) => item.id)
+          .toSet();
+    }
+
+    if (ids.isEmpty) {
       _preselectApplied = true;
       return;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       setState(() {
-        _selectedDocuments.addAll(expiredIds);
+        _selectedDocuments.addAll(ids);
         _preselectApplied = true;
       });
     });
@@ -381,13 +424,19 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
     return _StageCard(
       key: const ValueKey('fulfilment'),
       eyebrow: 'STEP 3',
-      title: _quote == null ? 'Choose handover' : 'Review and pay',
-      description: _quote == null
-          ? 'The server adds one delivery fee for the complete order—not one fee per paper.'
-          : 'Review the server-calculated breakdown before submitting.',
-      child: _quote == null
-          ? _fulfilmentForm(cities)
-          : _quoteReview(_quote!, vehicle),
+      title: 'Delivery & Checkout',
+      description:
+          'One delivery fee covers the complete order—not one fee per paper. Your quote updates live below as you choose.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _fulfilmentForm(cities),
+          const SizedBox(height: 16),
+          _liveQuote(vehicle),
+          const SizedBox(height: 16),
+          _checkoutActions(),
+        ],
+      ),
     );
   }
 
@@ -403,10 +452,10 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
                 title: 'Door-to-door',
                 detail: 'A rider delivers the complete sealed order.',
                 selected: _deliveryMethod == 'DELIVERY',
-                onTap: () => setState(() {
-                  _deliveryMethod = 'DELIVERY';
-                  _quote = null;
-                }),
+                onTap: () {
+                  setState(() => _deliveryMethod = 'DELIVERY');
+                  _scheduleQuote();
+                },
               ),
             ),
             const SizedBox(width: 10),
@@ -416,10 +465,10 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
                 title: 'Pickup',
                 detail: 'Collect the complete order from the agent.',
                 selected: _deliveryMethod == 'PICKUP',
-                onTap: () => setState(() {
-                  _deliveryMethod = 'PICKUP';
-                  _quote = null;
-                }),
+                onTap: () {
+                  setState(() => _deliveryMethod = 'PICKUP');
+                  _scheduleQuote();
+                },
               ),
             ),
           ],
@@ -457,9 +506,9 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
               setState(() {
                 _city = match?.city ?? '';
                 _state = match?.state ?? '';
-                _quote = null;
                 _error = null;
               });
+              _scheduleQuote();
             },
           ),
         ),
@@ -488,36 +537,127 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
             alignLabelWithHint: true,
           ),
         ),
-        const SizedBox(height: 12),
-        Row(
+      ],
+    );
+  }
+
+  /// The live quote shown directly under the checkout form. It recomputes
+  /// (debounced) whenever the delivery method or service city changes, so the
+  /// user sees the exact total update in place instead of tapping a button.
+  Widget _liveQuote(VehicleSummary? vehicle) {
+    if (_city.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.forest50,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: const Row(
           children: [
+            Icon(Icons.location_city_outlined, color: AppColors.forest700),
+            SizedBox(width: 10),
             Expanded(
-              child: OutlinedButton(
-                onPressed: () => setState(() {
-                  _step = 2;
-                  _error = null;
-                }),
-                child: const Text('Back'),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              flex: 2,
-              child: FilledButton.icon(
-                onPressed: _quoting ? null : _requestQuote,
-                icon: _quoting
-                    ? const SizedBox.square(
-                        dimension: 17,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Icon(Icons.receipt_long_outlined),
-                label: Text(_quoting ? 'Calculating…' : 'Get exact quote'),
+              child: Text(
+                'Select a service city to see your live quote.',
+                style: TextStyle(
+                  color: AppColors.forest700,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ],
+        ),
+      );
+    }
+    if (_quote == null) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.forest50,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: const Row(
+          children: [
+            SizedBox.square(
+              dimension: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 12),
+            Text(
+              'Calculating your quote…',
+              style: TextStyle(
+                color: AppColors.forest700,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return _quoteReview(_quote!, vehicle);
+  }
+
+  /// The checkout actions row (Back + Pay/Fund). Pay is enabled only once a live
+  /// quote exists with a sufficient balance and, for delivery, an address.
+  Widget _checkoutActions() {
+    final quote = _quote;
+    final addressOk =
+        _deliveryMethod == 'PICKUP' || _address.text.trim().isNotEmpty;
+    final canPay =
+        quote != null && quote.sufficientBalance && addressOk && !_submitting;
+
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: _submitting
+                ? null
+                : () => setState(() {
+                    _step = 2;
+                    _error = null;
+                  }),
+            child: const Text('Back'),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          flex: 2,
+          child: (quote != null && !quote.sufficientBalance)
+              ? FilledButton.icon(
+                  onPressed: _submitting ? null : _fundShortfall,
+                  icon: const Icon(Icons.add_card_rounded),
+                  label: Text('Fund ₦${_money(quote.shortfallNaira)}'),
+                )
+              : FilledButton.icon(
+                  onPressed: canPay ? _submit : null,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.orange,
+                  ),
+                  icon: _submitting
+                      ? const SizedBox.square(
+                          dimension: 17,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Icon(Icons.lock_outline_rounded),
+                  label: Text(
+                    _submitting
+                        ? 'Submitting…'
+                        : quote == null
+                        ? 'Awaiting quote'
+                        : !addressOk
+                        ? 'Add delivery address'
+                        : 'Pay ₦${_money(quote.totalNaira)}',
+                  ),
+                ),
         ),
       ],
     );
@@ -611,7 +751,7 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Your wallet is short by ₦${_money(quote.shortfallNaira)}. Fund only the shortfall, then return for a fresh quote.',
+                    'Your wallet is short by ₦${_money(quote.shortfallNaira)}. Fund only the shortfall—the quote refreshes automatically.',
                     style: const TextStyle(
                       color: AppColors.orangeDark,
                       fontSize: 11,
@@ -623,73 +763,24 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
             ),
           ),
         ],
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: _submitting
-                    ? null
-                    : () => setState(() {
-                        _quote = null;
-                        _error = null;
-                      }),
-                child: const Text('Edit'),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              flex: 2,
-              // Gate purely on wallet balance, matching the web wizard — the
-              // selection step already only lets eligible items be checked,
-              // so by the quote step everything picked was eligible; the
-              // backend re-validates on submit regardless.
-              child: quote.sufficientBalance
-                  ? FilledButton.icon(
-                      onPressed: _submitting ? null : _submit,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.orange,
-                      ),
-                      icon: _submitting
-                          ? const SizedBox.square(
-                              dimension: 17,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : const Icon(Icons.lock_outline_rounded),
-                      label: Text(
-                        _submitting
-                            ? 'Submitting…'
-                            : 'Pay ₦${_money(quote.totalNaira)}',
-                      ),
-                    )
-                  : FilledButton.icon(
-                      onPressed: _fundShortfall,
-                      icon: const Icon(Icons.add_card_rounded),
-                      label: Text('Fund ₦${_money(quote.shortfallNaira)}'),
-                    ),
-            ),
-          ],
-        ),
       ],
     );
   }
 
-  Future<void> _requestQuote() async {
-    if (_city.isEmpty || _state.isEmpty) {
-      setState(() => _error = 'Select a covered service city.');
-      return;
-    }
-    if (_deliveryMethod == 'DELIVERY' && _address.text.trim().isEmpty) {
-      setState(() => _error = 'Enter the door-to-door delivery address.');
-      return;
-    }
-    setState(() {
-      _quoting = true;
-      _error = null;
-    });
+  /// Debounces a live re-quote after a delivery/city change so rapid taps don't
+  /// fire a burst of requests. Clears any stale quote immediately (so the total
+  /// never lags behind the current selection) and, when there's nothing to
+  /// quote yet (no city), just stops.
+  void _scheduleQuote() {
+    _quoteDebounce?.cancel();
+    setState(() => _quote = null);
+    if (_city.isEmpty || _state.isEmpty) return;
+    _quoteDebounce = Timer(const Duration(milliseconds: 450), _autoQuote);
+  }
+
+  Future<void> _autoQuote() async {
+    if (_city.isEmpty || _state.isEmpty) return;
+    setState(() => _error = null);
     try {
       final quote = await ref
           .read(renewalRepositoryProvider)
@@ -703,9 +794,12 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
           );
       if (mounted) setState(() => _quote = quote);
     } on ApiFailure catch (failure) {
-      if (mounted) setState(() => _error = failure.message);
-    } finally {
-      if (mounted) setState(() => _quoting = false);
+      if (mounted) {
+        setState(() {
+          _error = failure.message;
+          _quote = null;
+        });
+      }
     }
   }
 
@@ -757,11 +851,8 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
   Future<void> _fundShortfall() async {
     await context.push('/more/transactions');
     if (!mounted) return;
-    setState(() {
-      _quote = null;
-      _error = null;
-    });
-    await _requestQuote();
+    setState(() => _error = null);
+    await _autoQuote();
   }
 
   Future<void> _openVehicleDocuments(VehicleSummary? vehicle) async {
@@ -850,7 +941,7 @@ class _StepRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const labels = ['Vehicle', 'Papers', 'Review'];
+    const labels = ['Vehicle', 'Papers', 'Checkout'];
     return Row(
       children: List.generate(labels.length, (index) {
         final number = index + 1;

@@ -1528,7 +1528,7 @@ class _DocumentTile extends StatelessWidget {
                                 if (needsRenew) ...[
                                   FilledButton.icon(
                                     onPressed: () => context.push(
-                                      '/more/renewals/new?vehicle=$vehicleId&preselect=expired',
+                                      '/more/renewals/new?vehicle=$vehicleId&type=${Uri.encodeComponent(document.type)}',
                                     ),
                                     style: FilledButton.styleFrom(
                                       backgroundColor: AppColors.orange,

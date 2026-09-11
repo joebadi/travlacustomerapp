@@ -258,6 +258,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                           preselectExpired:
                               state.uri.queryParameters['preselect'] ==
                               'expired',
+                          preselectType:
+                              state.uri.queryParameters['type'] ?? '',
                         ),
                       ),
                       GoRoute(
