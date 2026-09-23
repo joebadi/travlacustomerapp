@@ -2483,7 +2483,7 @@ class _VersionCard extends StatelessWidget {
         : version.originalFilename ?? 'Document file';
     final subtitle = version.expiryDate == null
         ? _displayApiDate(version.issuedDate)
-        : 'Expires ${_displayApiDate(version.expiryDate)}';
+        : '${_isExpiredIso(version.expiryDate) ? 'Expired' : 'Expires'} ${_displayApiDate(version.expiryDate)}';
 
     return Material(
       color: AppColors.white,
@@ -2760,6 +2760,16 @@ String _expiryText(VehicleDocument document) {
   }
   if (days == 0) return 'Expires today';
   return 'Expires in $days day${days == 1 ? '' : 's'}';
+}
+
+/// True when an ISO date is strictly before today — used to say "Expired"
+/// rather than "Expires" for a lapsed document version.
+bool _isExpiredIso(String? value) {
+  final date = parseDateOnly(value);
+  if (date == null) return false;
+  final now = DateTime.now();
+  return DateTime(date.year, date.month, date.day)
+      .isBefore(DateTime(now.year, now.month, now.day));
 }
 
 String _displayApiDate(String? value) {
