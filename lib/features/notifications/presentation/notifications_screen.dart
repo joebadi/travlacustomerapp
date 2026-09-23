@@ -84,9 +84,14 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                       item: item,
                       isSelected: item.id == _selectedId,
                       onTap: () => _select(item),
+                      // These destinations live inside the tab shell, but this
+                      // screen is a standalone route above it — pushing a shell
+                      // route from here would build a second shell (duplicate
+                      // navigator GlobalKeys → a framework assertion crash). go()
+                      // navigates the existing shell to the target instead.
                       onAction: destination == null
                           ? null
-                          : () => context.push(destination),
+                          : () => context.go(destination),
                     ),
                   ),
                 );

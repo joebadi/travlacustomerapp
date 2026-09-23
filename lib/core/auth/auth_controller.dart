@@ -8,7 +8,7 @@ import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/auth/data/auth_repository.dart';
 import 'package:travla_customer_app/features/auth/domain/app_user.dart';
 
-enum AuthPhase { booting, authenticated, unauthenticated }
+enum AuthPhase { booting, authenticated, unauthenticated, offline }
 
 class AuthSessionState {
   const AuthSessionState({
@@ -97,11 +97,27 @@ class AuthController extends Notifier<AuthSessionState> {
       final user = await _repository.currentUser();
       state = AuthSessionState(phase: AuthPhase.authenticated, user: user);
     } on ApiFailure catch (failure) {
+      // A connectivity failure (no HTTP status) doesn't mean the session is
+      // invalid — the user just can't reach Travla. Keep the session and show a
+      // "no connection" screen instead of bouncing them to login.
+      if (failure.statusCode == null) {
+        state = AuthSessionState(
+          phase: AuthPhase.offline,
+          errorMessage: failure.message,
+        );
+        return;
+      }
       state = AuthSessionState(
         phase: AuthPhase.unauthenticated,
         errorMessage: failure.statusCode == 401 ? null : failure.message,
       );
     }
+  }
+
+  /// Retry session restore — used by the offline screen's "Try again".
+  Future<void> retryRestore() async {
+    state = const AuthSessionState.booting();
+    await _restore();
   }
 
   Future<void> login({required String email, required String password}) async {

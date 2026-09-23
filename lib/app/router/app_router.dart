@@ -7,6 +7,7 @@ import 'package:travla_customer_app/features/auth/presentation/login_screen.dart
 import 'package:travla_customer_app/features/auth/domain/registration.dart';
 import 'package:travla_customer_app/features/auth/presentation/otp_screen.dart';
 import 'package:travla_customer_app/features/auth/presentation/register_screen.dart';
+import 'package:travla_customer_app/features/auth/presentation/offline_screen.dart';
 import 'package:travla_customer_app/features/auth/presentation/splash_screen.dart';
 import 'package:travla_customer_app/features/drivers_license/presentation/add_license_screen.dart';
 import 'package:travla_customer_app/features/drivers_license/presentation/drivers_license_screen.dart';
@@ -81,6 +82,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return isSplash || isPublicAuth || isOnboarding ? '/home' : null;
       }
 
+      // Session couldn't be verified because Travla was unreachable — show a
+      // connectivity screen, not login (the user may well still be signed in).
+      if (phase == AuthPhase.offline) {
+        return location == '/offline' ? null : '/offline';
+      }
+
       if (!launchState.onboardingCompleted && !isRegister && !isOtp) {
         return isOnboarding ? null : '/onboarding';
       }
@@ -94,6 +101,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/splash',
         builder: (context, state) => const SplashScreen(),
+      ),
+      GoRoute(
+        path: '/offline',
+        builder: (context, state) => const OfflineScreen(),
       ),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
