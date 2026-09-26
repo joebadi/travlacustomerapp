@@ -64,5 +64,10 @@ String? nativeNotificationPath(String? actionUrl) {
   if (vehicle != null) return '$path$query';
   if (path == '/vehicles') return '/vehicles';
   if (path == '/marketplace') return '/more/marketplace';
+
+  // Car Talk news articles (the admin's "new article" push).
+  final news = RegExp(r'^/news/([^/]+)$').firstMatch(path);
+  if (news != null) return '/news/${news.group(1)}';
+  if (path == '/news') return '/news';
   return null;
 }

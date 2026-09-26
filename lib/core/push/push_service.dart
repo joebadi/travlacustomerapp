@@ -6,6 +6,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:travla_customer_app/app/router/app_router.dart';
 import 'package:travla_customer_app/core/push/push_repository.dart';
+import 'package:travla_customer_app/features/notifications/domain/app_notification.dart';
 
 /// Handles messages that arrive while the app is terminated/background. The OS
 /// renders the notification; tapping it routes the user via [PushService] on
@@ -159,6 +160,10 @@ class PushService {
   /// Always resolves to a valid in-app route. Deep-links to the specific
   /// notification when the backend includes its id, else the notifications list.
   String _routeFor(Map<String, dynamic> data) {
+    // A Car Talk article push opens the article itself.
+    final target = nativeNotificationPath(data['action_url']?.toString());
+    if (target != null && target.startsWith('/news/')) return target;
+
     final id = data['notification_id']?.toString();
     if (id != null && id.isNotEmpty) {
       return '/notifications?selected=${Uri.encodeComponent(id)}';
