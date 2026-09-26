@@ -5,7 +5,9 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:travla_customer_app/app/router/app_router.dart';
+import 'package:travla_customer_app/core/auth/auth_controller.dart';
 import 'package:travla_customer_app/core/push/push_repository.dart';
+import 'package:travla_customer_app/features/notifications/data/notification_repository.dart';
 import 'package:travla_customer_app/features/notifications/domain/app_notification.dart';
 
 /// Handles messages that arrive while the app is terminated/background. The OS
@@ -33,11 +35,17 @@ class PushService {
   bool _initialized = false;
   String? _token;
 
+  /// A tapped notification's destination that couldn't be opened yet — e.g. a
+  /// cold start from the notification, before sign-in has been restored.
+  String? _pendingRoute;
+
   /// Called when a user becomes authenticated — sets up listeners once, then
   /// (re)registers this device's token for the current user.
   Future<void> onAuthenticated() async {
     try {
       await _initOnce();
+      // A tap that arrived while signing in can be opened now.
+      _flushPending();
       final token = await _messaging.getToken();
       if (token != null) {
         _token = token;
@@ -95,6 +103,16 @@ class PushService {
   }
 
   Future<void> _initLocalNotifications() async {
+    // A foreground (local) notification tapped after the app was closed
+    // relaunches the app without calling onDidReceiveNotificationResponse.
+    final launch = await _local.getNotificationAppLaunchDetails();
+    final launchPayload = launch?.notificationResponse?.payload;
+    if ((launch?.didNotificationLaunchApp ?? false) &&
+        launchPayload != null &&
+        launchPayload.isNotEmpty) {
+      _navigate(launchPayload);
+    }
+
     await _local.initialize(
       settings: const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
@@ -143,12 +161,35 @@ class PushService {
     );
   }
 
-  void _handleRoute(Map<String, dynamic> data) => _navigate(_routeFor(data));
+  void _handleRoute(Map<String, dynamic> data) {
+    final route = _routeFor(data);
+    // Opening an article straight from the push skips the notifications
+    // screen, so mark the in-app copy read here instead.
+    final id = data['notification_id']?.toString();
+    if (route.startsWith('/news/') && id != null && id.isNotEmpty) {
+      _ref.read(notificationRepositoryProvider).markRead(id).catchError((_) {});
+    }
+    _navigate(route);
+  }
 
   void _navigate(String route) {
     if (route.isEmpty) return;
-    // Defer until the router is ready (handles cold-start-from-notification).
+    _pendingRoute = route;
+    _flushPending();
+  }
+
+  /// Opens the pending route once the user is signed in and the router is up.
+  /// Called on every tap and again after sign-in, so a cold start from a
+  /// notification still lands on its destination rather than the home screen.
+  void _flushPending() {
+    final route = _pendingRoute;
+    if (route == null) return;
+    if (_ref.read(authControllerProvider).phase != AuthPhase.authenticated) {
+      return;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_pendingRoute != route) return;
+      _pendingRoute = null;
       try {
         _ref.read(appRouterProvider).go(route);
       } catch (_) {
