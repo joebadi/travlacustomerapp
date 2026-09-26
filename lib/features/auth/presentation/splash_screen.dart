@@ -99,18 +99,6 @@ class _SplashScreenState extends State<SplashScreen>
               padding: const EdgeInsets.fromLTRB(28, 30, 28, 24),
               child: Column(
                 children: [
-                  const Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      'CUSTOMER APP',
-                      style: TextStyle(
-                        color: Color(0xFF90B7A8),
-                        fontSize: 8,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.7,
-                      ),
-                    ),
-                  ),
                   Expanded(
                     child: Center(
                       child: Column(

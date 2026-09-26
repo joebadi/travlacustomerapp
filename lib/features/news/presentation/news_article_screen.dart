@@ -142,7 +142,11 @@ class _ArticleBody extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 22),
-                SelectableText(
+                // Plain Text, not SelectableText: the SelectionArea above
+                // already makes it selectable/copyable. SelectableText embeds
+                // its own (empty) vertical scroller that won the drag whenever
+                // a swipe started on the body, so the page "stuck".
+                Text(
                   _cleanBody(article.body ?? ''),
                   style: const TextStyle(
                     color: Color(0xFF34423C),
