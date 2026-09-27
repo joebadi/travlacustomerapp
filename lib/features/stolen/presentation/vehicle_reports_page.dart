@@ -24,7 +24,6 @@ class VehicleReportsPage extends ConsumerStatefulWidget {
 }
 
 class _VehicleReportsPageState extends ConsumerState<VehicleReportsPage> {
-  final _plate = TextEditingController();
   final _search = TextEditingController();
 
   _ReportsSection _section = _ReportsSection.registry;
@@ -32,9 +31,6 @@ class _VehicleReportsPageState extends ConsumerState<VehicleReportsPage> {
   late Future<_LoadResult<StolenDirectoryPage>> _directoryFuture;
   late Future<_LoadResult<StolenStats>> _statsFuture;
   late Future<_LoadResult<List<StolenReport>>> _mineFuture;
-  bool _checkingPlate = false;
-  StolenCheckResult? _plateResult;
-  String? _plateError;
 
   @override
   void initState() {
@@ -44,7 +40,6 @@ class _VehicleReportsPageState extends ConsumerState<VehicleReportsPage> {
 
   @override
   void dispose() {
-    _plate.dispose();
     _search.dispose();
     super.dispose();
   }
@@ -74,29 +69,6 @@ class _VehicleReportsPageState extends ConsumerState<VehicleReportsPage> {
         () => repository.directory(filters: _filters),
       );
     });
-  }
-
-  Future<void> _checkPlate() async {
-    FocusScope.of(context).unfocus();
-    final value = _plate.text.trim();
-    if (value.isEmpty) {
-      setState(() => _plateError = 'Enter a plate number to check.');
-      return;
-    }
-    setState(() {
-      _checkingPlate = true;
-      _plateResult = null;
-      _plateError = null;
-    });
-    try {
-      final result = await ref.read(stolenRepositoryProvider).checkPlate(value);
-      if (mounted) setState(() => _plateResult = result);
-    } catch (error) {
-      if (!mounted) return;
-      setState(() => _plateError = _message(error, 'Plate check failed.'));
-    } finally {
-      if (mounted) setState(() => _checkingPlate = false);
-    }
   }
 
   void _submitSearch(String value) {
@@ -260,13 +232,38 @@ class _VehicleReportsPageState extends ConsumerState<VehicleReportsPage> {
 
   @override
   Widget build(BuildContext context) {
+    // A slightly denser scale than the app default: inputs, buttons and the
+    // floating action were oversized for a list-heavy screen.
+    final theme = Theme.of(context);
+    return Theme(
+      data: theme.copyWith(
+        visualDensity: VisualDensity.compact,
+        inputDecorationTheme: theme.inputDecorationTheme.copyWith(
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+        ),
+        floatingActionButtonTheme: theme.floatingActionButtonTheme.copyWith(
+          extendedSizeConstraints: const BoxConstraints.tightFor(height: 46),
+          extendedPadding: const EdgeInsets.symmetric(horizontal: 16),
+          extendedIconLabelSpacing: 8,
+          extendedTextStyle: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+      child: _page(),
+    );
+  }
+
+  Widget _page() {
     return Scaffold(
       backgroundColor: Colors.transparent,
       floatingActionButton: FloatingActionButton.extended(
         key: const ValueKey('report-stolen-action'),
         onPressed: _reportStolen,
         backgroundColor: AppColors.danger,
-        icon: const Icon(Icons.campaign_outlined),
+        icon: const Icon(Icons.campaign_outlined, size: 20),
         label: const Text('Report stolen'),
       ),
       body: ColoredBox(
@@ -278,32 +275,17 @@ class _VehicleReportsPageState extends ConsumerState<VehicleReportsPage> {
           child: ListView(
             key: const PageStorageKey('vehicle-reports-scroll'),
             physics: const AlwaysScrollableScrollPhysics(),
-            // No horizontal padding here — the "Vehicle Security" hero runs
-            // edge-to-edge; the section content below keeps its own inset.
-            padding: const EdgeInsets.only(bottom: 104),
+            padding: const EdgeInsets.fromLTRB(14, 2, 14, 92),
             children: [
-              _SecurityHero(
+              _ReportsHeader(
                 section: _section,
                 onSectionChanged: (section) =>
                     setState(() => _section = section),
-                plateController: _plate,
-                checkingPlate: _checkingPlate,
-                plateResult: _plateResult,
-                plateError: _plateError,
-                onCheckPlate: _checkPlate,
-                onOpenReport: (id) => context.push('/more/stolen/$id'),
-                onSighting: (id) => context.push('/more/stolen/$id/sighting'),
               ),
-              const SizedBox(height: 12),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: _section == _ReportsSection.registry
-                      ? _registryWidgets()
-                      : _personalWidgets(),
-                ),
-              ),
+              const SizedBox(height: 14),
+              ..._section == _ReportsSection.registry
+                  ? _registryWidgets()
+                  : _personalWidgets(),
             ],
           ),
         ),
@@ -316,7 +298,7 @@ class _VehicleReportsPageState extends ConsumerState<VehicleReportsPage> {
       future: _statsFuture,
       builder: (context, snapshot) => _StatsPanel(snapshot: snapshot),
     ),
-    const SizedBox(height: 22),
+    const SizedBox(height: 16),
     const Text(
       'ACTIVE SECURITY REGISTRY',
       style: TextStyle(
@@ -329,7 +311,7 @@ class _VehicleReportsPageState extends ConsumerState<VehicleReportsPage> {
     const SizedBox(height: 3),
     const Text(
       'Reported stolen vehicles',
-      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+      style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w900),
     ),
     const SizedBox(height: 4),
     const Text(
@@ -344,9 +326,10 @@ class _VehicleReportsPageState extends ConsumerState<VehicleReportsPage> {
             controller: _search,
             textInputAction: TextInputAction.search,
             onSubmitted: _submitSearch,
+            style: const TextStyle(fontSize: 13),
             decoration: const InputDecoration(
               hintText: 'Plate, make, model or place',
-              prefixIcon: Icon(Icons.search_rounded),
+              prefixIcon: Icon(Icons.search_rounded, size: 20),
             ),
           ),
         ),
@@ -357,10 +340,10 @@ class _VehicleReportsPageState extends ConsumerState<VehicleReportsPage> {
             tooltip: 'Filter reports',
             onPressed: _showFilters,
             style: IconButton.styleFrom(
-              minimumSize: const Size(50, 50),
+              minimumSize: const Size(42, 42),
               backgroundColor: AppColors.forest100,
             ),
-            icon: const Icon(Icons.tune_rounded),
+            icon: const Icon(Icons.tune_rounded, size: 20),
           ),
         ),
       ],
@@ -390,7 +373,7 @@ class _VehicleReportsPageState extends ConsumerState<VehicleReportsPage> {
   List<Widget> _personalWidgets() => [
     const Text(
       'Your vehicle reports',
-      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+      style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w900),
     ),
     const SizedBox(height: 4),
     const Text(
@@ -412,137 +395,57 @@ class _VehicleReportsPageState extends ConsumerState<VehicleReportsPage> {
   ];
 }
 
-class _SecurityHero extends StatelessWidget {
-  const _SecurityHero({
-    required this.section,
-    required this.onSectionChanged,
-    required this.plateController,
-    required this.checkingPlate,
-    required this.plateResult,
-    required this.plateError,
-    required this.onCheckPlate,
-    required this.onOpenReport,
-    required this.onSighting,
-  });
+/// Light page header: title, one-line purpose and the registry / my-reports
+/// switch. (Replaces the old green hero and its separate plate-check field —
+/// the registry search below already searches by plate.)
+class _ReportsHeader extends StatelessWidget {
+  const _ReportsHeader({required this.section, required this.onSectionChanged});
 
   final _ReportsSection section;
   final ValueChanged<_ReportsSection> onSectionChanged;
-  final TextEditingController plateController;
-  final bool checkingPlate;
-  final StolenCheckResult? plateResult;
-  final String? plateError;
-  final VoidCallback onCheckPlate;
-  final ValueChanged<String> onOpenReport;
-  final ValueChanged<String> onSighting;
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
-    decoration: const BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [AppColors.forest950, AppColors.forest700],
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      const Row(
+        children: [
+          Icon(Icons.shield_outlined, color: AppColors.forest700, size: 20),
+          SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              'Vehicle Security',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+            ),
+          ),
+        ],
       ),
-      borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Row(
-          children: [
-            Icon(Icons.shield_outlined, color: Color(0xFF78DDB7), size: 25),
-            SizedBox(width: 9),
-            Expanded(
-              child: Text(
-                'Vehicle Security',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 19,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
+      const SizedBox(height: 3),
+      const Text(
+        'Search reported stolen vehicles, report a theft and share sightings safely.',
+        style: TextStyle(color: AppColors.muted, fontSize: 11, height: 1.35),
+      ),
+      const SizedBox(height: 10),
+      Row(
+        children: [
+          Expanded(
+            child: _SectionButton(
+              label: 'Public registry',
+              selected: section == _ReportsSection.registry,
+              onTap: () => onSectionChanged(_ReportsSection.registry),
             ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Check a plate, report a theft and safely share verified sightings.',
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: .68),
-            fontSize: 11.5,
-            height: 1.4,
           ),
-        ),
-        const SizedBox(height: 11),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                key: const ValueKey('reports-plate-field'),
-                controller: plateController,
-                textCapitalization: TextCapitalization.characters,
-                textInputAction: TextInputAction.search,
-                onSubmitted: (_) => onCheckPlate(),
-                decoration: const InputDecoration(
-                  hintText: 'LAG-123-XY',
-                  prefixIcon: Icon(Icons.pin_outlined),
-                ),
-              ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _SectionButton(
+              label: 'My reports',
+              selected: section == _ReportsSection.mine,
+              onTap: () => onSectionChanged(_ReportsSection.mine),
             ),
-            const SizedBox(width: 8),
-            SizedBox(
-              width: 100,
-              height: 50,
-              child: FilledButton(
-                onPressed: checkingPlate ? null : onCheckPlate,
-                child: checkingPlate
-                    ? const SizedBox.square(
-                        dimension: 17,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text('Check'),
-              ),
-            ),
-          ],
-        ),
-        if (plateError != null) ...[
-          const SizedBox(height: 9),
-          Text(plateError!, style: const TextStyle(color: Color(0xFFFF9C8C))),
-        ],
-        if (plateResult != null) ...[
-          const SizedBox(height: 9),
-          _CheckResult(
-            result: plateResult!,
-            onOpenReport: onOpenReport,
-            onSighting: onSighting,
           ),
         ],
-        const SizedBox(height: 14),
-        Row(
-          children: [
-            Expanded(
-              child: _SectionButton(
-                label: 'Public registry',
-                selected: section == _ReportsSection.registry,
-                onTap: () => onSectionChanged(_ReportsSection.registry),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _SectionButton(
-                label: 'My reports',
-                selected: section == _ReportsSection.mine,
-                onTap: () => onSectionChanged(_ReportsSection.mine),
-              ),
-            ),
-          ],
-        ),
-      ],
-    ),
+      ),
+    ],
   );
 }
 
@@ -559,88 +462,31 @@ class _SectionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: selected ? AppColors.orange : Colors.white.withValues(alpha: .08),
-    borderRadius: BorderRadius.circular(11),
+    color: selected ? AppColors.forest700 : AppColors.white,
+    borderRadius: BorderRadius.circular(10),
     child: InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(11),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: selected ? AppColors.forest700 : AppColors.border,
+          ),
+        ),
         child: Text(
           label,
           textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 11,
-            fontWeight: FontWeight.w900,
+          style: TextStyle(
+            color: selected ? Colors.white : AppColors.ink,
+            fontSize: 11.5,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ),
     ),
   );
-}
-
-class _CheckResult extends StatelessWidget {
-  const _CheckResult({
-    required this.result,
-    required this.onOpenReport,
-    required this.onSighting,
-  });
-
-  final StolenCheckResult result;
-  final ValueChanged<String> onOpenReport;
-  final ValueChanged<String> onSighting;
-
-  @override
-  Widget build(BuildContext context) {
-    final report = result.report;
-    final flagged = result.isStolen && report != null;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: flagged ? const Color(0xFFFFE5E2) : AppColors.forest50,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            flagged
-                ? '${result.plate.toUpperCase()} has an active theft report.'
-                : 'No active Travla theft report found.',
-            style: TextStyle(
-              color: flagged ? AppColors.danger : AppColors.forest800,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          if (report != null) ...[
-            const SizedBox(height: 9),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => onOpenReport(report.id),
-                    child: const Text('View report'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () => onSighting(report.id),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.danger,
-                    ),
-                    child: const Text('I saw it'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
 }
 
 class _StatsPanel extends StatelessWidget {
@@ -682,10 +528,10 @@ class _Stat extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Expanded(
     child: Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(13),
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
@@ -695,7 +541,7 @@ class _Stat extends StatelessWidget {
             value,
             style: const TextStyle(
               color: AppColors.forest800,
-              fontSize: 20,
+              fontSize: 16.5,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -783,22 +629,23 @@ class _ReportCard extends StatelessWidget {
         onTap: onOpen,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(10),
           child: Row(
             children: [
               Container(
-                width: 54,
-                height: 54,
+                width: 42,
+                height: 42,
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFE5E2),
-                  borderRadius: BorderRadius.circular(13),
+                  borderRadius: BorderRadius.circular(11),
                 ),
                 child: const Icon(
                   Icons.directions_car_outlined,
                   color: AppColors.danger,
+                  size: 20,
                 ),
               ),
-              const SizedBox(width: 11),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -809,9 +656,12 @@ class _ReportCard extends StatelessWidget {
                           : 'Reported vehicle',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w900),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 1),
                     Text(
                       vehicle?.plateNumber ?? 'Plate unavailable',
                       style: const TextStyle(
@@ -832,7 +682,16 @@ class _ReportCard extends StatelessWidget {
                   ],
                 ),
               ),
-              TextButton(onPressed: onSighting, child: const Text('I saw it')),
+              TextButton(
+                onPressed: onSighting,
+                style: TextButton.styleFrom(
+                  textStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                child: const Text('I saw it'),
+              ),
             ],
           ),
         ),
@@ -877,6 +736,7 @@ class _PersonalReportsPanel extends StatelessWidget {
           .map(
             (report) => Card(
               child: ListTile(
+                dense: true,
                 onTap: () => onOpen(report.id),
                 leading: const Icon(
                   Icons.shield_outlined,
@@ -903,7 +763,7 @@ class _LoadingPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(vertical: 28),
+    padding: const EdgeInsets.symmetric(vertical: 20),
     decoration: BoxDecoration(
       color: AppColors.white,
       borderRadius: BorderRadius.circular(16),
@@ -932,7 +792,7 @@ class _EmptyPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
     decoration: BoxDecoration(
       color: AppColors.white,
       borderRadius: BorderRadius.circular(16),
@@ -940,7 +800,7 @@ class _EmptyPanel extends StatelessWidget {
     ),
     child: Column(
       children: [
-        Icon(icon, color: AppColors.forest600, size: 32),
+        Icon(icon, color: AppColors.forest600, size: 26),
         const SizedBox(height: 8),
         Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
         const SizedBox(height: 3),
