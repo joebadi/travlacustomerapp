@@ -278,7 +278,7 @@ class _VehicleReportsPageState extends ConsumerState<VehicleReportsPage> {
           child: ListView(
             key: const PageStorageKey('vehicle-reports-scroll'),
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(14, 2, 14, 92),
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 92),
             children: [
               _ReportsHeader(
                 section: _section,
@@ -416,9 +416,7 @@ class _VehicleReportsPageState extends ConsumerState<VehicleReportsPage> {
   ];
 }
 
-/// Light page header: title, one-line purpose and the registry / my-reports
-/// switch. (Replaces the old green hero and its separate plate-check field —
-/// the registry search below already searches by plate.)
+/// The registry / my-reports switch at the top of the page.
 class _ReportsHeader extends StatelessWidget {
   const _ReportsHeader({required this.section, required this.onSectionChanged});
 
@@ -426,45 +424,22 @@ class _ReportsHeader extends StatelessWidget {
   final ValueChanged<_ReportsSection> onSectionChanged;
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
+  Widget build(BuildContext context) => Row(
     children: [
-      const Row(
-        children: [
-          Icon(Icons.shield_outlined, color: AppColors.forest700, size: 20),
-          SizedBox(width: 7),
-          Expanded(
-            child: Text(
-              'Vehicle Security',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-            ),
-          ),
-        ],
+      Expanded(
+        child: _SectionButton(
+          label: 'Public registry',
+          selected: section == _ReportsSection.registry,
+          onTap: () => onSectionChanged(_ReportsSection.registry),
+        ),
       ),
-      const SizedBox(height: 3),
-      const Text(
-        'Search reported stolen vehicles, report a theft and share sightings safely.',
-        style: TextStyle(color: AppColors.muted, fontSize: 11, height: 1.35),
-      ),
-      const SizedBox(height: 10),
-      Row(
-        children: [
-          Expanded(
-            child: _SectionButton(
-              label: 'Public registry',
-              selected: section == _ReportsSection.registry,
-              onTap: () => onSectionChanged(_ReportsSection.registry),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _SectionButton(
-              label: 'My reports',
-              selected: section == _ReportsSection.mine,
-              onTap: () => onSectionChanged(_ReportsSection.mine),
-            ),
-          ),
-        ],
+      const SizedBox(width: 8),
+      Expanded(
+        child: _SectionButton(
+          label: 'My reports',
+          selected: section == _ReportsSection.mine,
+          onTap: () => onSectionChanged(_ReportsSection.mine),
+        ),
       ),
     ],
   );
@@ -858,20 +833,16 @@ class _TipCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: AppColors.white,
+    color: AppColors.forest700,
     borderRadius: BorderRadius.circular(14),
     child: InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: const Row(
+      child: const Padding(
+        padding: EdgeInsets.fromLTRB(12, 10, 8, 10),
+        child: Row(
           children: [
-            Icon(Icons.visibility_outlined, color: AppColors.orange, size: 20),
+            Icon(Icons.visibility_outlined, color: AppColors.white, size: 20),
             SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -879,17 +850,21 @@ class _TipCard extends StatelessWidget {
                 children: [
                   Text(
                     'Seen a suspicious vehicle?',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
+                    style: TextStyle(
+                      color: AppColors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                   SizedBox(height: 1),
                   Text(
                     'Send a private tip — even if it isn’t reported stolen yet.',
-                    style: TextStyle(color: AppColors.muted, fontSize: 11),
+                    style: TextStyle(color: AppColors.white, fontSize: 11),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+            Icon(Icons.chevron_right_rounded, color: AppColors.white),
           ],
         ),
       ),
