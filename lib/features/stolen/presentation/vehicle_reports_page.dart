@@ -240,7 +240,10 @@ class _VehicleReportsPageState extends ConsumerState<VehicleReportsPage> {
         visualDensity: VisualDensity.compact,
         inputDecorationTheme: theme.inputDecorationTheme.copyWith(
           isDense: true,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 11,
+          ),
         ),
         floatingActionButtonTheme: theme.floatingActionButtonTheme.copyWith(
           extendedSizeConstraints: const BoxConstraints.tightFor(height: 46),
@@ -298,6 +301,8 @@ class _VehicleReportsPageState extends ConsumerState<VehicleReportsPage> {
       future: _statsFuture,
       builder: (context, snapshot) => _StatsPanel(snapshot: snapshot),
     ),
+    const SizedBox(height: 10),
+    _TipCard(onTap: () => _openTip(null)),
     const SizedBox(height: 16),
     const Text(
       'ACTIVE SECURITY REGISTRY',
@@ -364,11 +369,27 @@ class _VehicleReportsPageState extends ConsumerState<VehicleReportsPage> {
         onRetry: _reloadDirectory,
         onOpen: (id) => context.push('/more/stolen/$id'),
         onSighting: (id) => context.push('/more/stolen/$id/sighting'),
+        searchQuery: _filters.query,
+        onTip: _openTip,
       ),
     ),
     const SizedBox(height: 16),
     const _SafetyNotice(),
   ];
+
+  /// Private tip about a vehicle that isn't on the registry. [query] is the
+  /// registry search, used to prefill the plate when it looks like one.
+  void _openTip(String? query) {
+    final plate = (query ?? '').trim();
+    final looksLikePlate =
+        plate.length <= 20 &&
+        RegExp(r'^[A-Za-z0-9 \-]*\d[A-Za-z0-9 \-]*$').hasMatch(plate);
+    context.push(
+      looksLikePlate
+          ? '/more/stolen/tip?plate=${Uri.encodeQueryComponent(plate)}'
+          : '/more/stolen/tip',
+    );
+  }
 
   List<Widget> _personalWidgets() => [
     const Text(
@@ -561,12 +582,16 @@ class _DirectoryPanel extends StatelessWidget {
     required this.onRetry,
     required this.onOpen,
     required this.onSighting,
+    required this.searchQuery,
+    required this.onTip,
   });
 
   final AsyncSnapshot<_LoadResult<StolenDirectoryPage>> snapshot;
   final VoidCallback onRetry;
   final ValueChanged<String> onOpen;
   final ValueChanged<String> onSighting;
+  final String? searchQuery;
+  final ValueChanged<String?> onTip;
 
   @override
   Widget build(BuildContext context) {
@@ -585,10 +610,18 @@ class _DirectoryPanel extends StatelessWidget {
     }
     final records = result?.data?.items ?? const <StolenReport>[];
     if (records.isEmpty) {
-      return const _EmptyPanel(
+      final searched = (searchQuery ?? '').trim().isNotEmpty;
+      return _EmptyPanel(
         icon: Icons.verified_user_outlined,
         title: 'No active reports match',
         body: 'There are currently no public theft reports for this search.',
+        action: searched
+            ? TextButton.icon(
+                onPressed: () => onTip(searchQuery),
+                icon: const Icon(Icons.lock_outline_rounded, size: 16),
+                label: const Text('Not listed? Send a private tip'),
+              )
+            : null,
       );
     }
     return Column(
@@ -784,11 +817,13 @@ class _EmptyPanel extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.body,
+    this.action,
   });
 
   final IconData icon;
   final String title;
   final String body;
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -809,7 +844,55 @@ class _EmptyPanel extends StatelessWidget {
           textAlign: TextAlign.center,
           style: const TextStyle(color: AppColors.muted, fontSize: 11.5),
         ),
+        if (action != null) ...[const SizedBox(height: 6), action!],
       ],
+    ),
+  );
+}
+
+/// Entry point for private tips about vehicles not (yet) on the registry.
+class _TipCard extends StatelessWidget {
+  const _TipCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: AppColors.white,
+    borderRadius: BorderRadius.circular(14),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.visibility_outlined, color: AppColors.orange, size: 20),
+            SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Seen a suspicious vehicle?',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
+                  ),
+                  SizedBox(height: 1),
+                  Text(
+                    'Send a private tip — even if it isn’t reported stolen yet.',
+                    style: TextStyle(color: AppColors.muted, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+          ],
+        ),
+      ),
     ),
   );
 }

@@ -136,6 +136,42 @@ class StolenRepository {
     }
   }
 
+  /// Privately tips Travla about a suspicious vehicle (not published). Returns
+  /// whether the plate was already on the public registry, and the server's
+  /// confirmation message.
+  Future<({bool onPublicRegistry, String message})> submitTip({
+    required Map<String, dynamic> fields,
+    List<PlatformFile> photos = const [],
+  }) async {
+    try {
+      final form = FormData.fromMap({
+        ...fields,
+        for (final photo in photos)
+          if (photo.path != null)
+            'photos[]': await MultipartFile.fromFile(
+              photo.path!,
+              filename: photo.name,
+            ),
+      });
+      final response = await _apiClient.dio.post<Map<String, dynamic>>(
+        '/stolen/tips',
+        data: form,
+      );
+      final data = response.data?['data'];
+      final map = data is Map<String, dynamic>
+          ? data
+          : const <String, dynamic>{};
+      return (
+        onPublicRegistry: map['on_public_registry'] == true,
+        message:
+            map['message']?.toString() ??
+            'Thank you — your tip was received privately.',
+      );
+    } on DioException catch (exception) {
+      throw ApiFailure.fromDio(exception);
+    }
+  }
+
   Future<List<StolenReport>> _list(String path) async {
     try {
       final response = await _apiClient.dio.get<Map<String, dynamic>>(path);

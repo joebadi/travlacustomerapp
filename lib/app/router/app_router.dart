@@ -20,6 +20,7 @@ import 'package:travla_customer_app/features/tracking/presentation/phone_tracker
 import 'package:travla_customer_app/features/stolen/presentation/report_stolen_screen.dart';
 import 'package:travla_customer_app/features/stolen/presentation/stolen_report_detail_screen.dart';
 import 'package:travla_customer_app/features/stolen/presentation/report_sighting_screen.dart';
+import 'package:travla_customer_app/features/stolen/presentation/report_tip_screen.dart';
 import 'package:travla_customer_app/features/forum/presentation/forum_thread_screen.dart';
 import 'package:travla_customer_app/features/forum/presentation/new_thread_screen.dart';
 import 'package:travla_customer_app/features/fleet/presentation/fleet_screen.dart';
@@ -436,6 +437,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                         path: 'report',
                         builder: (context, state) => ReportStolenScreen(
                           vehicleId: state.uri.queryParameters['vehicle'] ?? '',
+                        ),
+                      ),
+                      // Literal route — must stay before ':reportId'.
+                      GoRoute(
+                        path: 'tip',
+                        builder: (context, state) => ReportTipScreen(
+                          initialPlate: state.uri.queryParameters['plate'],
                         ),
                       ),
                       GoRoute(
