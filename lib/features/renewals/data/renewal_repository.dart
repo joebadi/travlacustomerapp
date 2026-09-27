@@ -30,12 +30,20 @@ class RenewalRepository {
     }
   }
 
+  /// Papers for [vehicleId] as they stand in the given covered city — which
+  /// are offered there and at what price.
   Future<List<RenewableDocumentOption>> renewableDocuments(
-    String vehicleId,
-  ) async {
+    String vehicleId, {
+    String city = '',
+    String state = '',
+  }) async {
     try {
       final response = await _apiClient.dio.get<Map<String, dynamic>>(
         '/vehicles/$vehicleId/renewable-documents',
+        queryParameters: {
+          if (city.isNotEmpty) 'city': city,
+          if (state.isNotEmpty) 'state': state,
+        },
       );
       final data = response.data?['data'];
       if (data is! List) {
@@ -182,9 +190,14 @@ final renewalServiceCitiesProvider =
       return ref.watch(renewalRepositoryProvider).serviceCities();
     });
 
+/// Which vehicle, in which covered city, the paper list is for.
+typedef RenewableDocumentsQuery = ({String vehicleId, String city, String state});
+
 final renewableDocumentsProvider = FutureProvider.autoDispose
-    .family<List<RenewableDocumentOption>, String>((ref, vehicleId) {
-      return ref.watch(renewalRepositoryProvider).renewableDocuments(vehicleId);
+    .family<List<RenewableDocumentOption>, RenewableDocumentsQuery>((ref, query) {
+      return ref
+          .watch(renewalRepositoryProvider)
+          .renewableDocuments(query.vehicleId, city: query.city, state: query.state);
     });
 
 final renewalOrdersProvider = FutureProvider.autoDispose<List<RenewalRecord>>((

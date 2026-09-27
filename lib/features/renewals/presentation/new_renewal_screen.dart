@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:travla_customer_app/app/theme/app_colors.dart';
+import 'package:travla_customer_app/core/auth/auth_controller.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/insurance/data/insurance_repository.dart';
 import 'package:travla_customer_app/features/insurance/domain/insurance_models.dart';
@@ -52,6 +53,7 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
   String _state = '';
   RenewalQuote? _quote;
   bool _submitting = false;
+  bool _cityPrefillTried = false;
   String? _error;
   Timer? _quoteDebounce;
 
@@ -82,9 +84,11 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
   Widget build(BuildContext context) {
     final garage = ref.watch(garageProvider);
     final cities = ref.watch(renewalServiceCitiesProvider);
-    final documents = _vehicleId.isEmpty
+    // Which papers are offered, and at what price, depends on the covered city,
+    // so the list only loads once a city is chosen.
+    final documents = _vehicleId.isEmpty || _city.isEmpty
         ? null
-        : ref.watch(renewableDocumentsProvider(_vehicleId));
+        : ref.watch(renewableDocumentsProvider(_docsQuery));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Renew vehicle papers')),
@@ -114,8 +118,8 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
                 duration: const Duration(milliseconds: 220),
                 child: switch (_step) {
                   1 => _vehicleStep(snapshot.vehicles),
-                  2 => _documentStep(documents, selectedVehicle),
-                  _ => _fulfilmentStep(cities, selectedVehicle),
+                  2 => _documentStep(cities, documents, selectedVehicle),
+                  _ => _fulfilmentStep(selectedVehicle),
                 },
               ),
             ],
@@ -163,112 +167,210 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
     );
   }
 
+  RenewableDocumentsQuery get _docsQuery =>
+      (vehicleId: _vehicleId, city: _city, state: _state);
+
   Widget _documentStep(
+    AsyncValue<List<RenewalServiceCity>> cities,
     AsyncValue<List<RenewableDocumentOption>>? documents,
     VehicleSummary? vehicle,
   ) {
-    if (documents == null) {
+    if (_vehicleId.isEmpty) {
       return _LoadFailure(
         key: const ValueKey('no-document-context'),
         message: 'Choose a vehicle before selecting papers.',
         onRetry: () => setState(() => _step = 1),
       );
     }
-    return documents.when(
-      loading: () => const _StageCard(
-        key: ValueKey('documents-loading'),
-        eyebrow: 'STEP 2',
-        title: 'Checking your papers',
-        description: 'Travla is confirming renewal eligibility.',
-        child: Padding(
-          padding: EdgeInsets.all(26),
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      ),
-      error: (error, _) => _LoadFailure(
-        key: const ValueKey('documents-error'),
-        message: error is ApiFailure
-            ? error.message
-            : 'Renewal eligibility could not be checked.',
-        onRetry: () => ref.invalidate(renewableDocumentsProvider(_vehicleId)),
-      ),
-      data: (items) {
-        _applyPreselect(items);
-        return _StageCard(
-        key: const ValueKey('documents'),
-        eyebrow: 'STEP 2',
-        title: 'Select papers to renew',
-        description:
-            'Only expired papers or papers within 30 days of expiry can be selected.',
-        child: Column(
-          children: [
-            if (items.isEmpty)
-              const _EmptyDocuments()
-            else
-              ...items.map(
-                (item) => _DocumentChoice(
-                  document: item,
-                  selected: _selectedDocuments.contains(item.id),
-                  onChanged: item.eligible
-                      ? (selected) => setState(() {
-                          selected
-                              ? _selectedDocuments.add(item.id)
-                              : _selectedDocuments.remove(item.id);
-                          _quote = null;
-                          _error = null;
-                        })
-                      : null,
-                  onUpload: item.needsUpload
-                      ? () => _openVehicleDocuments(vehicle)
-                      : null,
+    _maybePrefillCity(cities);
+    final nothingSelected =
+        _selectedDocuments.isEmpty && _selectedInsurancePolicies.isEmpty;
+
+    return _StageCard(
+      key: const ValueKey('documents'),
+      eyebrow: 'STEP 2',
+      title: 'Select papers to renew',
+      description:
+          'Choose where you’re renewing first — the papers offered and their prices depend on the city. Only expired papers or papers within 30 days of expiry can be selected.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _cityPicker(cities),
+          const SizedBox(height: 14),
+          if (documents == null)
+            const _ChooseCityPrompt()
+          else
+            documents.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.all(26),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (error, _) => _InlineFailure(
+                message: error is ApiFailure
+                    ? error.message
+                    : 'Renewal eligibility could not be checked.',
+                onRetry: () =>
+                    ref.invalidate(renewableDocumentsProvider(_docsQuery)),
+              ),
+              data: (items) {
+                _applyPreselect(items);
+                _pruneSelections(items);
+                return Column(
+                  children: [
+                    if (items.isEmpty)
+                      const _EmptyDocuments()
+                    else
+                      ...items.map(
+                        (item) => _DocumentChoice(
+                          document: item,
+                          selected: _selectedDocuments.contains(item.id),
+                          onChanged: item.eligible
+                              ? (selected) => setState(() {
+                                  selected
+                                      ? _selectedDocuments.add(item.id)
+                                      : _selectedDocuments.remove(item.id);
+                                  _quote = null;
+                                  _error = null;
+                                })
+                              : null,
+                          onUpload: item.needsUpload
+                              ? () => _openVehicleDocuments(vehicle)
+                              : null,
+                        ),
+                      ),
+                    _insuranceSection(),
+                  ],
+                );
+              },
+            ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => setState(() {
+                    _step = 1;
+                    _error = null;
+                  }),
+                  child: const Text('Back'),
                 ),
               ),
-            _insuranceSection(),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => setState(() {
-                      _step = 1;
-                      _error = null;
-                    }),
-                    child: const Text('Back'),
+              const SizedBox(width: 10),
+              Expanded(
+                flex: 2,
+                child: FilledButton(
+                  // Insurance-only selections must also unlock Continue.
+                  onPressed: nothingSelected
+                      ? null
+                      : () {
+                          setState(() {
+                            _step = 3;
+                            _error = null;
+                          });
+                          _scheduleQuote();
+                        },
+                  child: Text(
+                    nothingSelected
+                        ? (_city.isEmpty ? 'Choose a city' : 'Select a paper')
+                        : 'Continue with ${_selectedDocuments.length + _selectedInsurancePolicies.length}',
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  flex: 2,
-                  child: FilledButton(
-                    // Insurance-only selections must also unlock Continue —
-                    // this used to check documents alone while the label
-                    // below already counted both.
-                    onPressed:
-                        _selectedDocuments.isEmpty &&
-                            _selectedInsurancePolicies.isEmpty
-                        ? null
-                        : () {
-                            setState(() {
-                              _step = 3;
-                              _error = null;
-                            });
-                            _scheduleQuote();
-                          },
-                    child: Text(
-                      _selectedDocuments.isEmpty &&
-                              _selectedInsurancePolicies.isEmpty
-                          ? 'Select a paper'
-                          : 'Continue with ${_selectedDocuments.length + _selectedInsurancePolicies.length}',
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
-      },
+              ),
+            ],
+          ),
+        ],
+      ),
     );
+  }
+
+  /// The covered city the order is for. Changing it reloads the papers (their
+  /// availability and prices differ by city).
+  Widget _cityPicker(AsyncValue<List<RenewalServiceCity>> cities) {
+    return cities.when(
+      loading: () => const LinearProgressIndicator(minHeight: 2),
+      error: (error, _) => _InlineFailure(
+        message: error is ApiFailure
+            ? error.message
+            : 'Covered cities could not be loaded.',
+        onRetry: () => ref.invalidate(renewalServiceCitiesProvider),
+      ),
+      data: (items) => DropdownButtonFormField<String>(
+        // Keyed on the city so a programmatic change (prefill) is reflected.
+        key: ValueKey('city-$_city-$_state'),
+        initialValue: items.any((item) => item.city == _city && item.state == _state)
+            ? '$_city|$_state'
+            : null,
+        isExpanded: true,
+        decoration: const InputDecoration(
+          labelText: 'Service city',
+          helperText: 'Where you’ll collect or receive the renewed papers.',
+          prefixIcon: Icon(Icons.location_city_outlined),
+        ),
+        items: items
+            .map(
+              (item) => DropdownMenuItem(
+                value: '${item.city}|${item.state}',
+                child: Text('${item.city}, ${item.state}'),
+              ),
+            )
+            .toList(growable: false),
+        onChanged: (value) {
+          final match = items
+              .where((item) => '${item.city}|${item.state}' == value)
+              .firstOrNull;
+          setState(() {
+            _city = match?.city ?? '';
+            _state = match?.state ?? '';
+            _quote = null;
+            _error = null;
+          });
+        },
+      ),
+    );
+  }
+
+  /// Picks a sensible default city once: the customer's own city when it's a
+  /// covered city, or the only covered city when there's just one.
+  void _maybePrefillCity(AsyncValue<List<RenewalServiceCity>> cities) {
+    if (_cityPrefillTried || _city.isNotEmpty) return;
+    final items = cities.asData?.value;
+    if (items == null) return;
+    _cityPrefillTried = true;
+
+    final user = ref.read(authControllerProvider).user;
+    final userCity = user?.city?.trim().toLowerCase() ?? '';
+    final userState = user?.state?.trim().toLowerCase() ?? '';
+    RenewalServiceCity? pick;
+    if (userCity.isNotEmpty) {
+      final sameName = items.where((c) => c.city.toLowerCase() == userCity);
+      pick = sameName
+              .where((c) => c.state.toLowerCase() == userState)
+              .firstOrNull ??
+          sameName.firstOrNull;
+    }
+    if (pick == null && items.length == 1) pick = items.first;
+    if (pick == null) return;
+
+    final chosen = pick;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _city.isNotEmpty) return;
+      setState(() {
+        _city = chosen.city;
+        _state = chosen.state;
+      });
+    });
+  }
+
+  /// After the city changes, drop selections that aren't orderable there.
+  void _pruneSelections(List<RenewableDocumentOption> items) {
+    final orderable = items.where((i) => i.eligible).map((i) => i.id).toSet();
+    final stale =
+        _selectedDocuments.where((id) => !orderable.contains(id)).toList();
+    if (stale.isEmpty) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() => _selectedDocuments.removeAll(stale));
+    });
   }
 
   /// Auto-checks the paper(s) this screen was deep-linked for, once, when the
@@ -417,10 +519,7 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
         .toList(growable: false);
   }
 
-  Widget _fulfilmentStep(
-    AsyncValue<List<RenewalServiceCity>> cities,
-    VehicleSummary? vehicle,
-  ) {
+  Widget _fulfilmentStep(VehicleSummary? vehicle) {
     return _StageCard(
       key: const ValueKey('fulfilment'),
       eyebrow: 'STEP 3',
@@ -430,7 +529,7 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _fulfilmentForm(cities),
+          _fulfilmentForm(),
           const SizedBox(height: 16),
           _liveQuote(vehicle),
           const SizedBox(height: 16),
@@ -440,7 +539,7 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
     );
   }
 
-  Widget _fulfilmentForm(AsyncValue<List<RenewalServiceCity>> cities) {
+  Widget _fulfilmentForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -474,43 +573,15 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
           ],
         ),
         const SizedBox(height: 14),
-        cities.when(
-          loading: () => const LinearProgressIndicator(minHeight: 2),
-          error: (error, _) => _InlineFailure(
-            message: error is ApiFailure
-                ? error.message
-                : 'Covered cities could not be loaded.',
-            onRetry: () => ref.invalidate(renewalServiceCitiesProvider),
-          ),
-          data: (items) => DropdownButtonFormField<String>(
-            initialValue: items.any((item) => item.city == _city)
-                ? _city
-                : null,
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Service city',
-              prefixIcon: Icon(Icons.location_city_outlined),
-            ),
-            items: items
-                .map(
-                  (item) => DropdownMenuItem(
-                    value: item.city,
-                    child: Text('${item.city}, ${item.state}'),
-                  ),
-                )
-                .toList(growable: false),
-            onChanged: (value) {
-              final match = items
-                  .where((item) => item.city == value)
-                  .firstOrNull;
-              setState(() {
-                _city = match?.city ?? '';
-                _state = match?.state ?? '';
-                _error = null;
-              });
-              _scheduleQuote();
-            },
-          ),
+        // The city was chosen in step 2 (it set the papers' availability and
+        // prices); changing it goes back there.
+        _ChosenCity(
+          city: _city,
+          state: _state,
+          onChange: () => setState(() {
+            _step = 2;
+            _error = null;
+          }),
         ),
         if (_deliveryMethod == 'DELIVERY') ...[
           const SizedBox(height: 10),
@@ -859,7 +930,8 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
     final id = vehicle?.id ?? _vehicleId;
     if (id.isEmpty) return;
     await context.push('/vehicles/$id?tab=documents');
-    ref.invalidate(renewableDocumentsProvider(id));
+    // New upload may make a paper orderable — refresh every city's list.
+    ref.invalidate(renewableDocumentsProvider);
   }
 
   VehicleSummary? _findVehicle(List<VehicleSummary> vehicles, String id) {
@@ -1195,9 +1267,14 @@ class _DocumentChoice extends StatelessWidget {
                 ),
               ),
               Text(
-                '₦${_money(document.renewalCostNaira)}',
-                style: const TextStyle(
-                  color: AppColors.forest700,
+                // A price means nothing where the paper isn't offered.
+                document.available
+                    ? '₦${_money(document.renewalCostNaira)}'
+                    : 'Not offered here',
+                style: TextStyle(
+                  color: document.available
+                      ? AppColors.forest700
+                      : AppColors.muted,
                   fontSize: 10,
                   fontWeight: FontWeight.w900,
                 ),
@@ -1591,4 +1668,86 @@ String _money(String value) {
       ? parts[1].padRight(2, '0').substring(0, 2)
       : '00';
   return '${whole < 0 ? '-' : ''}$buffer.$decimal';
+}
+
+/// Shown in step 2 until a covered city is chosen.
+class _ChooseCityPrompt extends StatelessWidget {
+  const _ChooseCityPrompt();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.forest50,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.place_outlined, color: AppColors.forest700),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Choose your service city to see which papers can be renewed there and what they cost.',
+              style: TextStyle(
+                color: AppColors.forest700,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Step 3's read-only view of the order's city, with a way back to change it.
+class _ChosenCity extends StatelessWidget {
+  const _ChosenCity({
+    required this.city,
+    required this.state,
+    required this.onChange,
+  });
+
+  final String city;
+  final String state;
+  final VoidCallback onChange;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.location_city_outlined, color: AppColors.muted),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Service city',
+                  style: TextStyle(color: AppColors.muted, fontSize: 10.5),
+                ),
+                Text(
+                  '$city, $state',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButton(onPressed: onChange, child: const Text('Change')),
+        ],
+      ),
+    );
+  }
 }

@@ -18,6 +18,7 @@ class RenewableDocumentOption {
     required this.type,
     required this.name,
     required this.renewalCostNaira,
+    this.available = true,
     required this.eligible,
     required this.reason,
     required this.hasDocument,
@@ -29,7 +30,11 @@ class RenewableDocumentOption {
   final String id;
   final String type;
   final String name;
+  /// Price in the selected covered city (base price when none is selected).
   final String renewalCostNaira;
+
+  /// False when the paper isn't offered in the selected covered city.
+  final bool available;
   final bool eligible;
   final String? reason;
   final bool hasDocument;
@@ -43,6 +48,7 @@ class RenewableDocumentOption {
       type: json['type']?.toString() ?? '',
       name: json['name']?.toString() ?? 'Vehicle paper',
       renewalCostNaira: json['renewal_cost_naira']?.toString() ?? '0.00',
+      available: json['available'] != false,
       eligible: json['eligible'] == true,
       reason: json['reason']?.toString(),
       hasDocument: json['has_document'] == true,
