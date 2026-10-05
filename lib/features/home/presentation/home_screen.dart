@@ -103,7 +103,7 @@ class HomeScreen extends ConsumerWidget {
                   _RenewalsInProgressCard(renewals: activeRenewals),
 
                   const SizedBox(height: 22),
-                  _RecentBlogPostsSlider(
+                  HomeRecentNewsSection(
                     feed: recentNews,
                     onRetry: () =>
                         ref.invalidate(newsFeedProvider(dashboardNewsQuery)),
@@ -995,17 +995,21 @@ class _RenewalRow extends StatelessWidget {
 
 /* ----------------------------- Recent blogs ------------------------------- */
 
-class _RecentBlogPostsSlider extends StatefulWidget {
-  const _RecentBlogPostsSlider({required this.feed, required this.onRetry});
+class HomeRecentNewsSection extends StatefulWidget {
+  const HomeRecentNewsSection({
+    required this.feed,
+    required this.onRetry,
+    super.key,
+  });
 
   final AsyncValue<NewsPage> feed;
   final VoidCallback onRetry;
 
   @override
-  State<_RecentBlogPostsSlider> createState() => _RecentBlogPostsSliderState();
+  State<HomeRecentNewsSection> createState() => _HomeRecentNewsSectionState();
 }
 
-class _RecentBlogPostsSliderState extends State<_RecentBlogPostsSlider> {
+class _HomeRecentNewsSectionState extends State<HomeRecentNewsSection> {
   late final PageController _controller;
   Timer? _autoPlay;
   int _current = 0;
@@ -1017,7 +1021,7 @@ class _RecentBlogPostsSliderState extends State<_RecentBlogPostsSlider> {
   @override
   void initState() {
     super.initState();
-    _controller = PageController(viewportFraction: .9);
+    _controller = PageController(viewportFraction: .88);
     _autoPlay = Timer.periodic(const Duration(seconds: 6), (_) {
       if (!mounted || !_controller.hasClients || _articles.length < 2) return;
       final next = (_current + 1) % _articles.length;
@@ -1030,7 +1034,7 @@ class _RecentBlogPostsSliderState extends State<_RecentBlogPostsSlider> {
   }
 
   @override
-  void didUpdateWidget(covariant _RecentBlogPostsSlider oldWidget) {
+  void didUpdateWidget(covariant HomeRecentNewsSection oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (_articles.isNotEmpty && _current >= _articles.length) {
       _current = 0;
@@ -1053,37 +1057,61 @@ class _RecentBlogPostsSliderState extends State<_RecentBlogPostsSlider> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            Container(width: 4, height: 42, color: AppColors.orange),
+            const SizedBox(width: 11),
             const Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Recent blog posts',
+                    'FROM THE NEWSROOM',
                     style: TextStyle(
-                      color: AppColors.ink,
-                      fontSize: 17,
+                      color: AppColors.forest700,
+                      fontSize: 9,
                       fontWeight: FontWeight.w900,
+                      letterSpacing: 1.15,
                     ),
                   ),
                   SizedBox(height: 3),
                   Text(
-                    'News, guides and updates for Nigerian roads.',
-                    style: TextStyle(color: AppColors.muted, fontSize: 11.5),
+                    'Latest road stories',
+                    style: TextStyle(
+                      color: AppColors.ink,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -.25,
+                    ),
                   ),
                 ],
               ),
             ),
             TextButton(
               onPressed: () => context.go('/news'),
-              child: const Text(
-                'View all',
-                style: TextStyle(fontWeight: FontWeight.w800),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.forest700,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'VIEW ALL',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: .7,
+                    ),
+                  ),
+                  SizedBox(width: 3),
+                  Icon(Icons.arrow_forward_rounded, size: 15),
+                ],
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 15),
         widget.feed.when(
           loading: () => const _BlogSliderSkeleton(),
           error: (_, _) => _BlogSliderError(onRetry: widget.onRetry),
@@ -1092,7 +1120,7 @@ class _RecentBlogPostsSliderState extends State<_RecentBlogPostsSlider> {
               : Column(
                   children: [
                     SizedBox(
-                      height: 236,
+                      height: 294,
                       child: PageView.builder(
                         controller: _controller,
                         clipBehavior: Clip.none,
@@ -1100,57 +1128,49 @@ class _RecentBlogPostsSliderState extends State<_RecentBlogPostsSlider> {
                         itemCount: _articles.length,
                         onPageChanged: (index) =>
                             setState(() => _current = index),
-                        itemBuilder: (context, index) {
-                          return AnimatedBuilder(
-                            animation: _controller,
-                            builder: (context, child) {
-                              var pageValue = _current.toDouble();
-                              if (_controller.hasClients &&
-                                  _controller.position.haveDimensions) {
-                                pageValue = _controller.page ?? pageValue;
-                              }
-                              final distance = (pageValue - index).abs().clamp(
-                                0.0,
-                                1.0,
-                              );
-                              final scale = 1 - (distance * .045);
-                              return Transform.scale(
-                                scale: scale,
-                                alignment: Alignment.centerLeft,
-                                child: Opacity(
-                                  opacity: 1 - (distance * .18),
-                                  child: child,
-                                ),
-                              );
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.only(right: 12),
-                              child: _BlogSlide(article: _articles[index]),
-                            ),
-                          );
-                        },
+                        itemBuilder: (context, index) => Padding(
+                          padding: const EdgeInsets.only(right: 14),
+                          child: _BlogSlide(article: _articles[index]),
+                        ),
                       ),
                     ),
                     if (_articles.length > 1) ...[
-                      const SizedBox(height: 11),
+                      const SizedBox(height: 12),
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(
-                          _articles.length,
-                          (index) => AnimatedContainer(
-                            duration: const Duration(milliseconds: 280),
-                            curve: Curves.easeOutCubic,
-                            width: index == _current ? 20 : 6,
-                            height: 6,
-                            margin: const EdgeInsets.symmetric(horizontal: 3),
-                            decoration: BoxDecoration(
-                              color: index == _current
-                                  ? AppColors.orange
-                                  : AppColors.border,
-                              borderRadius: BorderRadius.circular(20),
+                        children: [
+                          Text(
+                            '${(_current + 1).toString().padLeft(2, '0')} / ${_articles.length.toString().padLeft(2, '0')}',
+                            style: const TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: .7,
                             ),
                           ),
-                        ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Row(
+                              children: List.generate(
+                                _articles.length,
+                                (index) => Expanded(
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 240),
+                                    curve: Curves.easeOutCubic,
+                                    height: index == _current ? 3 : 1,
+                                    margin: EdgeInsets.only(
+                                      right: index == _articles.length - 1
+                                          ? 0
+                                          : 5,
+                                    ),
+                                    color: index == _current
+                                        ? AppColors.orange
+                                        : AppColors.border,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ],
@@ -1168,102 +1188,166 @@ class _BlogSlide extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.forest950,
-      borderRadius: BorderRadius.circular(20),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.push('/news/${article.slug}'),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (article.coverImageUrl?.isNotEmpty == true)
-              Image.network(
-                article.coverImageUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => const _BlogImageFallback(),
-              )
-            else
-              const _BlogImageFallback(),
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  stops: [0, .38, 1],
-                  colors: [
-                    Color(0x12000000),
-                    Color(0x6B021B13),
-                    Color(0xFA021B13),
-                  ],
-                ),
-              ),
-            ),
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 15,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (article.category?.isNotEmpty == true)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.orange,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        article.category!.toUpperCase(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 8.5,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: .65,
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 8),
-                  Text(
-                    article.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w900,
-                      height: 1.18,
-                    ),
-                  ),
-                  const SizedBox(height: 7),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '${_formatBlogDate(article.publishedAt)} · ${article.readingMinutes} min read',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: .67),
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w600,
+    final excerpt = article.excerpt?.trim();
+    return Container(
+      key: ValueKey('home-news-card-${article.slug}'),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.forest950.withValues(alpha: .07),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => context.push('/news/${article.slug}'),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                height: 126,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (article.coverImageUrl?.isNotEmpty == true)
+                      Image.network(
+                        article.coverImageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => const _BlogImageFallback(),
+                      )
+                    else
+                      const _BlogImageFallback(),
+                    if (article.category?.isNotEmpty == true)
+                      Positioned(
+                        left: 0,
+                        bottom: 0,
+                        child: Container(
+                          color: AppColors.orange,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          child: Text(
+                            article.category!.toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 8,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: .75,
+                            ),
                           ),
                         ),
                       ),
-                      const Icon(
-                        Icons.arrow_forward_rounded,
-                        color: Color(0xFF75DFB8),
-                        size: 19,
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 11),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              article.author?.trim().isNotEmpty == true
+                                  ? article.author!.trim().toUpperCase()
+                                  : 'TRAVLA EDITORIAL',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: AppColors.forest700,
+                                fontSize: 8,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: .65,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            _formatBlogDate(article.publishedAt),
+                            style: const TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 7),
+                      Text(
+                        article.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.ink,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          height: 1.16,
+                          letterSpacing: -.2,
+                        ),
+                      ),
+                      if (excerpt?.isNotEmpty == true) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          excerpt!,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 10.5,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                      const Spacer(),
+                      Container(height: 1, color: AppColors.border),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.schedule_rounded,
+                            color: AppColors.muted,
+                            size: 14,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            '${article.readingMinutes} min read',
+                            style: const TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const Spacer(),
+                          const Text(
+                            'READ STORY',
+                            style: TextStyle(
+                              color: AppColors.forest700,
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: .65,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.arrow_forward_rounded,
+                            color: AppColors.orange,
+                            size: 16,
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1300,10 +1384,10 @@ class _BlogSliderSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 236,
+      height: 294,
       decoration: BoxDecoration(
         color: AppColors.border.withValues(alpha: .55),
-        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
       ),
     );
   }
@@ -1321,7 +1405,6 @@ class _BlogSliderError extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.border),
       ),
       child: Row(
@@ -1351,7 +1434,6 @@ class _EmptyBlogSlider extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.border),
       ),
       child: const Text(
