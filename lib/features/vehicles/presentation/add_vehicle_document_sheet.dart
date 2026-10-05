@@ -12,6 +12,7 @@ Future<bool?> showAddVehicleDocumentSheet({
   required BuildContext context,
   required String vehicleId,
   DocumentTypeFilter filter = DocumentTypeFilter.all,
+  String? initialDocumentType,
 }) {
   return showModalBottomSheet<bool>(
     context: context,
@@ -21,8 +22,11 @@ Future<bool?> showAddVehicleDocumentSheet({
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
     ),
-    builder: (context) =>
-        AddVehicleDocumentSheet(vehicleId: vehicleId, filter: filter),
+    builder: (context) => AddVehicleDocumentSheet(
+      vehicleId: vehicleId,
+      filter: filter,
+      initialDocumentType: initialDocumentType,
+    ),
   );
 }
 
@@ -30,11 +34,13 @@ class AddVehicleDocumentSheet extends ConsumerStatefulWidget {
   const AddVehicleDocumentSheet({
     required this.vehicleId,
     required this.filter,
+    this.initialDocumentType,
     super.key,
   });
 
   final String vehicleId;
   final DocumentTypeFilter filter;
+  final String? initialDocumentType;
 
   @override
   ConsumerState<AddVehicleDocumentSheet> createState() =>
@@ -55,6 +61,13 @@ class _AddVehicleDocumentSheetState
   String? _error;
   bool _isSubmitting = false;
   double? _uploadProgress;
+
+  @override
+  void initState() {
+    super.initState();
+    final initialType = widget.initialDocumentType?.trim();
+    _selectedTypeValue = initialType?.isNotEmpty == true ? initialType : null;
+  }
 
   @override
   void dispose() {
@@ -113,7 +126,10 @@ class _AddVehicleDocumentSheetState
     AsyncValue<List<String>> states,
   ) {
     final selected = types
-        .where((type) => type.type == _selectedTypeValue)
+        .where(
+          (type) =>
+              type.type.toUpperCase() == _selectedTypeValue?.toUpperCase(),
+        )
         .firstOrNull;
     final isRenewable = selected?.isRenewable == true;
     final derivedExpiry = _issuedDate == null
@@ -187,24 +203,42 @@ class _AddVehicleDocumentSheetState
                   title: 'Choose the paper',
                   helper: 'Select the exact record you want to store.',
                   child: DropdownButtonFormField<String>(
-                    initialValue: _selectedTypeValue,
+                    key: const ValueKey('document-type-dropdown'),
+                    initialValue: selected?.type,
                     isExpanded: true,
+                    itemHeight: 66,
+                    menuMaxHeight: 390,
+                    borderRadius: BorderRadius.circular(18),
+                    dropdownColor: AppColors.white,
+                    elevation: 12,
+                    icon: const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: AppColors.forest700,
+                    ),
                     decoration: const InputDecoration(
                       labelText: 'Document type',
-                      prefixIcon: Icon(Icons.description_outlined),
+                      filled: true,
+                      fillColor: AppColors.forest50,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(12)),
+                        borderSide: BorderSide(color: AppColors.forest100),
+                      ),
                     ),
                     items: types
                         .map(
                           (type) => DropdownMenuItem(
                             value: type.type,
-                            child: Text(
-                              type.alreadyAdded
-                                  ? '${type.name} · replace'
-                                  : type.name,
-                              overflow: TextOverflow.ellipsis,
+                            child: _DocumentTypeOption(
+                              key: ValueKey(
+                                'document-type-option-${type.type}',
+                              ),
+                              type: type,
                             ),
                           ),
                         )
+                        .toList(growable: false),
+                    selectedItemBuilder: (context) => types
+                        .map((type) => _SelectedDocumentType(type: type))
                         .toList(growable: false),
                     onChanged: _isSubmitting
                         ? null
@@ -540,6 +574,138 @@ class _AddVehicleDocumentSheetState
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
+  }
+}
+
+class _DocumentTypeOption extends StatelessWidget {
+  const _DocumentTypeOption({required this.type, super.key});
+
+  final AvailableDocumentType type;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: type.alreadyAdded
+                  ? AppColors.orangeSoft
+                  : AppColors.forest50,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: type.alreadyAdded
+                    ? const Color(0xFFFFC9B7)
+                    : AppColors.forest100,
+              ),
+            ),
+            child: Icon(
+              type.alreadyAdded
+                  ? Icons.find_in_page_outlined
+                  : Icons.description_outlined,
+              size: 20,
+              color: type.alreadyAdded
+                  ? AppColors.orangeDark
+                  : AppColors.forest700,
+            ),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  type.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.ink,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  type.alreadyAdded
+                      ? 'A current copy exists in your vault'
+                      : 'Add this paper to your document vault',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: AppColors.muted, fontSize: 10),
+                ),
+              ],
+            ),
+          ),
+          if (type.alreadyAdded) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.orangeSoft,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: const Text(
+                'REPLACE',
+                style: TextStyle(
+                  color: AppColors.orangeDark,
+                  fontSize: 8,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: .45,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SelectedDocumentType extends StatelessWidget {
+  const _SelectedDocumentType({required this.type});
+
+  final AvailableDocumentType type;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Icon(
+          Icons.description_outlined,
+          size: 20,
+          color: AppColors.forest700,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            type.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppColors.ink,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        if (type.alreadyAdded)
+          const Padding(
+            padding: EdgeInsets.only(left: 8),
+            child: Text(
+              'Replace',
+              style: TextStyle(
+                color: AppColors.orangeDark,
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+      ],
+    );
   }
 }
 

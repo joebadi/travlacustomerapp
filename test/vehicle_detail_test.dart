@@ -390,6 +390,65 @@ void main() {
     expect(find.text('Save to document vault'), findsOneWidget);
   });
 
+  testWidgets('add document sheet preselects a requested renewable paper', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          availableDocumentTypesProvider('vehicle-1').overrideWith(
+            (ref) async => const [
+              AvailableDocumentType(
+                type: 'VEHICLE_INSPECTION',
+                name: 'Vehicle Inspection',
+                description: 'Current vehicle inspection paper.',
+                category: 'RENEWABLE',
+                requiresUpload: true,
+                alreadyAdded: false,
+              ),
+              AvailableDocumentType(
+                type: 'VEHICLE_LICENCE',
+                name: 'Vehicle Licence',
+                description: 'Annual vehicle licence.',
+                category: 'RENEWABLE',
+                requiresUpload: true,
+                alreadyAdded: true,
+              ),
+            ],
+          ),
+          vehicleDocumentStatesProvider.overrideWith(
+            (ref) async => const ['Delta'],
+          ),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: AddVehicleDocumentSheet(
+              vehicleId: 'vehicle-1',
+              filter: DocumentTypeFilter.renewable,
+              initialDocumentType: 'VEHICLE_INSPECTION',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Vehicle Inspection'), findsOneWidget);
+    expect(find.text('Record the details'), findsOneWidget);
+    expect(find.text('Current vehicle inspection paper.'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('document-type-dropdown')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('document-type-option-VEHICLE_INSPECTION')),
+      findsOneWidget,
+    );
+    expect(find.text('A current copy exists in your vault'), findsOneWidget);
+    expect(find.text('REPLACE'), findsOneWidget);
+  });
+
   testWidgets('Tint Permit explains automatic vehicle correction', (
     tester,
   ) async {

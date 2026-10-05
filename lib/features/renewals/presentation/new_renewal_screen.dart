@@ -12,6 +12,7 @@ import 'package:travla_customer_app/features/renewals/data/renewal_repository.da
 import 'package:travla_customer_app/features/renewals/domain/renewal_models.dart';
 import 'package:travla_customer_app/features/vehicles/data/garage_repository.dart';
 import 'package:travla_customer_app/features/vehicles/domain/garage_snapshot.dart';
+import 'package:travla_customer_app/features/vehicles/presentation/add_vehicle_document_sheet.dart';
 import 'package:travla_customer_app/features/wallet/data/wallet_repository.dart';
 
 class NewRenewalScreen extends ConsumerStatefulWidget {
@@ -234,7 +235,7 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
                                 })
                               : null,
                           onUpload: item.needsUpload
-                              ? () => _openVehicleDocuments(vehicle)
+                              ? () => _openAddCurrentPaper(vehicle, item)
                               : null,
                         ),
                       ),
@@ -297,7 +298,8 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
       data: (items) => DropdownButtonFormField<String>(
         // Keyed on the city so a programmatic change (prefill) is reflected.
         key: ValueKey('city-$_city-$_state'),
-        initialValue: items.any((item) => item.city == _city && item.state == _state)
+        initialValue:
+            items.any((item) => item.city == _city && item.state == _state)
             ? '$_city|$_state'
             : null,
         isExpanded: true,
@@ -343,7 +345,8 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
     RenewalServiceCity? pick;
     if (userCity.isNotEmpty) {
       final sameName = items.where((c) => c.city.toLowerCase() == userCity);
-      pick = sameName
+      pick =
+          sameName
               .where((c) => c.state.toLowerCase() == userState)
               .firstOrNull ??
           sameName.firstOrNull;
@@ -364,8 +367,9 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
   /// After the city changes, drop selections that aren't orderable there.
   void _pruneSelections(List<RenewableDocumentOption> items) {
     final orderable = items.where((i) => i.eligible).map((i) => i.id).toSet();
-    final stale =
-        _selectedDocuments.where((id) => !orderable.contains(id)).toList();
+    final stale = _selectedDocuments
+        .where((id) => !orderable.contains(id))
+        .toList();
     if (stale.isEmpty) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -392,8 +396,7 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
           .where(
             (item) =>
                 item.eligible &&
-                item.type.toUpperCase() ==
-                    widget.preselectType.toUpperCase(),
+                item.type.toUpperCase() == widget.preselectType.toUpperCase(),
           )
           .map((item) => item.id)
           .toSet();
@@ -485,9 +488,8 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
 
   /// A vehicle has live cover when any non-pending policy is active and unexpired.
   /// In that case an *expired* policy is no longer offered for renewal.
-  static bool _hasActiveCover(List<InsurancePolicy> policies) => policies.any(
-    (p) => !p.isPending && p.status == 'ACTIVE' && !p.isExpired,
-  );
+  static bool _hasActiveCover(List<InsurancePolicy> policies) =>
+      policies.any((p) => !p.isPending && p.status == 'ACTIVE' && !p.isExpired);
 
   static bool _isRenewable(InsurancePolicy policy, bool hasActiveCover) =>
       policy.canRenew && !(policy.isExpired && hasActiveCover);
@@ -926,12 +928,25 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
     await _autoQuote();
   }
 
-  Future<void> _openVehicleDocuments(VehicleSummary? vehicle) async {
+  Future<void> _openAddCurrentPaper(
+    VehicleSummary? vehicle,
+    RenewableDocumentOption document,
+  ) async {
     final id = vehicle?.id ?? _vehicleId;
     if (id.isEmpty) return;
-    await context.push('/vehicles/$id?tab=documents');
-    // New upload may make a paper orderable — refresh every city's list.
+
+    final saved = await showAddVehicleDocumentSheet(
+      context: context,
+      vehicleId: id,
+      filter: DocumentTypeFilter.renewable,
+      initialDocumentType: document.type,
+    );
+    if (!mounted || saved != true) return;
+
+    // The new copy may make this paper orderable immediately. Refresh the
+    // eligibility list without making the customer leave the renewal flow.
     ref.invalidate(renewableDocumentsProvider);
+    ref.invalidate(garageProvider);
   }
 
   VehicleSummary? _findVehicle(List<VehicleSummary> vehicles, String id) {
