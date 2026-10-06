@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -110,7 +111,7 @@ class PushService {
     if ((launch?.didNotificationLaunchApp ?? false) &&
         launchPayload != null &&
         launchPayload.isNotEmpty) {
-      _navigate(launchPayload);
+      _handleLocalPayload(launchPayload);
     }
 
     await _local.initialize(
@@ -120,7 +121,9 @@ class PushService {
       ),
       onDidReceiveNotificationResponse: (response) {
         final payload = response.payload;
-        if (payload != null && payload.isNotEmpty) _navigate(payload);
+        if (payload != null && payload.isNotEmpty) {
+          _handleLocalPayload(payload);
+        }
       },
     );
 
@@ -145,7 +148,9 @@ class PushService {
     if (title == null && body == null) return;
 
     await _local.show(
-      id: notification?.hashCode ?? DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      id:
+          notification?.hashCode ??
+          DateTime.now().millisecondsSinceEpoch ~/ 1000,
       title: title,
       body: body,
       notificationDetails: const NotificationDetails(
@@ -157,19 +162,48 @@ class PushService {
         ),
         iOS: DarwinNotificationDetails(),
       ),
-      payload: _routeFor(message.data),
+      payload: jsonEncode({
+        'route': notificationRouteFor(message.data),
+        if (message.data['notification_id'] != null)
+          'notification_id': message.data['notification_id'].toString(),
+      }),
     );
   }
 
   void _handleRoute(Map<String, dynamic> data) {
-    final route = _routeFor(data);
-    // Opening an article straight from the push skips the notifications
-    // screen, so mark the in-app copy read here instead.
+    final route = notificationRouteFor(data);
+    // Direct action routes skip the notification inbox, so mark the in-app
+    // copy read when the user explicitly taps the push.
     final id = data['notification_id']?.toString();
-    if (route.startsWith('/news/') && id != null && id.isNotEmpty) {
+    if (!route.startsWith('/notifications') && id != null && id.isNotEmpty) {
       _ref.read(notificationRepositoryProvider).markRead(id).catchError((_) {});
     }
     _navigate(route);
+  }
+
+  void _handleLocalPayload(String payload) {
+    // Payloads created before this release contain the route as plain text.
+    // Keep them valid while preserving the notification id for new payloads.
+    try {
+      final decoded = jsonDecode(payload);
+      if (decoded is Map) {
+        final route = decoded['route']?.toString() ?? '';
+        final id = decoded['notification_id']?.toString();
+        if (!route.startsWith('/notifications') &&
+            id != null &&
+            id.isNotEmpty) {
+          _ref
+              .read(notificationRepositoryProvider)
+              .markRead(id)
+              .catchError((_) {});
+        }
+        _navigate(route);
+        return;
+      }
+    } catch (_) {
+      // Fall through to the legacy plain-route payload.
+    }
+    _navigate(payload);
   }
 
   void _navigate(String route) {
@@ -196,20 +230,6 @@ class PushService {
         // Route not available — stay put.
       }
     });
-  }
-
-  /// Always resolves to a valid in-app route. Deep-links to the specific
-  /// notification when the backend includes its id, else the notifications list.
-  String _routeFor(Map<String, dynamic> data) {
-    // A Car Talk article push opens the article itself.
-    final target = nativeNotificationPath(data['action_url']?.toString());
-    if (target != null && target.startsWith('/news/')) return target;
-
-    final id = data['notification_id']?.toString();
-    if (id != null && id.isNotEmpty) {
-      return '/notifications?selected=${Uri.encodeComponent(id)}';
-    }
-    return '/notifications';
   }
 
   String _platform() => Platform.isIOS ? 'ios' : 'android';

@@ -145,7 +145,7 @@ Items may be progressively enabled, but disabled placeholders must clearly say
 | Driver's-licence renewal | 🧪 | — | Licence list, add-licence (with document upload), eligibility-gated renewal with delivery/city/wallet quote and order handoff are coded. Hybrid card top-up remains. |
 | Ownership transfer | 🟡 | 🧪 | Managed/offline creation, records, detail timeline, consent, evidence, correction resubmission and permitted cancellation are coded; hybrid wallet top-up remains. |
 | Marketplace | 🟡 | 🧪 | Seller activation, owned-vehicle picker, eligibility-aware listing creation and seller listing summary are coded; browse, offers, wanted and settlement remain. |
-| Fleet | 🟡 | — | Individual/fleet mode toggle (persisted) + fleet home (companies, invites accept, create company) + org overview (dashboard KPIs, members, vehicles). Deep management (invite member, assign vehicle/driver, fuel funding, cards, regions/drivers CRUD) still to build. (`lib/features/fleet/`) |
+| Fleet | 🟡 | — | Server-backed fleet directory (companies and invitations), create company, validated organisation selection, typed capabilities/scope and an org overview (dashboard KPIs, members, vehicles). Deep management (invite member, assign vehicle/driver, fuel funding, cards, regions/drivers CRUD) still to build. (`lib/features/fleet/`) |
 | Journeys | 🧪 | — | Journeys list, record (live map + GPS stream + batched point upload + distance/duration/speed), replay detail (trail polyline + stats + delete), and community road-report submission during recording. (`lib/features/journeys/`) |
 | Car Talk forum | 🧪 | — | Category filter + sort + thread list, thread detail with replies/like/delete, reply composer, new-thread create. (`lib/features/forum/`) |
 | Stolen vehicle registry | ✅ | 🧪 | The canonical mobile Reports screen paints before networking, isolates registry/statistics/personal failures, and includes plate checks, filters, theft reporting, sightings and owner case management. Compact-device and total-request-failure regressions are covered. (`lib/features/stolen/`) |
@@ -483,19 +483,28 @@ exposing buyer contact details by default.
 **Goal:** Let verified business customers operate one or several organisations
 without mixing organisation data or permissions.
 
+**Controlling Fleet specification:** `../../docs/FLEET_IMPLEMENTATION_SPEC.md`.
+That document defines the web/mobile product split, capabilities, API evolution,
+delivery phases and release gates. This checklist remains a mobile scope summary.
+
 - [ ] Block fleet creation until customer identity requirements are satisfied.
 - [ ] Create fleet organisation.
-- [ ] Organisation selector for multi-company users.
+- [x] Organisation selector for multi-company users, with server-backed
+  membership and selected-workspace response validation.
 - [ ] Fleet details and edit screen.
 - [ ] Soft-delete organisation, restore window and permanent-delete policy.
-- [ ] Accept organisation invitation.
+- [x] Accept organisation invitation.
 - [ ] Green-gradient fleet module navigation with orange active state.
-- [ ] Overview: total vehicles, renewal status and wallet/funding readiness.
-- [ ] Vehicles tab and document readiness.
+- [x] Overview: scoped health KPIs and typed action desk; detailed renewal and
+  funding readiness continue in the operational-actions phase.
+- [x] Paginated Vehicles tab, search/operational filters and document-readiness
+  detail.
 - [ ] Live map and tracking states.
 - [ ] Drivers, regions, teams and member permissions.
 - [ ] Fuel control, cards, allocations and transaction queue visibility.
-- [ ] Role/region-scoped actions based only on server capabilities.
+- [ ] Role/region-scoped actions based only on server capabilities. Typed
+  capabilities and scope are in place; remaining operational screens must adopt
+  them as they are built.
 - [ ] Fleet renewal planning and wallet-funding prompts.
 - [ ] Fleet notifications and action desk.
 - [ ] Later: fleet journeys, approved routes and deviation alerts.

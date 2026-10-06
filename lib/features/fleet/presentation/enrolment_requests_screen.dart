@@ -21,12 +21,21 @@ class _EnrolmentRequestsScreenState
     extends ConsumerState<EnrolmentRequestsScreen> {
   String? _busyId;
 
-  Future<void> _run(String id, Future<void> Function() action) async {
+  Future<void> _run(
+    String id,
+    Future<void> Function() action, {
+    String? successMessage,
+  }) async {
     setState(() => _busyId = id);
     try {
       await action();
       ref.invalidate(pendingEnrolmentsProvider);
       ref.invalidate(myEnrolmentsProvider);
+      if (mounted && successMessage != null) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(successMessage)));
+      }
     } on ApiFailure catch (f) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -61,7 +70,10 @@ class _EnrolmentRequestsScreenState
       ),
     );
     if (ok == true) {
-      await _run(e.id, () => ref.read(enrolmentRepositoryProvider).revoke(e.id));
+      await _run(
+        e.id,
+        () => ref.read(enrolmentRepositoryProvider).revoke(e.id),
+      );
     }
   }
 
@@ -91,7 +103,9 @@ class _EnrolmentRequestsScreenState
             pending.when(
               loading: () => const _Loading(),
               error: (e, _) => _Error(
-                message: e is ApiFailure ? e.message : 'Could not load requests.',
+                message: e is ApiFailure
+                    ? e.message
+                    : 'Could not load requests.',
                 onRetry: () => ref.invalidate(pendingEnrolmentsProvider),
               ),
               data: (list) => list.isEmpty
@@ -107,12 +121,15 @@ class _EnrolmentRequestsScreenState
                               () => ref
                                   .read(enrolmentRepositoryProvider)
                                   .approve(e.id),
+                              successMessage:
+                                  'Approved — the vehicle is now in the fleet.',
                             ),
                             onDecline: () => _run(
                               e.id,
                               () => ref
                                   .read(enrolmentRepositoryProvider)
                                   .decline(e.id),
+                              successMessage: 'Request declined.',
                             ),
                           ),
                       ],
@@ -162,7 +179,11 @@ class _Intro extends StatelessWidget {
       child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.verified_user_outlined, color: AppColors.forest700, size: 20),
+          Icon(
+            Icons.verified_user_outlined,
+            color: AppColors.forest700,
+            size: 20,
+          ),
           SizedBox(width: 10),
           Expanded(
             child: Text(

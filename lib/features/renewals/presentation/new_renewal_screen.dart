@@ -8,6 +8,7 @@ import 'package:travla_customer_app/core/auth/auth_controller.dart';
 import 'package:travla_customer_app/core/network/api_failure.dart';
 import 'package:travla_customer_app/features/insurance/data/insurance_repository.dart';
 import 'package:travla_customer_app/features/insurance/domain/insurance_models.dart';
+import 'package:travla_customer_app/features/fleet/data/fleet_repository.dart';
 import 'package:travla_customer_app/features/renewals/data/renewal_repository.dart';
 import 'package:travla_customer_app/features/renewals/domain/renewal_models.dart';
 import 'package:travla_customer_app/features/vehicles/data/garage_repository.dart';
@@ -18,12 +19,14 @@ import 'package:travla_customer_app/features/wallet/data/wallet_repository.dart'
 class NewRenewalScreen extends ConsumerStatefulWidget {
   const NewRenewalScreen({
     this.vehicleId = '',
+    this.fleetOrganisationId = '',
     this.preselectExpired = false,
     this.preselectType = '',
     super.key,
   });
 
   final String vehicleId;
+  final String fleetOrganisationId;
 
   /// When true (deep-linked from the Documents tab's "Renew N expired"
   /// action), every already-expired eligible paper is auto-checked once the
@@ -85,6 +88,9 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
   Widget build(BuildContext context) {
     final garage = ref.watch(garageProvider);
     final cities = ref.watch(renewalServiceCitiesProvider);
+    final fleetOrganisation = widget.fleetOrganisationId.isEmpty
+        ? null
+        : ref.watch(fleetOrgProvider(widget.fleetOrganisationId));
     // Which papers are offered, and at what price, depends on the covered city,
     // so the list only loads once a city is chosen.
     final documents = _vehicleId.isEmpty || _city.isEmpty
@@ -107,6 +113,13 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 6, 16, 36),
             children: [
+              if (fleetOrganisation != null) ...[
+                _FleetRenewalContext(
+                  organisationName:
+                      fleetOrganisation.value?.name ?? 'Fleet company',
+                ),
+                const SizedBox(height: 12),
+              ],
               _RenewalIntro(vehicle: selectedVehicle),
               const SizedBox(height: 14),
               _StepRail(current: _step),
@@ -954,6 +967,49 @@ class _NewRenewalScreenState extends ConsumerState<NewRenewalScreen> {
       if (vehicle.id == id) return vehicle;
     }
     return null;
+  }
+}
+
+class _FleetRenewalContext extends StatelessWidget {
+  const _FleetRenewalContext({required this.organisationName});
+
+  final String organisationName;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+      decoration: BoxDecoration(
+        color: AppColors.forest50,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.business_outlined, color: AppColors.forest700),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  organisationName,
+                  style: const TextStyle(
+                    color: AppColors.forest700,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'Fleet renewal · payment comes from your personal Travla wallet.',
+                  style: TextStyle(color: AppColors.muted, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

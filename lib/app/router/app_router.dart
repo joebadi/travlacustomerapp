@@ -24,8 +24,11 @@ import 'package:travla_customer_app/features/stolen/presentation/report_tip_scre
 import 'package:travla_customer_app/features/forum/presentation/forum_thread_screen.dart';
 import 'package:travla_customer_app/features/forum/presentation/new_thread_screen.dart';
 import 'package:travla_customer_app/features/fleet/presentation/fleet_screen.dart';
-import 'package:travla_customer_app/features/fleet/presentation/create_org_screen.dart';
+import 'package:travla_customer_app/features/fleet/presentation/guided_create_org_screen.dart';
 import 'package:travla_customer_app/features/fleet/presentation/fleet_org_screen.dart';
+import 'package:travla_customer_app/features/fleet/presentation/fleet_fuel_screen.dart';
+import 'package:travla_customer_app/features/fleet/presentation/fleet_vehicle_screen.dart';
+import 'package:travla_customer_app/features/fleet/presentation/fleet_tracking_screen.dart';
 import 'package:travla_customer_app/features/fleet/presentation/enrolment_requests_screen.dart';
 import 'package:travla_customer_app/features/fleet/presentation/request_enrolment_screen.dart';
 import 'package:travla_customer_app/features/insurance/domain/insurance_models.dart';
@@ -267,6 +270,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                         path: 'new',
                         builder: (context, state) => NewRenewalScreen(
                           vehicleId: state.uri.queryParameters['vehicle'] ?? '',
+                          fleetOrganisationId:
+                              state.uri.queryParameters['fleet_org'] ?? '',
                           preselectExpired:
                               state.uri.queryParameters['preselect'] ==
                               'expired',
@@ -369,7 +374,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     routes: [
                       GoRoute(
                         path: 'new',
-                        builder: (context, state) => const CreateOrgScreen(),
+                        builder: (context, state) =>
+                            const GuidedCreateOrgScreen(),
                       ),
                       // Owner consent inbox (deep-linked from enrolment
                       // notifications). Must precede ':orgId' so it is not
@@ -386,10 +392,47 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                         ),
                         routes: [
                           GoRoute(
+                            path: 'tracking',
+                            builder: (context, state) => FleetTrackingScreen(
+                              organisationId:
+                                  state.pathParameters['orgId'] ?? '',
+                            ),
+                          ),
+                          GoRoute(
+                            path: 'fuel',
+                            builder: (context, state) => FleetFuelScreen(
+                              organisationId:
+                                  state.pathParameters['orgId'] ?? '',
+                            ),
+                            routes: [
+                              GoRoute(
+                                path: 'transactions/:transactionId',
+                                builder: (context, state) =>
+                                    FleetFuelTransactionScreen(
+                                      organisationId:
+                                          state.pathParameters['orgId'] ?? '',
+                                      transactionId:
+                                          state
+                                              .pathParameters['transactionId'] ??
+                                          '',
+                                    ),
+                              ),
+                            ],
+                          ),
+                          GoRoute(
                             path: 'enrol',
                             builder: (context, state) => RequestEnrolmentScreen(
                               organisationId:
                                   state.pathParameters['orgId'] ?? '',
+                            ),
+                          ),
+                          GoRoute(
+                            path: 'vehicles/:orgVehicleId',
+                            builder: (context, state) => FleetVehicleScreen(
+                              organisationId:
+                                  state.pathParameters['orgId'] ?? '',
+                              orgVehicleId:
+                                  state.pathParameters['orgVehicleId'] ?? '',
                             ),
                           ),
                         ],

@@ -29,7 +29,11 @@ class FleetScreen extends ConsumerWidget {
         color: AppColors.forest700,
         onRefresh: () async {
           ref.invalidate(fleetHomeProvider);
-          await ref.read(fleetHomeProvider.future).catchError((_) => const FleetHome(organisations: [], invites: []));
+          await ref
+              .read(fleetHomeProvider.future)
+              .catchError(
+                (_) => const FleetHome(organisations: [], invites: []),
+              );
         },
         child: home.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -37,8 +41,12 @@ class FleetScreen extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(16, 40, 16, 16),
             children: [
               Center(
-                child: Text(error is ApiFailure ? error.message : 'Your fleet could not be loaded.',
-                    textAlign: TextAlign.center),
+                child: Text(
+                  error is ApiFailure
+                      ? error.message
+                      : 'Your fleet could not be loaded.',
+                  textAlign: TextAlign.center,
+                ),
               ),
             ],
           ),
@@ -142,10 +150,7 @@ class _EnrolmentInboxTile extends StatelessWidget {
                   ),
                 )
               else
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  color: AppColors.muted,
-                ),
+                const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
             ],
           ),
         ),
@@ -178,31 +183,60 @@ class _OrgCard extends StatelessWidget {
               Container(
                 width: 46,
                 height: 46,
-                decoration: BoxDecoration(color: AppColors.forest50, borderRadius: BorderRadius.circular(13)),
-                child: const Icon(Icons.corporate_fare_rounded, color: AppColors.forest700),
+                decoration: BoxDecoration(
+                  color: AppColors.forest50,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: const Icon(
+                  Icons.corporate_fare_rounded,
+                  color: AppColors.forest700,
+                ),
               ),
               const SizedBox(width: 13),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(org.name ?? 'Company', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
+                    Text(
+                      org.name ?? 'Company',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 15,
+                      ),
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       [
                         if (org.roleLabel != null) org.roleLabel!,
-                        if (org.registrationNumber != null) org.registrationNumber!,
+                        if (org.registrationNumber != null)
+                          org.registrationNumber!,
                       ].join(' · '),
-                      style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
               ),
               if (org.isOwner)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: AppColors.forest50, borderRadius: BorderRadius.circular(20)),
-                  child: const Text('Owner', style: TextStyle(color: AppColors.forest700, fontSize: 10, fontWeight: FontWeight.w900)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.forest50,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Owner',
+                    style: TextStyle(
+                      color: AppColors.forest700,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
                 ),
               const SizedBox(width: 4),
               const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
@@ -231,6 +265,9 @@ class _InviteCardState extends ConsumerState<_InviteCard> {
     try {
       await ref.read(fleetRepositoryProvider).accept(widget.invite.id);
       ref.invalidate(fleetHomeProvider);
+      if (mounted) {
+        context.go('/more/fleet/${widget.invite.id}');
+      }
     } on ApiFailure catch (f) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -260,15 +297,29 @@ class _InviteCardState extends ConsumerState<_InviteCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(widget.invite.name ?? 'A company', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13.5)),
-                Text('Invited as ${widget.invite.roleLabel ?? 'member'}',
-                    style: const TextStyle(color: AppColors.orangeDark, fontSize: 11.5)),
+                Text(
+                  widget.invite.name ?? 'A company',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 13.5,
+                  ),
+                ),
+                Text(
+                  'Invited as ${widget.invite.roleLabel ?? 'member'}',
+                  style: const TextStyle(
+                    color: AppColors.orangeDark,
+                    fontSize: 11.5,
+                  ),
+                ),
               ],
             ),
           ),
           FilledButton(
             onPressed: _busy ? null : _accept,
-            style: FilledButton.styleFrom(backgroundColor: AppColors.orange, visualDensity: VisualDensity.compact),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.orange,
+              visualDensity: VisualDensity.compact,
+            ),
             child: Text(_busy ? '…' : 'Accept'),
           ),
         ],
@@ -304,8 +355,15 @@ class _Label extends StatelessWidget {
   final String text;
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(2, 0, 2, 10),
-        child: Text(text.toUpperCase(),
-            style: const TextStyle(color: AppColors.muted, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.1)),
-      );
+    padding: const EdgeInsets.fromLTRB(2, 0, 2, 10),
+    child: Text(
+      text.toUpperCase(),
+      style: const TextStyle(
+        color: AppColors.muted,
+        fontSize: 10,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 1.1,
+      ),
+    ),
+  );
 }

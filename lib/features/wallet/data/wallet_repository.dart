@@ -10,6 +10,23 @@ class WalletRepository {
 
   final ApiClient _apiClient;
 
+  Future<WalletBalance> balance() async {
+    try {
+      final response = await _apiClient.dio.get<Map<String, dynamic>>(
+        '/wallet',
+      );
+      final data = _map(response.data?['data']);
+      if (data == null) {
+        throw const ApiFailure(
+          'Travla returned an unexpected wallet response.',
+        );
+      }
+      return WalletBalance.fromJson(data);
+    } on DioException catch (exception) {
+      throw ApiFailure.fromDio(exception);
+    }
+  }
+
   Future<WalletWorkspace> workspace() async {
     try {
       final responses = await Future.wait([
@@ -110,4 +127,8 @@ final walletWorkspaceProvider = FutureProvider.autoDispose<WalletWorkspace>((
   ref,
 ) {
   return ref.watch(walletRepositoryProvider).workspace();
+});
+
+final walletBalanceProvider = FutureProvider.autoDispose<WalletBalance>((ref) {
+  return ref.watch(walletRepositoryProvider).balance();
 });
